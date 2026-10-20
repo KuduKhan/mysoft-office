@@ -26,10 +26,12 @@ test('rename, duplicate, style and delete sheets',()=>{
 });
 test('sort preserves headers and refuses formula corruption',()=>{
   const f={type:'sheets',cells:{A1:'Item',B1:'Value',A2:'Zebra',B2:'2',A3:'Apple',B3:'4'}};
+  setCellStyle(f,'B3','bold',true);
   sortSheet(f,'A','asc');
   assert.equal(f.cells.A1,'Item');
   assert.equal(f.cells.A2,'Apple');
   assert.equal(f.cells.B2,'4');
+  assert.equal(f.cellStyles.B2.bold,true);
   f.cells.C2='=B2*2';
   assert.throws(()=>sortSheet(f,'A','desc'));
 });
