@@ -10,6 +10,8 @@ import {addDocComment} from './doc-review.js';
 import {printPageCSS} from './doc-layout.js';
 import {auditSheet,traceCell} from './sheet-audit.js';
 import {alignSlideObject,resizeSlideObject} from './slide-align.js';
+import {applyDocumentBlockAction,blockIndexFromSelection,editableBlocks} from './doc-blocks.js';
+import {reorderSlideObject} from './slide-layers.js';
 
 const escapeHTML = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const COLORS=['#212d48','#6555e8','#176db3','#b04472','#e05d4a','#16957d'];
@@ -21,10 +23,11 @@ try{prefs={...defaultPrefs,...JSON.parse(localStorage.getItem(PREFS_KEY)||'{}')}
 let selectedTab={docs:'Home',sheets:'Home',slides:'Design',notes:'Write'};
 let savedRange=null;
 let lastTableLocation=null;
+let lastDocumentBlock={fileId:null,index:0};
 let slideshowIndex=0;
 let ribbonCollapsed=localStorage.getItem('mysoft-office-ribbon-collapsed')==='yes';
 const STUDIO_ACTIONS={
-  docs:['Home','Insert','Table','Layout','Review'],
+  docs:['Home','Insert','Structure','Table','Layout','Review'],
   notes:['Write','Organize'],
   sheets:['Home','Format','Range','Data','Insert'],
   slides:['Design','Shapes','Arrange','Present']
@@ -66,6 +69,11 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
       body=button('⊞ Table 3×3','insert-table')+button('Table size…','custom-table')+button('Picture','insert-picture')+button('— Divider','insert-hr')+
         button('🔗 Link','insert-link')+button('☐ Checklist','insert-checklist')+button('📅 Date','insert-date')+
         button('❝ Quote','insert-quote')+button('¶ Page break','insert-page-break');
+    } else if(active==='Structure'){
+      body=button('↑ Move block','block-up')+button('↓ Move block','block-down')+
+        button('H+ Promote','block-promote')+button('H− Demote','block-demote')+
+        button('＋ Section','block-section')+button('↡ Page break','block-break')+
+        '<span class="ot-metric">Select a paragraph first. Changes are saved in document history.</span>';
     } else if(active==='Table'){
       body=button('＋ Row below','table-add-row')+button('＋ Column right','table-add-column')+
         button('− Delete row','table-remove-row')+button('− Delete column','table-remove-column')+
@@ -115,6 +123,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         button('Sort A → Z','sort-asc')+button('Sort Z → A','sort-desc')+
         button('Auto SUM','insert-sum')+button('Auto AVERAGE','insert-avg')+
         button('Audit formulas','sheet-audit')+button('Trace cell','sheet-trace')+
+        button('Recalculate','sheet-recalculate')+
         '<span class="ot-metric">Sorting applies to column A and keeps row 1 as header. Formula sheets are protected.</span>';
     } else {
       body=button('▥ Bar chart','chart-bar')+button('◷ Line chart','chart-line')+
@@ -139,6 +148,9 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         button('←','shape-left','Move selected object left')+button('→','shape-right')+
         button('↑','shape-up')+button('↓','shape-down')+
         button('Duplicate','shape-duplicate')+button('Delete','shape-delete')+
+        button('Forward','layer-forward')+button('Backward','layer-backward')+
+        button('To front','layer-front')+button('To back','layer-back')+
+        button(slide.snapToGrid?'Grid: ON':'Grid: OFF','slide-snap-toggle')+
         '<span class="ot-metric">Click a shape to select; drag its handle to move.</span>';
     } else if(active==='Arrange'){
       body=button('↑ Move up','slide-up')+button('↓ Move down','slide-down')+
@@ -315,6 +327,12 @@ function syncSheet(ctx,f){
 export function initializeOfficeTools(ctx){
   applyPreferences();
   document.addEventListener('selectionchange',editorSelection);
+  document.addEventListener('selectionchange',()=>{
+    const file=ctx.getFile(),root=document.getElementById('rich-content');
+    if(file?.type!=='docs'||!root)return;
+    const index=blockIndexFromSelection(root,window.getSelection());
+    if(index!==null)lastDocumentBlock={fileId:file.id,index};
+  });
   document.addEventListener('pointerdown',event=>recordTableLocation(ctx,event.target));
   document.addEventListener('focusin',event=>recordTableLocation(ctx,event.target));
   document.addEventListener('mousedown',e=>{
@@ -398,7 +416,7 @@ export function initializeOfficeTools(ctx){
       }
       if(action==='insert-hr'){richCommand(ctx,'insertHTML','<hr><p></p>');return;}
       if(action==='insert-quote'){richCommand(ctx,'insertHTML','<blockquote><p>Quote or important information</p></blockquote><p></p>');return;}
-      if(action==='insert-page-break'){richCommand(ctx,'insertHTML','<hr><p></p>');ctx.toast('Page separator inserted (print pagination is browser-controlled).');return;}
+      if(action==='insert-page-break'){richCommand(ctx,'insertHTML','<hr data-mysoft-page-break="true"><p></p>');ctx.toast('Page break inserted for printing.');return;}
       if(action==='insert-checklist'){richCommand(ctx,'insertHTML','<ul><li>☐ Task</li></ul>');return;}
       if(action==='insert-date'){richCommand(ctx,'insertText',new Intl.DateTimeFormat('en-GB',{dateStyle:'long'}).format(new Date()));return;}
       if(action==='insert-link'){
@@ -406,6 +424,23 @@ export function initializeOfficeTools(ctx){
         if(!url)return;
         try{const parsed=new URL(url);if(!['https:','http:'].includes(parsed.protocol))throw Error();richCommand(ctx,'createLink',url);}
         catch{ctx.toast('Only HTTP/HTTPS links are supported.');}return;
+      }
+      if(['block-up','block-down','block-promote','block-demote','block-section','block-break'].includes(action)){
+        if(f.type!=='docs')return;
+        const root=document.getElementById('rich-content');
+        if(!root)throw Error('Open a document first.');
+        const index=lastDocumentBlock.fileId===f.id?Math.min(lastDocumentBlock.index,Math.max(0,editableBlocks(root).length-1)):0;
+        const operations={
+          'block-up':'move-up','block-down':'move-down','block-promote':'heading-up',
+          'block-demote':'heading-down','block-section':'new-section','block-break':'page-break'
+        };
+        const result=applyDocumentBlockAction(root,operations[action],index);
+        if(result.changed){
+          lastDocumentBlock={fileId:f.id,index:result.index};
+          f.body=ctx.sanitize(root.innerHTML);
+          ctx.touch(f);ctx.persist();ctx.render();
+        }
+        return;
       }
       if(action==='review-add-comment'){
         if(f.type!=='docs')return;
@@ -461,6 +496,9 @@ export function initializeOfficeTools(ctx){
           return;
         }
         ctx.toast('Range '+range+' updated');syncSheet(ctx,f);return;
+      }
+      if(action==='sheet-recalculate'){
+        ctx.render();ctx.toast('Worksheet recalculated');return;
       }
       if(action==='sheet-audit'){
         const summary=auditSheet(f.cells);
@@ -523,6 +561,15 @@ export function initializeOfficeTools(ctx){
         if(!data.length){ctx.toast('Add labels in column A and numeric values in B, rows 2–30.');return;}
         modal('<h2>'+ (action==='chart-bar'?'Bar':'Line') +' chart preview</h2><p>Uses current worksheet A:B data (up to 20 points). Preview only—editable embedded charts come later.</p>'+svgChart(data,action==='chart-bar'?'bar':'line')+'<div class="modal-actions"><button class="btn btn-light" data-ot-action="settings-close">Close</button></div>');
         return;
+      } else if(action==='slide-snap-toggle'){
+        const slide=f.slides[ctx.getSlideIndex()];
+        slide.snapToGrid=!slide.snapToGrid;
+        ctx.touch(f);ctx.persist();ctx.render();return;
+      } else if(['layer-forward','layer-backward','layer-front','layer-back'].includes(action)){
+        const slide=f.slides[ctx.getSlideIndex()],id=ctx.getSlideObjectId();
+        if(!id)throw Error('Select a slide object first.');
+        reorderSlideObject(slide,id,action.slice('layer-'.length));
+        ctx.touch(f);ctx.persist();ctx.render();return;
       } else if(action.startsWith('shape-align-')||action==='shape-resize'){
         const slide=f.slides[ctx.getSlideIndex()],id=ctx.getSlideObjectId();
         if(!id||!getSlideObject(slide,id))throw Error('Select a slide object first.');
