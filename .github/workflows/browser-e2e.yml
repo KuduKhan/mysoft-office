@@ -1,0 +1,33 @@
+name: Browser smoke tests
+on:
+  push:
+    branches: [main, feat/v0.2]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Install Playwright
+        run: npm install --no-save --no-package-lock @playwright/test@1.56.1
+      - name: Install browser
+        run: npx playwright install --with-deps chromium
+      - name: Run browser tests
+        run: npx playwright test
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02d
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 5
