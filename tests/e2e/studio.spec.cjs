@@ -100,6 +100,7 @@ for(const width of [360,390,768,1024,1440]){
       await page.locator('[data-create="'+type+'"]').first().click();
       await check(type);
       await page.locator('[data-action="close-editor"]').click();
+      await page.goto('/');
     }
   });
 }
