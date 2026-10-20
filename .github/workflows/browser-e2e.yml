@@ -1,7 +1,7 @@
 name: Browser smoke tests
 on:
   push:
-    branches: [main, feat/v0.5.3-editor-power]
+    branches: [main, feat/v0.5.4-editing-reliability]
   pull_request:
 permissions:
   contents: read
