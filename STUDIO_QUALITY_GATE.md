@@ -100,3 +100,14 @@ The app is not yet equivalent to WPS or Microsoft Office. We must extend the v0.
 - Workspace import/restore only replaces active files after durable commit; corrupt original browser data is exported, not silently overwritten.
 - Node storage tests and browser failure/migration tests are added to CI.
 - Deliberately **not** claiming cloud sync, guaranteed crash-time flush, encrypted local database, or production-ready archive durability.
+
+## v0.5.9 — Studio UX & navigation refinement
+
+- Collapsible desktop sidebar with persisted state, touch-friendly mobile navigation overlay and breadcrumb hierarchy.
+- Recent-file tabs inside the four editors; switch workspaces without revisiting file manager.
+- Focus Mode reduces distractions while retaining editor ribbons and commands; Escape restores full workspace.
+- Live Docs/Notes word/character counts, spreadsheet cell counts and slide totals.
+- `/` focuses file search when not editing. Preferences include navigation layout alongside the existing themes, density, font scale and zoom.
+- Unit and browser regression tests cover these flows.
+
+This UI enhancement builds on the v0.5.8 IndexedDB/recovery branch. It does not claim new cloud capabilities or full Office format fidelity.
