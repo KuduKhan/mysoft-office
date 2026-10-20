@@ -1,3 +1,4 @@
+import {studioShortcut} from './studio-shortcuts.js';
 import { COLUMNS, ROW_COUNT, displayCell } from './formulas.js';
 import { addRevision, restoreRevision } from './revisions.js';
 import { parseCSV, makeCSV } from './file-formats.js';
@@ -922,8 +923,14 @@ document.addEventListener('change',event=>{
   }
 });
 document.addEventListener('keydown',event=>{
-  if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){
-    event.preventDefault();modal('commands');return;
+  const shortcut=studioShortcut(event);
+  if(shortcut){
+    event.preventDefault();
+    if(shortcut==='command-search')modal('commands');
+    if(shortcut==='save'){persist();toast('Saved to this browser');}
+    if(shortcut==='export'){if(getActive())exportFile();else toast('Open a file to export');}
+    if(shortcut==='new-file')modal('new');
+    return;
   }
   if(event.target.id==='studio-command-search'&&event.key==='Enter'){
     event.preventDefault();document.querySelector('[data-command-run]:not([hidden])')?.click();return;
