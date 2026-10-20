@@ -106,6 +106,7 @@ export class BrowserWorkspaceStore {
     this.nextSequence=0;
     this.legacyStorage=null;
     this.knownRevision=0;
+    this.lastWriter=null;
     // Session-scoped identity survives reload in this tab, not a normal new tab.
     let owner=null;
     try{owner=globalThis.sessionStorage?.getItem('mysoft-office-tab-id')||null;}catch{}
@@ -150,6 +151,7 @@ export class BrowserWorkspaceStore {
       throw new Error('Invalid persisted workspace sequence');
     this.committedSequence=metadata.sequence ?? 0;
     this.knownRevision=Number.isSafeInteger(metadata.revision)?metadata.revision:0;
+    this.lastWriter=typeof metadata.lastWriter==='string'?metadata.lastWriter:null;
     this.nextSequence=Math.max(this.nextSequence,this.committedSequence);
     if (metadata.version !== 3 || files.length !== metadata.fileCount ||
         trash.length !== metadata.trashCount || versions.length !== metadata.versionCount) {
@@ -174,9 +176,12 @@ export class BrowserWorkspaceStore {
     catch{invalidJournal=true;} // Keep malformed optional journal for manual export.
     // Only replay edits that started from the exact committed version.
     // An old unversioned journal must never replace healthy IndexedDB content.
+    const sameTabCommit=this.lastWriter===this.ownerToken &&
+      Number.isSafeInteger(recovery?.baseRevision) &&
+      recovery.baseRevision<=this.knownRevision;
     if(recovery && recovery.owner===this.ownerToken &&
        recovery.sequence>this.committedSequence &&
-       recovery.baseRevision===this.knownRevision){
+       (recovery.baseRevision===this.knownRevision||sameTabCommit)){
       await this.queue.save({...recovery.workspace,_sequence:recovery.sequence});
       this.nextSequence=Math.max(this.nextSequence,recovery.sequence);
       return {workspace:recovery.workspace,source:'journal-recovered'};
@@ -249,7 +254,7 @@ export class BrowserWorkspaceStore {
           tx.objectStore('versions').put({id,value});
         committedRevision=current+1;
         tx.objectStore('meta').put({
-          id:'workspace',version:3,revision:committedRevision,
+          id:'workspace',version:3,revision:committedRevision,lastWriter:this.ownerToken,
           sequence:workspace._sequence??0,
           fileCount:workspace.files.length,trashCount:workspace.trash.length,
           versionCount:Object.keys(workspace.versions).length,savedAt:Date.now()
@@ -258,6 +263,7 @@ export class BrowserWorkspaceStore {
     };
     try{await done;}catch(error){throw conflict||error;}
     this.knownRevision=committedRevision;
+    this.lastWriter=this.ownerToken;
     this.committedSequence=Math.max(this.committedSequence,workspace._sequence??0);
     this.removeCompletedJournal();
   }
