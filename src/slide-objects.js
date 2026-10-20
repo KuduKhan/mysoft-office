@@ -77,7 +77,7 @@ export function renderedSlideObjects(slide,{editable=false,selectedId=''}={}){
     const text=String(o.text??'').slice(0,600).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const style='position:absolute;left:'+x+'%;top:'+y+'%;width:'+w+'%;height:'+h+'%;background-color:'+fill+';color:'+color+';--shape-fill:'+fill+';--shape-text:'+color+';--shape-font:'+val(o.fontSize,10,56)+'px';
     const safeId=String(o.id||'').replace(/[^a-zA-Z0-9_-]/g,'');
-    if(editable)return '<div class="studio-shape studio-shape-'+o.kind+(selectedId===o.id?' selected':'')+'" data-slide-object="'+safeId+'" style="'+style+'">'+
+    if(editable)return '<div class="studio-shape studio-shape-'+o.kind+(selectedId===o.id?' selected':'')+'" data-slide-object="'+safeId+'" tabindex="0" role="button" aria-label="Editable '+o.kind+' slide object" style="'+style+'">'+
       '<span class="studio-shape-grip" title="Drag object to reposition" aria-hidden="true">⠿</span>'+
       (o.kind==='text'?'<div class="studio-shape-text" contenteditable="true" role="textbox" spellcheck="true" data-slide-object-text="'+safeId+'" aria-label="Edit slide text box">'+text+'</div>':'')+'</div>';
     return '<div class="studio-shape studio-shape-'+o.kind+'" style="'+style+'">'+

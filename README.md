@@ -2,7 +2,7 @@
 
 **Your work. Your space.**
 
-MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.5.4 Editing Reliability** retains native DOCX/XLSX/PPTX support and adds a redesigned, responsive workspace with orangered/color theme options, denser editing ribbons and new functional commands. This remains a local-first prototype, not full Microsoft Office parity. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
+MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.5.5 Studio Editing Experience** retains native DOCX/XLSX/PPTX support and adds a redesigned, responsive workspace with orangered/color theme options, denser editing ribbons and new functional commands. This remains a local-first prototype, not full Microsoft Office parity. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
 
 ## Quick start
 
@@ -15,6 +15,14 @@ npm run dev
 ```
 
 Open http://localhost:4173. No installation step or external npm dependencies are required for the local editor prototype. This repository includes static output configuration for Vercel, but the Vercel project is not connected yet.
+
+## New in v0.5.5 — Studio editing depth and visual polish
+
+- **Docs Structure ribbon:** Promote/demote paragraphs to headings, move top-level document blocks, insert new sections and semantic page breaks. Page-break markers persist and produce browser print page breaks. This remains a contenteditable-based incremental structured workflow, **not** a fully transactional Word-class editor.
+- **Sheets:** A bounded dependency graph now updates dependent cell results live when a source cell changes; direct and chained formula links refresh without waiting for navigation. Recalculate command and cache invalidation. This does **not** add cross-sheet formulas, external functions, pivots or complete Excel dependency calculation.
+- **Slides:** Arrange freeform objects by layer (forward, backward, front, back), optional 2% snap-to-grid when dragging, keyboard-focused objects and arrow-key movement (Shift for larger step).
+- **UI/UX:** Improved ribbon scrolling and focus, better visible selection states, consistent orangered highlights, page-break labels, mobile containment and print rules.
+- Unit and Chromium browser tests cover new editing, dependent formulas, saved layering and responsive behavior. **All cloud v0.6 infrastructure work remains deferred.**
 
 ## New in v0.5.4 — Layout and editing reliability
 
