@@ -220,7 +220,7 @@ function sidebar(){
     '<div class="sidebar-spacer"></div><div class="side-foot"><div class="storage-label"><span>Local workspace</span><strong>'+files.length+' files</strong></div><div class="storage-track"><span class="storage-fill" style="width:'+usage+'%"></span></div><div class="storage-help">Local autosave. Cloud snapshots are optional.</div><button class="nav-link" data-action="cloud" style="margin-top:13px">'+icon('upload',17)+'Cloud snapshots</button><button class="nav-link" data-action="import-file">'+icon('plus',17)+'Import file</button><button class="nav-link" data-action="backup">'+icon('download',17)+'Export backup</button><button class="nav-link" data-action="import">'+icon('upload',17)+'Import backup</button></div></aside>';
 }
 function header(){
-  return '<header class="topbar"><div class="topbar-left"><button class="icon-btn mobile-menu" data-action="mobile" aria-label="Open menu">'+icon('menu')+'</button><div class="searchbox">'+icon('search',17)+'<input id="global-search" aria-label="Search files" placeholder="Search your files (Enter)" value="'+esc(query)+'"></div></div><div class="top-actions"><button class="btn btn-light" data-ot-action="preferences">⚙ Customize</button><button class="btn btn-primary" data-action="new">'+icon('plus',16)+' New file</button><div class="avatar" title="Local workspace">MS</div></div></header>';
+  return '<header class="topbar"><div class="topbar-left"><button class="icon-btn mobile-menu" data-action="mobile" aria-label="Open menu">'+icon('menu')+'</button><div class="searchbox">'+icon('search',17)+'<input id="global-search" aria-label="Search files" placeholder="Search your files (Enter)" value="'+esc(query)+'"></div></div><div class="top-actions"><button class="btn btn-light studio-command-trigger" data-action="commands" title="Search commands (Ctrl+K)" aria-label="Search commands">⌕ <span>Commands</span></button><button class="btn btn-light" data-ot-action="preferences">⚙ Customize</button><button class="btn btn-primary" data-action="new">'+icon('plus',16)+' New file</button><div class="avatar" title="Local workspace">MS</div></div></header>';
 }
 function appTiles(){
   const descriptions={docs:'Write and format',sheets:'Calculate and analyze',slides:'Present your ideas',notes:'Capture your thoughts'};
@@ -412,6 +412,27 @@ function modal(kind,id){
       slides:'Exports editable title and body text into each slide. Custom objects, images, speaker notes, animations and precise layouts are not preserved.'
     };
     modalRoot.innerHTML='<div class="modal-backdrop"><div class="modal"><h2>Export to '+fmt+'</h2><p>'+notices[f.type]+'</p><p>For full preservation, also export a JSON workspace backup.</p><div class="modal-actions"><button class="btn btn-light" data-action="modal-close">Cancel</button><button class="btn btn-primary" data-action="office-export-confirm">Export '+fmt+'</button></div></div></div>';
+  } else if(kind==='commands'){
+    const commands=[
+      ['create:docs','New document','Docs'],['create:sheets','New spreadsheet','Sheets'],
+      ['create:slides','New presentation','Slides'],['create:notes','New note','Notes'],
+      ['nav:home','Home dashboard','Workspace'],['nav:files','All files','Workspace'],
+      ['nav:starred','Starred files','Workspace'],['action:preferences','Appearance and colors','Settings'],
+      ['action:save','Save locally','File']
+    ];
+    if(view==='editor'&&getActive()){
+      commands.push(['action:history','Version history','File']);
+      if(getActive().type!=='notes')commands.push(['action:export','Export file','File']);
+    }
+    for(const file of [...files].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)).slice(0,8))
+      commands.push(['file:'+file.id,'Open '+file.title,'Recent']);
+    modalRoot.innerHTML='<div class="modal-backdrop"><div class="modal studio-command-modal" role="dialog" aria-modal="true" aria-label="Command search">'+
+      '<h2>What would you like to do?</h2><p>Search actions or files. Press Enter to select.</p>'+
+      '<input id="studio-command-search" type="search" aria-label="Search commands and files" placeholder="Type an action, tool or file…" autocomplete="off">'+
+      '<div class="studio-command-results" role="list">'+commands.map(([id,label,group])=>
+        '<button type="button" class="studio-command-item" data-command-run="'+esc(id)+'" data-command-text="'+esc((label+' '+group).toLocaleLowerCase())+'"><span>'+esc(label)+'</span><small>'+esc(group)+'</small></button>'
+      ).join('')+'</div><p id="studio-command-empty" class="muted" hidden>No matching commands.</p>'+
+      '<div class="modal-actions"><button class="btn btn-light" type="button" data-action="modal-close">Close · Esc</button></div></div></div>';
   } else if(kind==='cloud'){
     modalRoot.innerHTML='<div class="modal-backdrop"><div class="modal"><h2>MySoft Cloud snapshots</h2>'+
       (!cloudConfigured?'<p>Cloud is not configured yet. Your data remains on this browser until a dedicated MySoft Supabase project is connected.</p><p>Follow <strong>CLOUD_SETUP.md</strong> in the repository.</p>':
@@ -644,9 +665,24 @@ document.addEventListener('click',event=>{
     document.querySelectorAll('[data-slide-object]').forEach(el=>el.classList.toggle('selected',el.dataset.slideObject===activeObjectId));
     return;
   }
-  const el=event.target.closest('[data-action],[data-nav],[data-create],[data-open],[data-star],[data-delete],[data-duplicate],[data-slide],[data-theme],[data-template],[data-cmd],[data-restore-trash],[data-purge],[data-revision],[data-outline-index],[data-review-toggle],[data-review-delete],[data-note-move],[data-note-pin]');
+  const el=event.target.closest('[data-action],[data-nav],[data-create],[data-open],[data-star],[data-delete],[data-duplicate],[data-slide],[data-theme],[data-template],[data-cmd],[data-restore-trash],[data-purge],[data-revision],[data-outline-index],[data-review-toggle],[data-review-delete],[data-note-move],[data-note-pin],[data-command-run]');
   if(!el){
     if(event.target.classList.contains('modal-backdrop'))closeModal();
+    return;
+  }
+  if(el.dataset.commandRun!==undefined){
+    const id=el.dataset.commandRun;
+    closeModal();
+    if(id.startsWith('create:')){
+      const type=id.slice(7);if(Object.hasOwn(typeNames,type))newFile(type,'Untitled '+typeNames[type]);
+    }else if(id.startsWith('nav:')){
+      const dest=id.slice(4);if(['home','files','starred'].includes(dest))navigate(dest);
+    }else if(id.startsWith('file:')){
+      const target=id.slice(5);if(files.some(f=>f.id===target))openFile(target);
+    }else if(id==='action:preferences')document.querySelector('[data-ot-action="preferences"]')?.click();
+    else if(id==='action:save'){persist();toast('Saved locally');}
+    else if(id==='action:history'&&getActive())modal('revisions',activeId);
+    else if(id==='action:export')exportFile();
     return;
   }
   if(el.dataset.notePin!==undefined){
@@ -717,6 +753,7 @@ document.addEventListener('click',event=>{
   const action=el.dataset.action;
   if(action==='mobile'){mobileOpen=!mobileOpen;render();}
   if(action==='new')modal('new');
+  if(action==='commands')modal('commands');
   if(action==='modal-close')closeModal();
   if(action==='confirm-delete')remove(el.dataset.id);
   if(action==='close-editor')navigate('files');
@@ -757,6 +794,17 @@ document.addEventListener('submit',event=>{
 });
 document.addEventListener('input',event=>{
   const target=event.target,f=getActive();
+  if(target.id==='studio-command-search'){
+    const needle=target.value.trim().toLocaleLowerCase();
+    let visible=0;
+    document.querySelectorAll('[data-command-run]').forEach(item=>{
+      const ok=item.dataset.commandText.includes(needle);
+      item.hidden=!ok;if(ok)visible++;
+    });
+    const empty=document.getElementById('studio-command-empty');
+    if(empty)empty.hidden=visible!==0;
+    return;
+  }
   if(target.id==='global-search'){query=target.value;return;}
   if(target.id==='note-search'){
     const search=target.value.trim().toLocaleLowerCase();
@@ -874,6 +922,12 @@ document.addEventListener('change',event=>{
   }
 });
 document.addEventListener('keydown',event=>{
+  if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){
+    event.preventDefault();modal('commands');return;
+  }
+  if(event.target.id==='studio-command-search'&&event.key==='Enter'){
+    event.preventDefault();document.querySelector('[data-command-run]:not([hidden])')?.click();return;
+  }
   if(view==='editor'&&getActive()?.type==='slides'){
     const shape=event.target.closest('[data-slide-object]');
     if(shape&&!event.target.closest('[contenteditable]')&&['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(event.key)){
