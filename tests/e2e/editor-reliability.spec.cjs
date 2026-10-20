@@ -25,6 +25,7 @@ test('Docs keeps header/footer and print paper settings without mutating rich co
   await expect(page.locator('.doc-paper-header')).toContainText('Khaniversity learning');
   await expect(page.locator('.doc-paper-footer')).toContainText('Confidential draft');
   await expect(page.locator('#rich-content')).toContainText('Quarterly status');
+  await page.locator('[data-ot-tab="Layout"]').click();
   await expect(page.locator('[data-ot-input="orientation"]')).toHaveValue('landscape');
 });
 test('Sheets shows formula audit and dependency tracing on the Data ribbon',async({page})=>{
