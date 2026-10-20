@@ -1,6 +1,7 @@
 // MySoft v0.5.8: IndexedDB is the authoritative, transactional workspace store.
 // Legacy localStorage values are read only for one-time migration and never erased here.
 export const DATABASE_NAME = 'mysoft-office-workspace-v3';
+export const RECOVERY_KEY = 'mysoft-office-pending-v3';
 export const LEGACY_KEYS = Object.freeze({
   files: 'mysoft-office-v1',
   trash: 'mysoft-office-trash-v2',
@@ -56,6 +57,18 @@ export function readLegacyWorkspace(storage) {
   return validateWorkspace(data);
 }
 
+export function readRecoveryJournal(storage) {
+  const raw=storage.getItem(RECOVERY_KEY);
+  if(raw===null)return null;
+  let entry;
+  try{entry=JSON.parse(raw);}
+  catch{throw new Error('Recovery journal is invalid JSON');}
+  if(!Number.isSafeInteger(entry?.sequence)||entry.sequence<1)
+    throw new Error('Recovery journal has an invalid sequence');
+  validateWorkspace(entry.workspace);
+  return entry;
+}
+
 // Queues immutable snapshots in order. A failed write never blocks the next attempt.
 export class OrderedWriteQueue {
   constructor(write) {
@@ -89,6 +102,9 @@ export class BrowserWorkspaceStore {
   constructor(indexedDBFactory = globalThis.indexedDB) {
     this.indexedDB = indexedDBFactory;
     this.db = null;
+    this.committedSequence=0;
+    this.nextSequence=0;
+    this.legacyStorage=null;
     this.queue = new OrderedWriteQueue(snapshot => this.write(snapshot));
   }
 
@@ -121,6 +137,10 @@ export class BrowserWorkspaceStore {
       if (files.length || trash.length || versions.length) throw new Error('Incomplete workspace database');
       return null;
     }
+    if (!Number.isSafeInteger(metadata.sequence ?? 0) || (metadata.sequence ?? 0) < 0)
+      throw new Error('Invalid persisted workspace sequence');
+    this.committedSequence=metadata.sequence ?? 0;
+    this.nextSequence=Math.max(this.nextSequence,this.committedSequence);
     if (metadata.version !== 3 || files.length !== metadata.fileCount ||
         trash.length !== metadata.trashCount || versions.length !== metadata.versionCount) {
       throw new Error('Workspace integrity validation failed');
@@ -135,17 +155,49 @@ export class BrowserWorkspaceStore {
 
   async initialize(legacyStorage, createStarter) {
     if (!this.db) await this.open();
+    this.legacyStorage=legacyStorage;
     const existing = await this.read();
+    // A synchronous journal protects the last edits if a tab reload interrupts
+    // a debounced IndexedDB transaction. Never replay an older journal.
+    const recovery=readRecoveryJournal(legacyStorage);
+    if(recovery && recovery.sequence>this.committedSequence) {
+      await this.queue.save({...recovery.workspace,_sequence:recovery.sequence});
+      this.nextSequence=Math.max(this.nextSequence,recovery.sequence);
+      return {workspace:recovery.workspace,source:'journal-recovered'};
+    }
+    if(recovery)this.removeCompletedJournal();
     if (existing) return { workspace: existing, source: 'indexeddb' };
     const legacy = readLegacyWorkspace(legacyStorage);
     const workspace = legacy || validateWorkspace({ files: createStarter(), trash: [], versions: {} });
-    await this.queue.save(workspace);
+    await this.queue.save({...workspace,_sequence:0});
     return { workspace, source: legacy ? 'legacy-migrated' : 'new' };
+  }
+
+  // Stage edits synchronously before navigation/reload; this is a recovery
+  // journal only. IndexedDB is authoritative after transaction commit.
+  stage(workspace) {
+    const snapshot=structuredClone(validateWorkspace(workspace));
+    const sequence=++this.nextSequence;
+    let journaled=false;
+    try{
+      this.legacyStorage?.setItem(RECOVERY_KEY,JSON.stringify({sequence,workspace:snapshot}));
+      journaled=!!this.legacyStorage;
+    }catch{/* IndexedDB can still complete even if localStorage is full. */}
+    return {workspace:snapshot,sequence,journaled};
+  }
+
+  removeCompletedJournal(){
+    try{
+      const journal=readRecoveryJournal(this.legacyStorage);
+      if(journal && journal.sequence<=this.committedSequence)
+        this.legacyStorage.removeItem(RECOVERY_KEY);
+    }catch{/* Preserve invalid recovery journal for manual repair. */}
   }
 
   save(workspace) {
     if (!this.db) return Promise.reject(Error('Workspace database not ready'));
-    return this.queue.save(workspace);
+    const staged=this.stage(workspace);
+    return this.queue.save({...staged.workspace,_sequence:staged.sequence});
   }
 
   async write(workspace) {
@@ -159,7 +211,7 @@ export class BrowserWorkspaceStore {
         tx.objectStore('versions').put({ id, value });
       }
       tx.objectStore('meta').put({
-        id: 'workspace', version: 3,
+        id: 'workspace', version: 3, sequence: workspace._sequence ?? 0,
         fileCount: workspace.files.length, trashCount: workspace.trash.length,
         versionCount: Object.keys(workspace.versions).length,
         savedAt: Date.now()
@@ -170,5 +222,7 @@ export class BrowserWorkspaceStore {
       throw error;
     }
     await done;
+    this.committedSequence=Math.max(this.committedSequence,workspace._sequence??0);
+    this.removeCompletedJournal();
   }
 }
