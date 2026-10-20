@@ -15,6 +15,7 @@ import {organizeNotes,noteLocation,moveNote} from './note-structure.js';
 import {docComments,toggleDocComment,deleteDocComment,commentSummary} from './doc-review.js';
 import {documentGeometry,normalizedPageSettings} from './doc-layout.js';
 import {noteSearchText} from './note-search.js';
+import {toggleNotePin} from './note-pin.js';
 import {SheetRecalculator} from './sheet-recalc.js';
 import {snapSlideCoordinate} from './slide-layers.js';
 import { parseAddress, moveAddress, pasteGrid, populatedBounds, ROW_HEIGHT, HEADER_HEIGHT } from './sheet-window.js';
@@ -325,7 +326,8 @@ function notesEditor(f){
       sec.notes.map(n=>'<button class="note-list-item '+(n.id===f.id?'active':'')+'" data-note-search-item="'+esc(noteSearchText(n).slice(0,3500))+'" data-open="'+esc(n.id)+'"><strong>'+esc(n.title)+'</strong><span>'+dateText(n.updatedAt)+'</span></button>').join('')
     ).join('')+'</div>').join('');
   return '<div class="note-layout"><div class="note-list"><div class="spread"><h3>Notebooks</h3><button class="icon-btn" data-create="notes" title="New note">'+icon('plus',16)+'</button></div>'+'<input id="note-search" type="search" class="studio-note-search" aria-label="Search notebooks and notes" placeholder="Search title, tags, content…"><p id="note-no-results" class="studio-note-no-results" hidden>No matching notes.</p>'+tree+'</div>'+
-    '<div class="note-editor"><div class="eyebrow">MY NOTES</div><div class="studio-note-organizer">'+
+    '<div class="note-editor"><div class="studio-note-heading"><div class="eyebrow">MY NOTES</div>'+
+    '<button type="button" class="studio-pin-btn '+(f.pinned?'is-pinned':'')+'" data-note-pin="true" aria-pressed="'+Boolean(f.pinned)+'">'+(f.pinned?'★ Pinned':'☆ Pin note')+'</button></div><div class="studio-note-organizer">'+
     '<label>Notebook<input id="note-notebook" aria-label="Notebook" maxlength="40" value="'+esc(location.notebook)+'"></label>'+
     '<label>Section<input id="note-section" aria-label="Section" maxlength="40" value="'+esc(location.section)+'"></label>'+
     '<button class="btn btn-soft btn-sm" data-note-move="true">Move note</button></div>'+
@@ -642,9 +644,17 @@ document.addEventListener('click',event=>{
     document.querySelectorAll('[data-slide-object]').forEach(el=>el.classList.toggle('selected',el.dataset.slideObject===activeObjectId));
     return;
   }
-  const el=event.target.closest('[data-action],[data-nav],[data-create],[data-open],[data-star],[data-delete],[data-duplicate],[data-slide],[data-theme],[data-template],[data-cmd],[data-restore-trash],[data-purge],[data-revision],[data-outline-index],[data-review-toggle],[data-review-delete],[data-note-move]');
+  const el=event.target.closest('[data-action],[data-nav],[data-create],[data-open],[data-star],[data-delete],[data-duplicate],[data-slide],[data-theme],[data-template],[data-cmd],[data-restore-trash],[data-purge],[data-revision],[data-outline-index],[data-review-toggle],[data-review-delete],[data-note-move],[data-note-pin]');
   if(!el){
     if(event.target.classList.contains('modal-backdrop'))closeModal();
+    return;
+  }
+  if(el.dataset.notePin!==undefined){
+    const file=getActive();
+    if(file?.type==='notes'){
+      const isPinned=toggleNotePin(file);touch(file);persist();render();
+      toast(isPinned?'Note pinned to the top':'Note unpinned');
+    }
     return;
   }
   if(el.dataset.noteMove!==undefined){
