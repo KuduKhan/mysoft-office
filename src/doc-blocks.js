@@ -15,7 +15,10 @@ export function applyDocumentBlockAction(root,action,index=0){
   const blocks=editableBlocks(root);
   if(!blocks.length){
     const para=root.ownerDocument.createElement('p');
-    para.textContent='';root.appendChild(para);blocks.push(para);
+    // Browsers can create plain text nodes at the root of a contenteditable;
+    // wrap those nodes instead of silently acting on a separate empty paragraph.
+    while(root.firstChild)para.appendChild(root.firstChild);
+    root.appendChild(para);blocks.push(para);
   }
   if(!Number.isInteger(index)||index<0||index>=blocks.length)
     throw Error('Select a document paragraph first.');
