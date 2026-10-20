@@ -13,6 +13,8 @@ import { SLIDE_PRESETS } from './studio-tools.js';
 import {renderedSlideObjects,getSlideObject,updateSlideObject} from './slide-objects.js';
 import {organizeNotes,noteLocation,moveNote} from './note-structure.js';
 import {docComments,toggleDocComment,deleteDocComment,commentSummary} from './doc-review.js';
+import {documentGeometry,normalizedPageSettings} from './doc-layout.js';
+import {noteSearchText} from './note-search.js';
 import { parseAddress, moveAddress, pasteGrid, populatedBounds, ROW_HEIGHT, HEADER_HEIGHT } from './sheet-window.js';
 
 const STORAGE_KEY='mysoft-office-v1';
@@ -278,14 +280,13 @@ function reviewPanel(f){
       '<p>No review comments yet. Select text, then choose Add comment under Review.</p>')+'</section>';
 }
 function docsEditor(f){
-  const prefs=f.pageSettings||{};
-  const paper=PAGE_SIZES[prefs.paper]||PAGE_SIZES.A4;
-  const mm=prefs.orientation==='landscape'?[paper[1],paper[0]]:paper;
-  const margin={narrow:24,normal:60,wide:85}[prefs.margins]||60;
-  const background=/^#[0-9a-f]{6}$/i.test(prefs.background||'')?prefs.background:'#ffffff';
-  const lineHeight=['1.2','1.6','2'].includes(String(prefs.lineHeight))?prefs.lineHeight:'1.6';
-  const style='width:min(100%,'+Math.round(mm[0]*3.78)+'px);min-height:'+Math.round(mm[1]*3.78)+'px;padding:'+margin+'px;line-height:'+lineHeight+';background-color:'+background;
-  return docToolbar()+'<div class="editor-body"><div class="doc-edit-layout"><aside class="doc-outline"><strong>Document outline</strong><div id="doc-outline-list">'+outlineItems(f)+'</div>'+reviewPanel(f)+'</aside><div class="doc-canvas"><article id="rich-content" class="document-paper" style="'+style+'" contenteditable="true" spellcheck="true" role="textbox" aria-label="Document content" data-placeholder="Start writing your document...">'+sanitize(f.body)+'</article></div></div></div>';
+  const p=documentGeometry(f.pageSettings||{});
+  const prefs=normalizedPageSettings(f.pageSettings||{});
+  const style='width:min(100%,'+Math.round(p.width*3.78)+'px);min-height:'+Math.round(p.height*3.78)+'px;padding:'+Math.round(p.margin*3.78)+'px;line-height:'+p.lineHeight+';background-color:'+p.background;
+  const paperLabels='<div class="doc-page-metadata" aria-label="Document page setup">'+p.paper+' · '+p.orientation+' · '+Math.round(p.margin)+'mm margins</div>';
+  const header='<div class="doc-paper-header" aria-label="Document header">'+esc(prefs.header)+'</div>';
+  const footer='<div class="doc-paper-footer" aria-label="Document footer">'+esc(prefs.footer)+'</div>';
+  return docToolbar()+'<div class="editor-body"><div class="doc-edit-layout"><aside class="doc-outline"><strong>Document outline</strong><div id="doc-outline-list">'+outlineItems(f)+'</div>'+reviewPanel(f)+'</aside><div class="doc-canvas"><div class="doc-page-frame">'+paperLabels+header+'<article id="rich-content" class="document-paper" style="'+style+'" contenteditable="true" spellcheck="true" role="textbox" aria-label="Document content" data-placeholder="Start writing your document...">'+sanitize(f.body)+'</article>'+footer+'</div></div></div></div>';
 }
 function sheetsEditor(f){
   ensureWorkbook(f);
@@ -310,9 +311,9 @@ function notesEditor(f){
   const groups=organizeNotes(files),location=noteLocation(f);
   const tree=groups.map(book=>'<div class="studio-notebook-group"><div class="studio-notebook-title">'+esc(book.name)+'</div>'+
     book.sections.map(sec=>'<div class="studio-notebook-section">'+esc(sec.title)+'</div>'+
-      sec.notes.map(n=>'<button class="note-list-item '+(n.id===f.id?'active':'')+'" data-open="'+esc(n.id)+'"><strong>'+esc(n.title)+'</strong><span>'+dateText(n.updatedAt)+'</span></button>').join('')
+      sec.notes.map(n=>'<button class="note-list-item '+(n.id===f.id?'active':'')+'" data-note-search-item="'+esc(noteSearchText(n).slice(0,3500))+'" data-open="'+esc(n.id)+'"><strong>'+esc(n.title)+'</strong><span>'+dateText(n.updatedAt)+'</span></button>').join('')
     ).join('')+'</div>').join('');
-  return '<div class="note-layout"><div class="note-list"><div class="spread"><h3>Notebooks</h3><button class="icon-btn" data-create="notes" title="New note">'+icon('plus',16)+'</button></div>'+tree+'</div>'+
+  return '<div class="note-layout"><div class="note-list"><div class="spread"><h3>Notebooks</h3><button class="icon-btn" data-create="notes" title="New note">'+icon('plus',16)+'</button></div>'+'<input id="note-search" type="search" class="studio-note-search" aria-label="Search notebooks and notes" placeholder="Search title, tags, content…"><p id="note-no-results" class="studio-note-no-results" hidden>No matching notes.</p>'+tree+'</div>'+
     '<div class="note-editor"><div class="eyebrow">MY NOTES</div><div class="studio-note-organizer">'+
     '<label>Notebook<input id="note-notebook" aria-label="Notebook" maxlength="40" value="'+esc(location.notebook)+'"></label>'+
     '<label>Section<input id="note-section" aria-label="Section" maxlength="40" value="'+esc(location.section)+'"></label>'+
@@ -731,6 +732,21 @@ document.addEventListener('submit',event=>{
 document.addEventListener('input',event=>{
   const target=event.target,f=getActive();
   if(target.id==='global-search'){query=target.value;return;}
+  if(target.id==='note-search'){
+    const search=target.value.trim().toLocaleLowerCase();
+    let count=0;
+    document.querySelectorAll('[data-note-search-item]').forEach(item=>{
+      const visible=!search||item.dataset.noteSearchItem.includes(search);
+      item.hidden=!visible;
+      if(visible)count++;
+    });
+    document.querySelectorAll('.studio-notebook-group').forEach(group=>{
+      group.hidden=!!search&&!group.querySelector('.note-list-item:not([hidden])');
+    });
+    const empty=document.getElementById('note-no-results');
+    if(empty)empty.hidden=count>0;
+    return;
+  }
   if(!f)return;
   if(target.id==='document-title'||target.id==='note-title'){
     f.title=target.value||'Untitled '+typeNames[f.type];
