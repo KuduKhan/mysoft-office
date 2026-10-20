@@ -103,3 +103,19 @@ test('slide show can advance and close',async({page})=>{
   await page.keyboard.press('Escape');
   await expect(page.locator('#ot-presentation')).toHaveCount(0);
 });
+
+test('Docs can insert a small picture and preserve it after reload',async({page})=>{
+  await page.locator('[data-create="docs"]').first().click();
+  await page.locator('[data-ot-tab="Insert"]').click();
+  const chooserPromise=page.waitForEvent('filechooser');
+  await page.locator('[data-ot-action="insert-picture"]').click();
+  const chooser=await chooserPromise;
+  await chooser.setFiles({
+    name:'sample.png',mimeType:'image/png',
+    buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9so6Q1sAAAAASUVORK5CYII=','base64')
+  });
+  await expect(page.locator('#rich-content img')).toHaveCount(1);
+  await page.waitForTimeout(450);
+  await page.reload();
+  await expect(page.locator('#rich-content img')).toHaveCount(1);
+});
