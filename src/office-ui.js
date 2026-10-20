@@ -74,7 +74,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         '<span class="ot-metric">Sorting applies to column A and keeps row 1 as header. Formula sheets are protected.</span>';
     } else {
       body=button('▥ Bar chart','chart-bar')+button('◷ Line chart','chart-line')+
-        '<span class="ot-metric">Chart preview uses labels in column A and numbers in column B, rows 2–30.</span>';
+        '<span class="ot-metric">Chart preview uses labels in column A and numbers in column B, rows 2–1000.</span>';
     }
   } else if(file.type==='slides'){
     const slide=file.slides[slideIndex]||file.slides[0];
@@ -279,7 +279,7 @@ export function initializeOfficeTools(ctx){
       } else if(action==='chart-bar'||action==='chart-line'){
         const data=sheetChartData(f);
         if(!data.length){ctx.toast('Add labels in column A and numeric values in B, rows 2–30.');return;}
-        modal('<h2>'+ (action==='chart-bar'?'Bar':'Line') +' chart preview</h2><p>Uses current worksheet A:B data. Preview only—editable embedded charts come later.</p>'+svgChart(data,action==='chart-bar'?'bar':'line')+'<div class="modal-actions"><button class="btn btn-light" data-ot-action="settings-close">Close</button></div>');
+        modal('<h2>'+ (action==='chart-bar'?'Bar':'Line') +' chart preview</h2><p>Uses current worksheet A:B data (up to 20 points). Preview only—editable embedded charts come later.</p>'+svgChart(data,action==='chart-bar'?'bar':'line')+'<div class="modal-actions"><button class="btn btn-light" data-ot-action="settings-close">Close</button></div>');
         return;
       } else if(action==='theme-all'){
         const current=f.slides[ctx.getSlideIndex()].theme;
