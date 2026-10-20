@@ -2,7 +2,7 @@
 // Geometry is normalized 0-100% and limited to the 16:9 slide stage.
 const KINDS=new Set(['text','rect','ellipse']);
 const MAX_OBJECTS=40;
-const COLORS=new Set(['#ea4c24','#6555e8','#1673b8','#15846c','#f4b35d','#ffffff','#202d48','#e9edf5']);
+const safeColor=value=>/^#[0-9a-f]{6}$/i.test(String(value||''));
 const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));
 export function slideObjects(slide){
   if(!Array.isArray(slide.objects))slide.objects=[];
@@ -39,7 +39,7 @@ export function updateSlideObject(slide,id,patch){
     }else if(k==='text'){
       o.text=String(v??'').slice(0,600);
     }else if(['fill','color'].includes(k)){
-      if(!COLORS.has(v))throw Error('Choose a supported color');
+      if(!safeColor(v))throw Error('Use a six-digit hex color');
       o[k]=v;
     }else if(k==='fontSize'){
       const size=Number(v);
@@ -73,7 +73,7 @@ export function renderedSlideObjects(slide,{editable=false,selectedId=''}={}){
     if(!KINDS.has(o.kind))return '';
     const val=(n,min,max)=>clamp(Number(n)||0,min,max);
     const x=val(o.x,0,95),y=val(o.y,0,95),w=val(o.w,5,100-x),h=val(o.h,5,100-y);
-    const fill=COLORS.has(o.fill)?o.fill:'#ea4c24',color=COLORS.has(o.color)?o.color:'#202d48';
+    const fill=safeColor(o.fill)?o.fill:'#ea4c24',color=safeColor(o.color)?o.color:'#202d48';
     const text=String(o.text??'').slice(0,600).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const style='left:'+x+'%;top:'+y+'%;width:'+w+'%;height:'+h+'%;--shape-fill:'+fill+';--shape-text:'+color+';--shape-font:'+val(o.fontSize,10,56)+'px';
     const safeId=String(o.id||'').replace(/[^a-zA-Z0-9_-]/g,'');
