@@ -6,6 +6,9 @@ import { ensureWorkbook, PAGE_SIZES } from './office-model.js';
 import { powerRibbon, sheetCellAppearance, initializeOfficeTools } from './office-ui.js';
 import { sheetGrid, repaintGrid } from './sheet-grid.js';
 import { DocumentHistory, headingsFromHTML } from './document-history.js';
+import { createDOCX, importDOCX } from './ooxml-docx.js';
+import { createXLSX, importXLSX } from './ooxml-xlsx.js';
+import { createPPTX, importPPTX } from './ooxml-pptx.js';
 import { parseAddress, moveAddress, pasteGrid, populatedBounds, ROW_HEIGHT, HEADER_HEIGHT } from './sheet-window.js';
 
 const STORAGE_KEY='mysoft-office-v1';
@@ -146,6 +149,7 @@ if(!Array.isArray(trashFiles))trashFiles=[];
 let revisions=readStored(HISTORY_KEY,{});
 if(!revisions||typeof revisions!=='object'||Array.isArray(revisions))revisions={};
 let cloudUser=null;
+let pendingOfficeImport=null;
 const documentHistory=new DocumentHistory();
 let view='home',activeId=null,query='',fileFilter='all',selectedCell='A1',slideIndex=0,mobileOpen=false,sheetScrollTop=0;
 let savedTimer=0,toastTimer=0;
@@ -245,7 +249,7 @@ function templatesPage(){
   return '<div class="content"><div class="eyebrow">START WITH A HEAD START</div><h1 style="margin:8px 0">Templates</h1><p class="subtitle">Useful starting points for your next project.</p><div class="templates-grid" style="margin-top:27px">'+templates.map((t,i)=>'<button class="template-card" data-template="'+i+'"><span class="app-icon '+t.type+'">'+icon(typeIcons[t.type],22)+'</span><h3>'+t.title+'</h3><p>'+t.description+'</p></button>').join('')+'</div></div>';
 }
 function editorHead(f){
-  return '<div class="editor-head"><button class="icon-btn" data-action="close-editor" title="Back to files">'+icon('back',19)+'</button><span class="file-icon '+f.type+'">'+icon(typeIcons[f.type],18)+'</span><input class="doc-title" id="document-title" aria-label="File title" value="'+esc(f.title)+'" maxlength="120"><div class="save-mark" id="save-status">'+icon('check',13)+' Saved locally</div><button class="btn btn-light btn-sm" data-action="revisions">'+icon('clock',15)+' History</button><button class="btn btn-light btn-sm" data-action="export">'+icon('download',15)+' Export</button></div>';
+  return '<div class="editor-head"><button class="icon-btn" data-action="close-editor" title="Back to files">'+icon('back',19)+'</button><span class="file-icon '+f.type+'">'+icon(typeIcons[f.type],18)+'</span><input class="doc-title" id="document-title" aria-label="File title" value="'+esc(f.title)+'" maxlength="120"><div class="save-mark" id="save-status">'+icon('check',13)+' Saved locally</div>'+(f.type==='notes'?'':'<button class="btn btn-soft btn-sm" data-action="office-export">'+icon('download',15)+' '+({docs:'DOCX',sheets:'XLSX',slides:'PPTX'}[f.type])+'</button>')+'<button class="btn btn-light btn-sm" data-action="revisions">'+icon('clock',15)+' History</button><button class="btn btn-light btn-sm" data-action="export">'+icon('download',15)+' Export</button></div>';
 }
 function docToolbar(){
   return '<div class="toolbar">'+
@@ -358,6 +362,14 @@ function modal(kind,id){
     snapshot(f,true);persist();
     const entries=[...(revisions[f.id]||[])].reverse();
     modalRoot.innerHTML='<div class="modal-backdrop"><div class="modal"><h2>Version history</h2><p>Up to 12 local snapshots per file. Restore an earlier version if needed.</p><div style="max-height:280px;overflow:auto">'+entries.map((v,i)=>'<div class="spread" style="padding:11px 0;border-bottom:1px solid #ecedf4"><span class="muted" style="font-size:12px">'+new Date(v.at).toLocaleString()+'</span><button class="btn btn-soft btn-sm" data-revision="'+i+'">Restore</button></div>').join('')+'</div><div class="modal-actions"><button class="btn btn-light" data-action="modal-close">Close</button></div></div></div>';
+  } else if(kind==='office-export'&&f){
+    const fmt={docs:'DOCX',sheets:'XLSX',slides:'PPTX'}[f.type];
+    const notices={
+      docs:'Only paragraphs, basic headings, emphasis, simple tables and visible text are retained. Images, hyperlinks, complex layout and comments are not faithfully exported.',
+      sheets:'Exports the supported A1:Z1000 range, up to 20 worksheets, formulas and basic styles. Charts, external references, pivots and advanced Excel features are not included.',
+      slides:'Exports editable title and body text into each slide. Custom objects, images, speaker notes, animations and precise layouts are not preserved.'
+    };
+    modalRoot.innerHTML='<div class="modal-backdrop"><div class="modal"><h2>Export to '+fmt+'</h2><p>'+notices[f.type]+'</p><p>For full preservation, also export a JSON workspace backup.</p><div class="modal-actions"><button class="btn btn-light" data-action="modal-close">Cancel</button><button class="btn btn-primary" data-action="office-export-confirm">Export '+fmt+'</button></div></div></div>';
   } else if(kind==='cloud'){
     modalRoot.innerHTML='<div class="modal-backdrop"><div class="modal"><h2>MySoft Cloud snapshots</h2>'+
       (!cloudConfigured?'<p>Cloud is not configured yet. Your data remains on this browser until a dedicated MySoft Supabase project is connected.</p><p>Follow <strong>CLOUD_SETUP.md</strong> in the repository.</p>':
@@ -367,7 +379,7 @@ function modal(kind,id){
   }
   modalRoot.querySelector('input')?.focus();
 }
-function closeModal(){modalRoot.innerHTML='';}
+function closeModal(){modalRoot.innerHTML='';pendingOfficeImport=null;}
 function duplicate(id){
   const source=files.find(f=>f.id===id);if(!source)return;
   const copy=structuredClone(source);copy.id=uuid();copy.title+=' (copy)';copy.createdAt=Date.now();copy.updatedAt=Date.now();copy.starred=false;
@@ -414,6 +426,37 @@ function exportFile(){
   }
   toast('Exported '+typeNames[f.type].toLowerCase());
 }
+function exportOfficeFile(){
+  const file=getActive();if(!file)return;
+  try{
+    const result=file.type==='docs'?createDOCX(file):file.type==='sheets'?createXLSX(file):file.type==='slides'?createPPTX(file):null;
+    if(!result)throw Error('Unsupported Office export.');
+    const ext={docs:'docx',sheets:'xlsx',slides:'pptx'}[file.type];
+    download(result.bytes,slug(file.title)+'.'+ext,'application/zip');
+    closeModal();toast(ext.toUpperCase()+' file exported (limited fidelity)');
+  }catch(error){toast('Office export: '+String(error.message||error).slice(0,100));}
+}
+function confirmOfficeImport(){
+  if(!pendingOfficeImport)return;
+  const {result,title}=pendingOfficeImport;
+  pendingOfficeImport=null;
+  if(!typeNames[result.type]){toast('Unsupported import type');return;}
+  const f=makeFile(result.type,title);
+  if(result.type==='docs')f.body=sanitize(result.body);
+  if(result.type==='sheets'){
+    f.worksheets=result.worksheets;f.activeSheetIndex=result.activeSheetIndex;
+    f.cells=result.cells;f.cellStyles=result.cellStyles;ensureWorkbook(f);
+  }
+  if(result.type==='slides')f.slides=result.slides;
+  files.unshift(f);closeModal();persist();openFile(f.id);
+  toast('Office file imported; review formatting');
+}
+function officeImportReview(result,title){
+  pendingOfficeImport={result,title};
+  const fmt={docs:'DOCX',sheets:'XLSX',slides:'PPTX'}[result.type];
+  const notes=['This file will be converted to MySoft\'s supported editing model. Unsupported features may be lost on re-export.',...(result.warnings||[])];
+  modalRoot.innerHTML='<div class="modal-backdrop"><div class="modal"><h2>Import '+fmt+' for editing?</h2><p><strong>'+esc(title)+'</strong></p><ul class="import-warning-list">'+notes.slice(0,8).map(note=>'<li>'+esc(note)+'</li>').join('')+'</ul><div class="modal-actions"><button class="btn btn-light" data-action="modal-close">Cancel</button><button class="btn btn-primary" data-action="confirm-office-import">Import editable file</button></div></div></div>';
+}
 function backup(){download(JSON.stringify(workspaceSnapshot(),null,2),'mysoft-office-backup.json','application/json');toast('Workspace backup exported');}
 function validImport(payload){
   if(!payload||!Array.isArray(payload.files)||payload.files.length>500) return null;
@@ -449,17 +492,26 @@ async function importBackup(file){
   }catch{toast('Could not read this backup');}
 }
 async function importExternalFile(file){
-  if(file.size>1000000){toast('Maximum import size is 1 MB');return;}
+  if(file.size>18000000){toast('File exceeds the 18 MB import limit');return;}
   const ext=file.name.toLowerCase().split('.').pop();
+  const title=file.name.replace(/\.[^.]+$/,'').slice(0,120);
+  if(['docx','xlsx','pptx'].includes(ext)){
+    try {
+      const data=await file.arrayBuffer();
+      const result=ext==='docx'?await importDOCX(data):ext==='xlsx'?await importXLSX(data):await importPPTX(data);
+      officeImportReview(result,title);
+    } catch(error){toast('Office import failed: '+String(error.message||error).slice(0,95));}
+    return;
+  }
+  if(file.size>1000000){toast('Text/CSV import limit is 1 MB');return;}
   if(!['csv','txt','md','html','htm'].includes(ext)){toast('Unsupported file format');return;}
   const source=await file.text();
-  const name=file.name.replace(/\.[^.]+$/,'');
   if(ext==='csv'){
-    const f=newFile('sheets',name);f.cells=parseCSV(source);touch(f);render();
+    const f=newFile('sheets',title);f.cells=parseCSV(source);touch(f);render();
   }else if(ext==='html'||ext==='htm'){
-    const f=newFile('docs',name);f.body=sanitize(source);touch(f);render();
+    const f=newFile('docs',title);f.body=sanitize(source);touch(f);render();
   }else{
-    const f=newFile('notes',name);f.body=esc(source).replace(/\n/g,'<br>');touch(f);render();
+    const f=newFile('notes',title);f.body=esc(source).replace(/\n/g,'<br>');touch(f);render();
   }
   toast('File imported');
 }
@@ -588,6 +640,9 @@ document.addEventListener('click',event=>{
   if(action==='confirm-delete')remove(el.dataset.id);
   if(action==='close-editor')navigate('files');
   if(action==='export')exportFile();
+  if(action==='office-export')modal('office-export',activeId);
+  if(action==='office-export-confirm')exportOfficeFile();
+  if(action==='confirm-office-import')confirmOfficeImport();
   if(action==='backup')backup();
   if(action==='import')document.getElementById('backup-upload').click();
   if(action==='import-file')document.getElementById('external-file-upload').click();
@@ -738,7 +793,7 @@ const backupInput=document.createElement('input');
 backupInput.type='file';backupInput.accept='.json,application/json';backupInput.id='backup-upload';backupInput.hidden=true;
 document.body.appendChild(backupInput);
 const externalInput=document.createElement('input');
-externalInput.type='file';externalInput.accept='.txt,.md,.csv,.html,.htm';
+externalInput.type='file';externalInput.accept='.txt,.md,.csv,.html,.htm,.docx,.xlsx,.pptx';
 externalInput.id='external-file-upload';externalInput.hidden=true;
 document.body.appendChild(externalInput);
 initializeOfficeTools({

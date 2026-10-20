@@ -2,7 +2,7 @@
 
 **Your work. Your space.**
 
-MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.4.0** strengthens editor foundations, navigation, undo/redo, and spreadsheet scale while preserving v0.3 customization. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
+MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.5.0** adds limited native DOCX/XLSX/PPTX import/export while preserving v0.4 features. This remains a local-first prototype, not full Microsoft Office parity. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
 
 ## Quick start
 
@@ -15,6 +15,15 @@ npm run dev
 ```
 
 Open http://localhost:4173. No installation step or external npm dependencies are required for the local editor prototype. This repository includes static output configuration for Vercel, but the Vercel project is not connected yet.
+
+## New in v0.5 — Native Office files
+
+- DOCX import/export: basic editable paragraphs, headings, text emphasis and simple tables.
+- XLSX import/export: up to 20 worksheets, A1:Z1000 values, supported formulas and basic cell styles.
+- PPTX import/export: up to 200 slides, editable title and body text.
+- Explicit import/export conversion warnings, ZIP archive safety checks and independent-reader tests.
+- **Formatting fidelity is limited.** Images, advanced objects, charts, precise layouts and other unsupported features can be lost.
+- Read the complete [Office compatibility matrix](OFFICE_COMPATIBILITY.md) before relying on imported documents.
 
 ## New in v0.4 — Editor foundations
 
@@ -60,7 +69,7 @@ Open http://localhost:4173. No installation step or external npm dependencies ar
 
 This is still a browser prototype using localStorage. Large or dense spreadsheets can exceed browser storage quotas. It is not an appropriate sole archive for critical work, and it does not provide classification-grade security. Browser cleanup, corruption or device loss can remove local files. Export JSON backups routinely. Cloud authentication and manual workspace snapshot code exists but **remains disabled** until a separately authorized MySoft Supabase project is configured. Do not use your KHANIVERSITY database for this app.
 
-File interoperability is intentionally limited to simpler formats: TXT, CSV and sanitized HTML input; HTML, CSV, TXT and printable HTML output. **DOCX, XLSX and PPTX native editing, real PDF authoring, advanced chart objects, equations, pivot tables, macros, co-authoring and complete accessibility are not implemented.**
+File interoperability adds a defined subset of DOCX/XLSX/PPTX alongside TXT, CSV and sanitized HTML. **Full-fidelity DOCX/XLSX/PPTX editing, real PDF authoring, advanced chart objects, equations, pivot tables, macros, co-authoring and complete accessibility are not implemented.**
 
 MySoft Docs still uses native contenteditable/execCommand as an intermediate editor. Production-level Word-style editing needs a modern structured editor and extensive file-fidelity tests. Do not store classified, military operational, health or other regulated sensitive content here.
 
@@ -75,6 +84,7 @@ npm run dev
 GitHub Actions runs Node unit/build checks and Playwright Chromium browser smoke tests. See `tests/`.
 
 Architecture documentation:
+- [OFFICE_COMPATIBILITY.md](OFFICE_COMPATIBILITY.md) — supported Office file subset and conversion limits.
 - [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) — full Word, Excel, PowerPoint, OneNote-class targets.
 - [ARCHITECTURE.md](ARCHITECTURE.md) — architecture decisions and evolution.
 - [CLOUD_SETUP.md](CLOUD_SETUP.md) — optional dedicated cloud setup.

@@ -3,7 +3,7 @@
 **Product direction:** develop a genuinely interoperable and configurable productivity suite, not a lookalike UI. The Microsoft 365 feature set evolves continuously; the inventory below is a set of engineering targets, not claims of equivalence.
 
 ## Status key
-- **Implemented (v0.4)**: present in the browser prototype and covered by its release tests.
+- **Implemented (v0.5)**: present in the browser prototype and covered by its release tests.
 - **Partial**: useful basic capability but not Office-equivalent.
 - **Planned**: requires new editor engines, services, formats or security architecture.
 
@@ -54,12 +54,16 @@ Distinguish slide-wide transitions from per-element animations; they are separat
 ## Architecture to grow beyond v0.3
 
 1. **v0.4 — editor foundations (implemented partially):** a 26×1,000 row-windowed grid, direct keyboard navigation, document outline, session history. Structured editor migration and full accessibility audits remain open.
-2. **v0.5 — Office interoperability:** read/write DOCX/XLSX/PPTX using evaluated licensed libraries/services. Build golden-file regression suites before advertising format support.
+2. **v0.5 — Office interoperability (subset implemented):** native DOCX/XLSX/PPTX semantic import/export with independent-reader checks; complete fidelity and golden-file regression coverage remain open.
 3. **v0.6 — secure backend:** dedicated MySoft project, relational metadata and blob storage, identity and tenant isolation, least-privilege RLS, encrypted transport, backups and quota controls. Do not reuse KHANIVERSITY's database.
 4. **v0.7 — collaborative workspace:** revision conflict resolution, shared documents, comments, notifications, granular roles and audit records.
 5. **v0.8 — productivity intelligence:** user-controlled tool-calling assistant that works on typed document operations, with review-before-apply and source visibility. No direct arbitrary scripting or privileged prompt-generated SQL.
 6. **v0.9 — professional editors:** advanced tables, pivots and charts, presenter tools, inking and notebook organization.
 7. **v1.0 — public readiness:** load/latency targets, security review, WCAG tests, corruption/failure recovery drills, export fidelity scoreboard, documentation, support and upgrade strategy.
+
+## v0.5 format boundary
+
+Real DOCX/XLSX/PPTX files import/export a limited, documented subset. See [OFFICE_COMPATIBILITY.md](OFFICE_COMPATIBILITY.md). Full object models, OOXML round-trip fidelity, accessibility and preservation of advanced Word/Excel/PowerPoint constructs remain planned.
 
 ## Hard engineering rules
 
@@ -71,7 +75,7 @@ Distinguish slide-wide transitions from per-element animations; they are separat
 - Check licensing terms before embedding Microsoft-proprietary assets, icons, fonts or third-party engines.
 - Provide privacy policy, clear cloud/local save indicators and accessibility for keyboard and assistive tech.
 
-## v0.4 limitations (explicit)
+## v0.5 limitations (explicit)
 
 This release still uses browser localStorage, native contenteditable editing and a small in-house spreadsheet engine. It is **not** an Office-equivalent production suite, does not offer full file format fidelity, doesn't yet have true cloud autosave or multi-user co-authoring, and should not hold classified, sensitive military or regulated information.
 
