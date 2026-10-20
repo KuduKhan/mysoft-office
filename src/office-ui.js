@@ -24,7 +24,7 @@ export function applyPreferences(){
 }
 const button=(label,action,title='')=>'<button type="button" class="ot-btn" data-ot-action="'+action+'" title="'+escapeHTML(title||label)+'">'+label+'</button>';
 const choice=(name,options,current)=>'<label class="ot-select-label">'+escapeHTML(name)+' <select data-ot-input="'+name.toLowerCase().replace(/\s+/g,'-')+'">'+options.map(([value,text])=>'<option value="'+escapeHTML(value)+'"'+(value===current?' selected':'')+'>'+escapeHTML(text)+'</option>').join('')+'</select></label>';
-const color=(label,name,value)=>'<label class="ot-select-label">'+escapeHTML(label)+' <input type="color" data-ot-input="'+name+'" value="'+(VALID_COLORS.has(value)?value:'#6555e8')+'"></label>';
+const color=(label,name,value)=>'<label class="ot-select-label">'+escapeHTML(label)+' <input type="color" data-ot-input="'+name+'" value="'+(/^#[0-9a-fA-F]{6}$/.test(value)?value:'#6555e8')+'"></label>';
 function tabsFor(type){
   return {docs:['Home','Insert','Layout','Review'],sheets:['Home','Data','Insert'],slides:['Design','Arrange','Present'],notes:['Write','Organize']}[type]||[];
 }
@@ -101,8 +101,8 @@ export function sheetCellAppearance(file,ref,value){
   if(st.bold)rules.push('font-weight:750');
   if(st.italic)rules.push('font-style:italic');
   if(['left','center','right'].includes(st.align))rules.push('text-align:'+st.align);
-  if(VALID_COLORS.has(st.color))rules.push('color:'+st.color);
-  if(VALID_COLORS.has(st.background))rules.push('background-color:'+st.background);
+  if(/^#[0-9a-fA-F]{6}$/.test(st.color||''))rules.push('color:'+st.color);
+  if(/^#[0-9a-fA-F]{6}$/.test(st.background||''))rules.push('background-color:'+st.background);
   let formatted=String(value);
   const num=Number(formatted);
   if(formatted.trim()!=='' && Number.isFinite(num) && !String(value).startsWith('#')){
@@ -162,7 +162,7 @@ function replaceAllText(ctx,needle,replacement){
   return count;
 }
 function presentationHTML(slide){
-  return '<div class="ot-present-page ot-present-'+(slide.layout||'title')+'" style="--present-color:'+({violet:'#7161e8',ocean:'#2895d9',forest:'#22a88e',midnight:'#a58bff'}[slide.theme]||'#7161e8')+'"><h1>'+escapeHTML(slide.title)+'</h1><p>'+escapeHTML(slide.body)+'</p></div>';
+  return '<div class="ot-present-page ot-present-'+(slide.layout||'title')+' ot-effect-'+(['fade','slide'].includes(slide.transition)?slide.transition:'none')+'"' style="--present-color:'+({violet:'#7161e8',ocean:'#2895d9',forest:'#22a88e',midnight:'#a58bff'}[slide.theme]||'#7161e8')+'"><h1>'+escapeHTML(slide.title)+'</h1><p>'+escapeHTML(slide.body)+'</p></div>';
 }
 function showPresentation(ctx,index=0){
   const file=ctx.getFile();if(!file?.slides)return;
