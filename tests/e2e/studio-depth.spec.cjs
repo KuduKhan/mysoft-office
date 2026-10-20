@@ -41,6 +41,7 @@ test('Slides can reorder object layers, toggle grid and nudge selected shape via
   const styleAfter=await page.locator('[data-slide-object]').first().getAttribute('style');
   expect(styleAfter).not.toBe(styleBefore);
   await page.reload();
+  await page.locator('[data-ot-tab="Shapes"]').click();
   await expect(page.locator('[data-ot-action="slide-snap-toggle"]')).toContainText('ON');
   const afterReload=await page.locator('[data-slide-object]').evaluateAll(els=>els.map(el=>el.dataset.slideObject));
   expect(afterReload).toEqual(after);
