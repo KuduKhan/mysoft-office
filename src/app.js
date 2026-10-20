@@ -2,6 +2,8 @@ import { COLUMNS, ROW_COUNT, displayCell } from './formulas.js';
 import { addRevision, restoreRevision } from './revisions.js';
 import { parseCSV, makeCSV } from './file-formats.js';
 import { cloudConfigured, cloudCurrentUser, cloudSignIn, cloudSignOut, cloudPush, cloudPull } from './cloud.js';
+import { ensureWorkbook, PAGE_SIZES } from './office-model.js';
+import { powerRibbon, sheetCellAppearance, initializeOfficeTools } from './office-ui.js';
 
 const STORAGE_KEY='mysoft-office-v1';
 const TRASH_KEY='mysoft-office-trash-v2';
@@ -156,7 +158,7 @@ function sidebar(){
     '<div class="sidebar-spacer"></div><div class="side-foot"><div class="storage-label"><span>Local workspace</span><strong>'+files.length+' files</strong></div><div class="storage-track"><span class="storage-fill" style="width:'+usage+'%"></span></div><div class="storage-help">Local autosave. Cloud snapshots are optional.</div><button class="nav-link" data-action="cloud" style="margin-top:13px">'+icon('upload',17)+'Cloud snapshots</button><button class="nav-link" data-action="import-file">'+icon('plus',17)+'Import file</button><button class="nav-link" data-action="backup">'+icon('download',17)+'Export backup</button><button class="nav-link" data-action="import">'+icon('upload',17)+'Import backup</button></div></aside>';
 }
 function header(){
-  return '<header class="topbar"><div class="topbar-left"><button class="icon-btn mobile-menu" data-action="mobile" aria-label="Open menu">'+icon('menu')+'</button><div class="searchbox">'+icon('search',17)+'<input id="global-search" aria-label="Search files" placeholder="Search your files (Enter)" value="'+esc(query)+'"></div></div><div class="top-actions"><button class="btn btn-primary" data-action="new">'+icon('plus',16)+' New file</button><div class="avatar" title="Local workspace">MS</div></div></header>';
+  return '<header class="topbar"><div class="topbar-left"><button class="icon-btn mobile-menu" data-action="mobile" aria-label="Open menu">'+icon('menu')+'</button><div class="searchbox">'+icon('search',17)+'<input id="global-search" aria-label="Search files" placeholder="Search your files (Enter)" value="'+esc(query)+'"></div></div><div class="top-actions"><button class="btn btn-light" data-ot-action="preferences">⚙ Customize</button><button class="btn btn-primary" data-action="new">'+icon('plus',16)+' New file</button><div class="avatar" title="Local workspace">MS</div></div></header>';
 }
 function appTiles(){
   const descriptions={docs:'Write and format',sheets:'Calculate and analyze',slides:'Present your ideas',notes:'Capture your thoughts'};
@@ -218,12 +220,14 @@ function docsEditor(f){
   return docToolbar()+'<div class="editor-body"><div class="doc-canvas"><article id="rich-content" class="document-paper" contenteditable="true" spellcheck="true" role="textbox" aria-label="Document content" data-placeholder="Start writing your document...">'+sanitize(f.body)+'</article></div></div>';
 }
 function sheetsEditor(f){
+  ensureWorkbook(f);
   let rows='<tr><th></th>'+COLUMNS.map(c=>'<th scope="col">'+c+'</th>').join('')+'</tr>';
   for(let r=1;r<=ROW_COUNT;r++){
     rows+='<tr><td>'+r+'</td>';
     for(const c of COLUMNS){
       const ref=c+r;
-      rows+='<td class="'+(selectedCell===ref?'selected':'')+'"><input class="sheet-cell '+(String(f.cells[ref]||'').startsWith('=')?'formula-result':'')+'" data-cell="'+ref+'" title="'+ref+'" aria-label="Cell '+ref+'" value="'+esc(displayCell(ref,f.cells))+'"></td>';
+      const appearance=sheetCellAppearance(f,ref,displayCell(ref,f.cells));
+      rows+='<td class="'+(selectedCell===ref?'selected':'')+'"><input class="sheet-cell '+(String(f.cells[ref]||'').startsWith('=')?'formula-result':'')+'" data-cell="'+ref+'" title="'+ref+'" aria-label="Cell '+ref+'" style="'+esc(appearance.style)+'" value="'+esc(appearance.value)+'"></td>';
     }
     rows+='</tr>';
   }
@@ -247,7 +251,7 @@ function notesEditor(f){
 function editor(){
   const f=getActive();
   if(!f){view='files';return filesPage();}
-  return '<div class="editor-shell">'+editorHead(f)+(f.type==='docs'?docsEditor(f):f.type==='sheets'?sheetsEditor(f):f.type==='slides'?slidesEditor(f):notesEditor(f))+'</div>';
+  return '<div class="editor-shell">'+editorHead(f)+powerRibbon(f,selectedCell,slideIndex)+(f.type==='docs'?docsEditor(f):f.type==='sheets'?sheetsEditor(f):f.type==='slides'?slidesEditor(f):notesEditor(f))+'</div>';
 }
 function render(){
   app.innerHTML='<div class="shell">'+sidebar()+'<main class="main">'+header()+(view==='editor'?editor():view==='home'?home():view==='templates'?templatesPage():filesPage())+'</main></div>';
@@ -433,7 +437,7 @@ function updateCell(ref,raw,rerender=false){
 function refreshCells(){
   const f=getActive();if(!f||f.type!=='sheets')return;
   document.querySelectorAll('[data-cell]').forEach(el=>{
-    if(document.activeElement!==el) el.value=displayCell(el.dataset.cell,f.cells);
+    if(document.activeElement!==el) el.value=sheetCellAppearance(f,el.dataset.cell,displayCell(el.dataset.cell,f.cells)).value;
   });
 }
 document.addEventListener('mousedown',event=>{
@@ -595,6 +599,11 @@ const externalInput=document.createElement('input');
 externalInput.type='file';externalInput.accept='.txt,.md,.csv,.html,.htm';
 externalInput.id='external-file-upload';externalInput.hidden=true;
 document.body.appendChild(externalInput);
+initializeOfficeTools({
+  getFile:getActive,touch,render,sanitize,toast,
+  getSelectedCell:()=>selectedCell,getSlideIndex:()=>slideIndex,
+  setSlideIndex:i=>{slideIndex=i;}
+});
 window.addEventListener('popstate',()=>{restoreRoute();render();});
 restoreRoute();
 persist();
