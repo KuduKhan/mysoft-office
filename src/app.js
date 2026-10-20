@@ -568,7 +568,6 @@ async function importBackup(file){
     if(!confirm('Replace local files with this backup? Export your current workspace first.'))return;
     if(await applyWorkspace(parsed))toast('Workspace restored');
     else toast('Backup was not restored. Current files are unchanged.');
-    else toast('Backup failed validation');
   }catch{toast('Could not read this backup');}
 }
 async function importExternalFile(file){
