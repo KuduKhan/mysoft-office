@@ -14,6 +14,7 @@ import {applyDocumentBlockAction,blockIndexFromSelection,editableBlocks} from '.
 import {reorderSlideObject} from './slide-layers.js';
 import {applySheetRule,removeSheetRules,matchingRule,sheetRulesSummary} from './sheet-rules.js';
 import {findTextPositions,nextMatchIndex} from './doc-find.js';
+import {rotateSlideObject} from './slide-transform.js';
 
 const escapeHTML = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const COLORS=['#212d48','#6555e8','#176db3','#b04472','#e05d4a','#16957d'];
@@ -157,6 +158,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         button('Align right','shape-align-right')+button('Top','shape-align-top')+
         button('Middle','shape-align-middle')+button('Bottom','shape-align-bottom')+
         button('Resize…','shape-resize')+
+        button('↶ Rotate','shape-rotate-left')+button('↷ Rotate','shape-rotate-right')+
         button('←','shape-left','Move selected object left')+button('→','shape-right')+
         button('↑','shape-up')+button('↓','shape-down')+
         button('Duplicate','shape-duplicate')+button('Delete','shape-delete')+
@@ -616,6 +618,12 @@ export function initializeOfficeTools(ctx){
         if(!data.length){ctx.toast('Add labels in column A and numeric values in B, rows 2–30.');return;}
         modal('<h2>'+ (action==='chart-bar'?'Bar':'Line') +' chart preview</h2><p>Uses current worksheet A:B data (up to 20 points). Preview only—editable embedded charts come later.</p>'+svgChart(data,action==='chart-bar'?'bar':'line')+'<div class="modal-actions"><button class="btn btn-light" data-ot-action="settings-close">Close</button></div>');
         return;
+      } else if(['shape-rotate-left','shape-rotate-right'].includes(action)){
+        if(f.type!=='slides')return;
+        const slide=f.slides[ctx.getSlideIndex()],id=ctx.getSlideObjectId();
+        if(!id)throw Error('Select a shape first.');
+        rotateSlideObject(slide,id,action.endsWith('left')?'left':'right');
+        ctx.touch(f);ctx.persist();ctx.render();return;
       } else if(action==='slide-snap-toggle'){
         const slide=f.slides[ctx.getSlideIndex()];
         slide.snapToGrid=!slide.snapToGrid;
