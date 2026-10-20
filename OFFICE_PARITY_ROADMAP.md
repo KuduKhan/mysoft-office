@@ -3,7 +3,7 @@
 **Product direction:** develop a genuinely interoperable and configurable productivity suite, not a lookalike UI. The Microsoft 365 feature set evolves continuously; the inventory below is a set of engineering targets, not claims of equivalence.
 
 ## Status key
-- **Implemented (v0.3)**: present in the browser prototype and covered by its release tests.
+- **Implemented (v0.4)**: present in the browser prototype and covered by its release tests.
 - **Partial**: useful basic capability but not Office-equivalent.
 - **Planned**: requires new editor engines, services, formats or security architecture.
 
@@ -23,7 +23,7 @@
 
 ## MySoft Docs → Word-class target
 
-**Working/partial v0.3:** headings, emphasis, lists, text alignment, links, font/size/color/highlight, tables, dividers, checklists, dates, find-and-replace, page size/orientation/margins/background/line spacing, print/PDF through browser, word count.
+**Working/partial v0.4:** headings, live document outline and in-session undo/redo,, emphasis, lists, text alignment, links, font/size/color/highlight, tables, dividers, checklists, dates, find-and-replace, page size/orientation/margins/background/line spacing, print/PDF through browser, word count.
 
 **Planned professional authoring:** consistent document tree and transactions; headers, footers and page numbers; section breaks, columns, tab stops, paragraph styles, tables with merging/resizing; images, captions, floating layouts, footnotes/endnotes; automatic TOC, citations, bibliography, equations, cross-references; track changes, comments, spell and grammar checks, accessibility checker, mail merge, templates, document protection; pixel-respectful DOCX read/write.
 
@@ -31,7 +31,7 @@ Use a maintained structured editor such as ProseMirror/Tiptap or an audited perm
 
 ## MySoft Sheets → Excel-class target
 
-**Working/partial v0.3:** 12×30 grid, multi-worksheet model (20 sheets), cell styles, numeric display presets, arithmetic, formula references, aggregates/statistics, formula-aware sorting safeguards, read-only bar/line previews, CSV import/export.
+**Working/partial v0.3:** 26×1,000 windowed grid with direct address navigation, multi-worksheet model (20 sheets), cell styles, numeric display presets, arithmetic, formula references, aggregates/statistics, formula-aware sorting safeguards, read-only bar/line previews, CSV import/export.
 
 **Planned professional computation:** scalable virtualized grid; full formula parser, dependency graph and recalculation; cross-sheet references; names and ranges; cell editing/format inheritance; filters, typed tables, grouping and freeze panes; column/row dimensions; charts with linked editable series; conditional formatting and validation; pivot tables, data imports, Power Query-style transforms, connectors, pivot charts, large XLSX round-trip, locale-sensitive number formats, protection and collaboration.
 
@@ -53,7 +53,7 @@ Distinguish slide-wide transitions from per-element animations; they are separat
 
 ## Architecture to grow beyond v0.3
 
-1. **v0.4 — editor modernization:** migrate browser DOM commands to structured document editor; strongly typed schemas and migration tests; scalable grid foundation. Add keyboard navigation and accessibility audits.
+1. **v0.4 — editor foundations (implemented partially):** a 26×1,000 row-windowed grid, direct keyboard navigation, document outline, session history. Structured editor migration and full accessibility audits remain open.
 2. **v0.5 — Office interoperability:** read/write DOCX/XLSX/PPTX using evaluated licensed libraries/services. Build golden-file regression suites before advertising format support.
 3. **v0.6 — secure backend:** dedicated MySoft project, relational metadata and blob storage, identity and tenant isolation, least-privilege RLS, encrypted transport, backups and quota controls. Do not reuse KHANIVERSITY's database.
 4. **v0.7 — collaborative workspace:** revision conflict resolution, shared documents, comments, notifications, granular roles and audit records.
@@ -71,7 +71,7 @@ Distinguish slide-wide transitions from per-element animations; they are separat
 - Check licensing terms before embedding Microsoft-proprietary assets, icons, fonts or third-party engines.
 - Provide privacy policy, clear cloud/local save indicators and accessibility for keyboard and assistive tech.
 
-## v0.3 limitations (explicit)
+## v0.4 limitations (explicit)
 
 This release still uses browser localStorage, native contenteditable editing and a small in-house spreadsheet engine. It is **not** an Office-equivalent production suite, does not offer full file format fidelity, doesn't yet have true cloud autosave or multi-user co-authoring, and should not hold classified, sensitive military or regulated information.
 
