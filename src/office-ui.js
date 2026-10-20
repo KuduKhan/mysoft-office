@@ -190,7 +190,8 @@ function replaceAllText(ctx,needle,replacement){
   return count;
 }
 function presentationHTML(slide){
-  return '<div class="ot-present-page ot-present-'+(slide.layout||'title')+' ot-effect-'+(['fade','slide'].includes(slide.transition)?slide.transition:'none')+'" style="--present-color:'+({violet:'#7161e8',ocean:'#2895d9',forest:'#22a88e',midnight:'#a58bff'}[slide.theme]||'#7161e8')+'"><h1>'+escapeHTML(slide.title)+'</h1><p>'+escapeHTML(slide.body)+'</p></div>';
+  const scheme=SLIDE_PRESETS[slide.studioPreset]||SLIDE_PRESETS.ivory;
+  return '<div class="ot-present-page ot-present-'+(slide.layout||'title')+' ot-effect-'+(['fade','slide'].includes(slide.transition)?slide.transition:'none')+'" style="--present-color:'+scheme.accent+';--studio-slide-bg:'+scheme.background+';--studio-slide-text:'+scheme.foreground+'"><h1>'+escapeHTML(slide.title)+'</h1><p>'+escapeHTML(slide.body)+'</p></div>';
 }
 function showPresentation(ctx,index=0){
   const file=ctx.getFile();if(!file?.slides)return;
@@ -224,7 +225,7 @@ export function initializeOfficeTools(ctx){
   applyPreferences();
   document.addEventListener('selectionchange',editorSelection);
   document.addEventListener('mousedown',e=>{
-    if(e.target.closest('button[data-ot-action]')?.dataset.otAction && ['strike','superscript','subscript','clear-format','insert-table','insert-hr','insert-checklist','insert-date'].includes(e.target.closest('button').dataset.otAction))e.preventDefault();
+    if(e.target.closest('button[data-ot-action]')?.dataset.otAction && ['strike','superscript','subscript','clear-format','insert-table','insert-hr','insert-checklist','insert-date','insert-quote','insert-page-break','text-bold','text-italic','text-underline','align-left','align-center','align-right','bullet-list','numbered-list'].includes(e.target.closest('button').dataset.otAction))e.preventDefault();
   });
   document.addEventListener('click',event=>{
     const palette=event.target.closest('[data-ot-palette]');
@@ -242,6 +243,12 @@ export function initializeOfficeTools(ctx){
     const action=target.dataset.otAction;
     const f=ctx.getFile();
     if(action==='preferences'){preferencesModal();return;}
+    if(action==='zoom-in'||action==='zoom-out'){
+      prefs.zoom=Math.max(75,Math.min(150,(Number(prefs.zoom)||100)+(action==='zoom-in'?10:-10)));
+      localStorage.setItem(PREFS_KEY,JSON.stringify(prefs));applyPreferences();
+      const label=document.getElementById('studio-zoom-value');if(label)label.textContent=prefs.zoom+'%';
+      return;
+    }
     if(action==='ribbon-toggle'){
       ribbonCollapsed=!ribbonCollapsed;
       localStorage.setItem('mysoft-office-ribbon-collapsed',ribbonCollapsed?'yes':'no');
