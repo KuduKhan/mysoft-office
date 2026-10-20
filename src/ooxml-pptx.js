@@ -27,12 +27,32 @@ function slideShape(id,name,text,x,y,w,h,isTitle,accent){
     '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></p:spPr>'+
     '<p:txBody><a:bodyPr wrap="square"/><a:lstStyle/>'+paragraphs+'</p:txBody></p:sp>';
 }
+function customObjectShape(object,index){
+  if(!['text','rect','ellipse'].includes(object.kind))return '';
+  const n=value=>Number.isFinite(Number(value))?Number(value):0;
+  const x=Math.round(Math.max(0,Math.min(100,n(object.x)))*121920);
+  const y=Math.round(Math.max(0,Math.min(100,n(object.y)))*68580);
+  const w=Math.max(1,Math.round(Math.min(100-n(object.x),Math.max(5,n(object.w)))*121920));
+  const h=Math.max(1,Math.round(Math.min(100-n(object.y),Math.max(5,n(object.h)))*68580));
+  const hex=value=>/^#[0-9a-f]{6}$/i.test(value||'')?value.slice(1).toUpperCase():'EA4C24';
+  const fill=hex(object.fill),color=hex(object.color);
+  const kind=object.kind==='ellipse'?'ellipse':'rect';
+  const size=Math.round(Math.max(10,Math.min(56,n(object.fontSize)||22))*100);
+  const paras=String(object.text||'').slice(0,600).split(/\r?\n/).map(line=>
+    '<a:p><a:r><a:rPr lang="en-US" sz="'+size+'"><a:solidFill><a:srgbClr val="'+color+'"/></a:solidFill></a:rPr>'+
+    '<a:t>'+xmlEscape(line)+'</a:t></a:r></a:p>').join('');
+  return '<p:sp><p:nvSpPr><p:cNvPr id="'+(index+4)+'" name="MySoft object '+index+'"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>'+
+    '<p:spPr><a:xfrm><a:off x="'+x+'" y="'+y+'"/><a:ext cx="'+w+'" cy="'+h+'"/></a:xfrm>'+
+    '<a:prstGeom prst="'+kind+'"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="'+fill+'"/></a:solidFill>'+
+    '<a:ln><a:noFill/></a:ln></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/>'+(paras||'<a:p/>')+'</p:txBody></p:sp>';
+}
 function slideXML(slide){
   const accent=baseColors[slide.theme]||baseColors.violet;
   return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
     '<p:sld '+prefix+'><p:cSld><p:spTree>'+shapeTreeRoot+
     slideShape(2,'Title',slide.title,820000,750000,10500000,1300000,true,accent)+
     slideShape(3,'Body',slide.body,900000,2300000,10000000,3200000,false,accent)+
+    (Array.isArray(slide.objects)?slide.objects.slice(0,40):[]).map(customObjectShape).join('')+
     '</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>';
 }
 function layoutXML(){
@@ -111,7 +131,7 @@ export function createPPTX(file){
   });
   files['[Content_Types].xml']=typesXML(overrides);
   return {bytes:makeZip(files),warnings:[
-    'Slides export editable titles and body text only; shapes, pictures, animations and speaker notes are not preserved.',
+    'Editable MySoft rectangles, ellipses and text boxes are exported; other Office objects, pictures, animations and speaker notes are not preserved.',
     'Slide layouts and theme details may differ from Microsoft PowerPoint.'
   ]};
 }
@@ -135,9 +155,27 @@ export async function importPPTX(buffer){
     if(!part||!files[part])throw Error('Slide file is missing.');
     const xml=parseXML(files[part]);
     const shapes=descendants(xml,'sp');
-    let title='',body=[];
+    let title='',body=[],objects=[];
     for(const shape of shapes){
+      const name=first(shape,'cNvPr')?.getAttribute('name')||'';
       const text=shapeText(shape);
+      if(name.startsWith('MySoft object ')){
+        const props=first(shape,'spPr'),xf=first(props,'xfrm'),off=first(xf,'off'),ext=first(xf,'ext');
+        const type=first(props,'prstGeom')?.getAttribute('prst');
+        const shapeKind=type==='ellipse'?'ellipse':text?'text':'rect';
+        if(off&&ext&&objects.length<40){
+          const color=first(first(props,'solidFill'),'srgbClr')?.getAttribute('val')||'EA4C24';
+          const textColor=first(first(first(shape,'txBody'),'rPr'),'srgbClr')?.getAttribute('val')||'202D48';
+          const pct=(n,total)=>Math.max(0,Math.min(100,Number(n||0)/total*100));
+          const x=pct(off.getAttribute('x'),12192000),y=pct(off.getAttribute('y'),6858000);
+          objects.push({id:'sh-import-'+slides.length+'-'+objects.length,kind:shapeKind,
+            x,y,w:Math.max(5,Math.min(100-x,pct(ext.getAttribute('cx'),12192000))),
+            h:Math.max(5,Math.min(100-y,pct(ext.getAttribute('cy'),6858000))),
+            fill:'#'+color.toLowerCase(),color:'#'+textColor.toLowerCase(),
+            text:text.slice(0,600),fontSize:22});
+        }
+        continue;
+      }
       if(!text)continue;
       const ph=first(shape,'ph');
       const type=ph?.getAttribute('type')||'';
@@ -146,11 +184,11 @@ export async function importPPTX(buffer){
     }
     if(!title&&body.length)title=body.shift();
     if(descendants(xml,'pic').length||descendants(xml,'graphicFrame').length||descendants(xml,'cxnSp').length)
-      warnings.push('Some pictures, charts, tables, or shapes were not imported.');
-    slides.push({title:title.slice(0,500)||'Untitled slide',body:body.join('\n').slice(0,20000),theme:'violet'});
+      warnings.push('Some pictures, charts, tables, or unsupported shapes were not imported.');
+    slides.push({title:title.slice(0,500)||'Untitled slide',body:body.join('\n').slice(0,20000),theme:'violet',objects});
   }
   if(Object.keys(files).some(p=>/ppt\/(media|notesSlides|charts|embeddings)/.test(p)))
     warnings.push('Media, speaker notes, charts and embedded objects were not preserved.');
-  warnings.push('Complex slide layouts, text placement, animations and transitions are flattened to editable title/body.');
+  warnings.push('MySoft text boxes and simple shapes are supported; complex slide layouts, external shapes and animations may be flattened or omitted.');
   return {type:'slides',slides,warnings:[...new Set(warnings)]};
 }
