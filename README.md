@@ -2,7 +2,7 @@
 
 **Your work. Your space.**
 
-MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.6.0 Editor Productivity Preview** retains native DOCX/XLSX/PPTX support and adds a redesigned, responsive workspace with orangered/color theme options, denser editing ribbons and new functional commands. This remains a local-first prototype, not full Microsoft Office parity. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
+MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.6.1 Fixed Shell & Search Preview** retains native DOCX/XLSX/PPTX support and adds a redesigned, responsive workspace with orangered/color theme options, denser editing ribbons and new functional commands. This remains a local-first prototype, not full Microsoft Office parity. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
 
 ## Editor Productivity Preview — v0.6.0
 
@@ -13,6 +13,14 @@ MySoft Office is an independent, local-first productivity suite with four browse
 - **Verification:** New pure-function tests plus full four-editor Chromium tests. Existing OOXML import/export and storage behavior remain limited to documented subsets.
 
 **Scope note:** v0.6.0 is an editor-productivity preview. The separately planned secure-backend, multi-tab conflict resolution and collaboration milestones are **not completed** by this release.
+
+## v0.6.1 — Fixed navigation and workspace content search
+
+- Fixed desktop sidebar with independently scrolling navigation and anchored local backup controls; compact icon rail keeps export/import actions accessible.
+- Mobile drawer has focus containment, close button, background inertness while closed, Escape and backdrop dismissal, and restored keyboard focus. Collapsing the sidebar does not remount editor content.
+- Arrow Up/Down, Home and End keyboard navigation in the sidebar; skip-to-main link.
+- Local file search by title, tag, document body, note body, sheet content and slides/notes, with bounded scanning. No cloud index.
+- Existing Office import/export, backup and IndexedDB recovery remain unchanged.
 
 ## Quick start
 

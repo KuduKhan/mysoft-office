@@ -1,5 +1,6 @@
 import {studioShortcut} from './studio-shortcuts.js';
 import {recentWorkspaceFiles,editorMetric} from './studio-workspace.js';
+import {searchWorkspaceFiles,workspaceMatchSource} from './workspace-search.js';
 import { BrowserWorkspaceStore, readLegacyWorkspace, readRecoveryJournal, LEGACY_KEYS, RECOVERY_KEY } from './workspace-storage.js';
 import { COLUMNS, ROW_COUNT, displayCell } from './formulas.js';
 import { addRevision, restoreRevision } from './revisions.js';
@@ -253,9 +254,9 @@ function renderRows(list){
   }
   if(!list.length) return '<div class="empty-state">'+icon('folder',36)+'<h3>No matching files yet</h3><p>Create a new file to get started.</p><button class="btn btn-primary" data-action="new">'+icon('plus',15)+' Create file</button></div>';
   return '<div class="panel"><table class="data-table"><thead><tr><th>Name</th><th>Type</th><th>Modified</th><th>Actions</th></tr></thead><tbody>'+
-    list.map(f=>'<tr data-open="'+esc(f.id)+'" style="cursor:pointer"><td><div class="row"><span class="file-icon '+f.type+'">'+icon(typeIcons[f.type],17)+'</span><div><div class="file-name">'+esc(f.title)+'</div><div class="file-type">'+labels[f.type]+'</div></div></div></td><td><span class="badge">'+typeNames[f.type]+'</span></td><td class="muted">'+dateText(f.updatedAt)+'</td><td><div class="row"><button class="icon-btn '+(f.starred?'starred':'')+'" data-star="'+esc(f.id)+'" title="Toggle favorite" aria-label="Toggle favorite">'+icon('star',16)+'</button><button class="icon-btn" data-duplicate="'+esc(f.id)+'" title="Duplicate" aria-label="Duplicate">'+icon('copy',16)+'</button><button class="icon-btn" data-delete="'+esc(f.id)+'" title="Delete" aria-label="Delete">'+icon('trash',16)+'</button></div></td></tr>').join('')+'</tbody></table></div>';
+    list.map(f=>'<tr data-open="'+esc(f.id)+'" style="cursor:pointer"><td><div class="row"><span class="file-icon '+f.type+'">'+icon(typeIcons[f.type],17)+'</span><div><div class="file-name">'+esc(f.title)+'</div><div class="file-type">'+labels[f.type]+'</div>'+(query.trim()&&workspaceMatchSource(f,query)!=='name'?'<div class="workspace-search-origin">Found in '+esc(workspaceMatchSource(f,query))+'</div>':'')+'</div></div></td><td><span class="badge">'+typeNames[f.type]+'</span></td><td class="muted">'+dateText(f.updatedAt)+'</td><td><div class="row"><button class="icon-btn '+(f.starred?'starred':'')+'" data-star="'+esc(f.id)+'" title="Toggle favorite" aria-label="Toggle favorite">'+icon('star',16)+'</button><button class="icon-btn" data-duplicate="'+esc(f.id)+'" title="Duplicate" aria-label="Duplicate">'+icon('copy',16)+'</button><button class="icon-btn" data-delete="'+esc(f.id)+'" title="Delete" aria-label="Delete">'+icon('trash',16)+'</button></div></td></tr>').join('')+'</tbody></table></div>';
 }
-function filtered(list){return list.filter(f=>f.title.toLowerCase().includes(query.trim().toLowerCase())).sort((a,b)=>b.updatedAt-a.updatedAt);}
+function filtered(list){return searchWorkspaceFiles(list,query);}
 function updateEditorMetrics(){
   const node=document.getElementById('studio-editor-metric'),f=getActive();
   if(node&&f)node.textContent=editorMetric(f,['docs','notes'].includes(f.type)?plain(f.body):'');
@@ -274,7 +275,7 @@ function filesPage(){
   if(fileFilter!=='all') list=list.filter(f=>f.type===fileFilter);
   list=filtered(list);
   const title=view==='trash'?'Recycle bin':view==='starred'?'Starred files':typeNames[view]?labels[view]:'All files';
-  return '<div class="content"><div class="spread page-heading"><div><div class="eyebrow">WORKSPACE / LIBRARY</div><h1 style="margin-top:8px">'+esc(title)+'</h1><p class="subtitle">'+list.length+' files · Saved in this browser</p></div><button class="btn btn-primary" data-action="new">'+icon('plus',16)+' New file</button></div>'+
+  return '<div class="content"><div class="spread page-heading"><div><div class="eyebrow">WORKSPACE / LIBRARY</div><h1 style="margin-top:8px">'+esc(title)+'</h1><p class="subtitle">'+(query.trim()?list.length+' results for “'+esc(query.trim().slice(0,128))+'”':list.length+' files · Saved in this browser')+'</p></div><button class="btn btn-primary" data-action="new">'+icon('plus',16)+' New file</button></div>'+
     '<div class="spread" style="margin-bottom:18px"><div class="row"><span class="muted" style="font-size:12px">Filter by type</span><select id="file-filter" style="padding:9px;border-radius:9px;border:1px solid var(--line)"><option value="all">All types</option>'+Object.keys(labels).map(t=>'<option value="'+t+'" '+(fileFilter===t?'selected':'')+'>'+labels[t]+'</option>').join('')+'</select></div><span class="muted" style="font-size:11px">Most recently edited first</span></div>'+
     renderRows(list)+'</div>';
 }
