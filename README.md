@@ -2,7 +2,7 @@
 
 **Your work. Your space.**
 
-MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.5.3 Editor Power** retains native DOCX/XLSX/PPTX support and adds a redesigned, responsive workspace with orangered/color theme options, denser editing ribbons and new functional commands. This remains a local-first prototype, not full Microsoft Office parity. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
+MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.5.4 Editing Reliability** retains native DOCX/XLSX/PPTX support and adds a redesigned, responsive workspace with orangered/color theme options, denser editing ribbons and new functional commands. This remains a local-first prototype, not full Microsoft Office parity. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
 
 ## Quick start
 
@@ -15,6 +15,14 @@ npm run dev
 ```
 
 Open http://localhost:4173. No installation step or external npm dependencies are required for the local editor prototype. This repository includes static output configuration for Vercel, but the Vercel project is not connected yet.
+
+## New in v0.5.4 — Layout and editing reliability
+
+- Docs: print-page geometry for A4/Letter/Legal, orientations/margins, editable header/footer text saved independently of document content, and print stylesheet applying paper settings. **Editor remains a continuous document; this is not full Word-quality pagination.**
+- Sheets: formula audit reports evaluation errors and counts; cell trace shows direct dependencies and dependents within active worksheet. **Not a full dependency/recalculation graph.**
+- Slides: precise align-to-slide controls (left, center, right, top, middle, bottom), controlled resizing, persisted geometry.
+- Notes: search across notebooks, sections, titles, tags and text, with a mobile-accessible search box and zero-results message.
+- All apps: unit tests for safe geometry and search/audit, and browser tests for editor actions, reload persistence and mobile overflow. Cloud infrastructure is still deferred.
 
 ## New in v0.5.3 — Deeper editing in all four applications
 
