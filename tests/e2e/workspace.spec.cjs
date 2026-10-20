@@ -123,7 +123,7 @@ test('Docs can insert a small picture and preserve it after reload',async({page}
 
 test('virtualized grid navigates to Z1000, saves, and restores without rendering 26000 inputs',async({page})=>{
   await page.locator('[data-create="sheets"]').first().click();
-  await expect(page.locator('[data-cell]').count()).resolves.toBeLessThan(1500);
+  expect(await page.locator('[data-cell]').count()).toBeLessThan(1500);
   await page.locator('#cell-address').fill('Z1000');
   await page.locator('#cell-address').press('Enter');
   await expect(page.locator('[data-cell="Z1000"]')).toBeVisible();
