@@ -271,3 +271,18 @@ html[data-mode="dark"] .ot-tab.active{color:#bdb2ff}
 }
 @media(max-width:860px){.ot-ribbon-top,.ot-ribbon-tools{padding-left:12px;padding-right:12px}.ot-ribbon-version{display:none}.ot-ribbon-tools{gap:6px}.ot-tab{padding:10px 12px}.ot-select-label select{max-width:100px}}
 @media(max-width:560px){.ot-ribbon-tools{max-height:140px;overflow:auto;align-items:start}.ot-ribbon-tabs{overflow-x:auto}.ot-btn{font-size:11px;padding:7px 9px}.ot-metric{white-space:normal}.ot-present-controls{gap:8px}.ot-present-controls button{font-size:11px;padding:8px}}
+
+/* Slide-specific layout customization and subtle presentation transitions */
+.slide-stage.ot-layout-section{background:#1b2543}
+.slide-stage.ot-layout-section .slide-title{color:#fff;font-size:clamp(30px,3.7vw,54px)}
+.slide-stage.ot-layout-section .slide-body{color:#d8ddec}
+.slide-stage.ot-layout-minimal{align-items:center;text-align:center}
+.slide-stage.ot-text-large .slide-title{font-size:clamp(35px,4.1vw,58px)}
+.slide-stage.ot-text-large .slide-body{font-size:clamp(20px,2.2vw,30px)}
+.slide-stage.ot-text-compact .slide-title{font-size:clamp(23px,2.3vw,35px)}
+.slide-stage.ot-text-compact .slide-body{font-size:clamp(12px,1.2vw,17px)}
+.ot-effect-fade{animation:otFade 300ms ease-out}
+.ot-effect-slide{animation:otSlide 320ms ease-out}
+@keyframes otFade{from{opacity:0}to{opacity:1}}
+@keyframes otSlide{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}
+@media(prefers-reduced-motion:reduce){.ot-effect-fade,.ot-effect-slide{animation:none!important}}
