@@ -5,7 +5,7 @@ import {
 } from './office-model.js';
 import {STUDIO_ACCENTS,SLIDE_PRESETS,setSlidePreset,replaceSheetValues,fillDown,clearCell} from './studio-tools.js';
 import {formatRange,clearRange,copyRangeTSV,seriesFill,rangeSummary,parseRange} from './sheet-range.js';
-import {addSlideObject,deleteSlideObject,duplicateSlideObject,moveSlideObject,getSlideObject,renderedSlideObjects} from './slide-objects.js';
+import {addSlideObject,deleteSlideObject,duplicateSlideObject,moveSlideObject,getSlideObject,updateSlideObject,renderedSlideObjects} from './slide-objects.js';
 import {addDocComment} from './doc-review.js';
 
 const escapeHTML = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -124,6 +124,8 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         button('Apply theme to all','theme-all');
     } else if(active==='Shapes'){
       body=button('＋ Text box','shape-text')+button('▣ Rectangle','shape-rect')+button('◯ Ellipse','shape-ellipse')+
+        color('Fill','shape-fill','#ea4c24')+color('Text','shape-color','#202d48')+
+        button('Text A+','shape-font-up')+button('Text A−','shape-font-down')+
         button('←','shape-left','Move selected object left')+button('→','shape-right')+
         button('↑','shape-up')+button('↓','shape-down')+
         button('Duplicate','shape-duplicate')+button('Delete','shape-delete')+
@@ -481,12 +483,16 @@ export function initializeOfficeTools(ctx){
         const kind={'shape-text':'text','shape-rect':'rect','shape-ellipse':'ellipse'}[action];
         const item=addSlideObject(f.slides[ctx.getSlideIndex()],kind);
         ctx.setSlideObjectId(item.id);ctx.touch(f);ctx.persist();ctx.render();return;
-      } else if(['shape-left','shape-right','shape-up','shape-down','shape-duplicate','shape-delete'].includes(action)){
+      } else if(['shape-left','shape-right','shape-up','shape-down','shape-duplicate','shape-delete','shape-font-up','shape-font-down'].includes(action)){
         if(f.type!=='slides')return;
         const id=ctx.getSlideObjectId(),slide=f.slides[ctx.getSlideIndex()];
         if(!id||!getSlideObject(slide,id))throw Error('Select an object on the slide first.');
         if(action==='shape-delete'){deleteSlideObject(slide,id);ctx.setSlideObjectId(null);}
         else if(action==='shape-duplicate'){ctx.setSlideObjectId(duplicateSlideObject(slide,id).id);}
+        else if(action==='shape-font-up'||action==='shape-font-down'){
+          const obj=getSlideObject(slide,id);
+          updateSlideObject(slide,id,{fontSize:Math.max(10,Math.min(56,(obj.fontSize||22)+(action==='shape-font-up'?2:-2)))});
+        }
         else {const delta={ 'shape-left':[-3,0],'shape-right':[3,0],'shape-up':[0,-3],'shape-down':[0,3]}[action];moveSlideObject(slide,id,...delta);}
         ctx.touch(f);ctx.persist();ctx.render();return;
       } else if(action==='theme-all'){
@@ -529,6 +535,15 @@ export function initializeOfficeTools(ctx){
     if(name.startsWith('cell-')){
       const prop={'cell-color':'color','cell-background':'background'}[name];
       if(prop){setCellStyle(f,ctx.getSelectedCell(),prop,value);ctx.touch(f);ctx.persist();ctx.render();}return;
+    }
+    if(['shape-fill','shape-color'].includes(name)&&f.type==='slides'){
+      const id=ctx.getSlideObjectId();
+      if(!id){ctx.toast('Select a slide object first');return;}
+      try{
+        updateSlideObject(f.slides[ctx.getSlideIndex()],id,{[name==='shape-fill'?'fill':'color']:value});
+        ctx.touch(f);ctx.persist();ctx.render();
+      }catch(error){ctx.toast(error.message||'Shape color could not be applied');}
+      return;
     }
     if(name==='backdrop'&&f.type==='slides'){
       setSlidePreset(f.slides[ctx.getSlideIndex()],value);ctx.touch(f);ctx.render();return;
