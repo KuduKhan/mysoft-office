@@ -49,3 +49,11 @@ The app is not yet equivalent to WPS or Microsoft Office. We must extend the v0.
 6. A reliable local database (IndexedDB) before any cloud move, avoiding localStorage capacity/data-loss limitations.
 
 **Milestone policy:** Do not progress to v0.6 cloud/back-end scope merely because the studio looks polished. Functional editor depth, data integrity, interoperability and responsive quality must first meet practical release gates.
+
+## v0.5.2 Editor Depth progress
+
+- Added simple table row/column insertion and removal inside Docs, bounded to 40 rows and 15 columns (no merged-table editing).
+- Added spreadsheet Range tab: 2,600-cell bounded formatting and clearing, TSV copy, arithmetic series and summary statistics.
+- Fixed sorting to include rows 2–1000; previously populated rows after row 30 were vulnerable to removal.
+- Added unit tests for range bounds, mutation integrity and preserving deep-row data while sorting; added browser tests for table and range editing.
+- Advanced collaborative editing, professional DOCX/WPS fidelity, worksheet dependency graphs and freeform PPTX editing remain out of scope.

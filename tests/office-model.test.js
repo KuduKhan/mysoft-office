@@ -40,3 +40,13 @@ test('chart detects numeric pairs and word count',()=>{
   assert.deepEqual(sheetChartData(f).map(x=>x.value),[10,20]);
   assert.equal(wordStatistics('Hello <b>great</b> world').words,3);
 });
+
+
+test('sorting 1000-row sheets never silently deletes data below row 30',()=>{
+  const sheet={type:'sheets',cells:{A1:'Name',A2:'Zebra',A3:'Apple',A500:'Omega',B500:'500'},cellStyles:{A500:{bold:true}}};
+  sortSheet(sheet,'A','asc');
+  const values=Object.values(sheet.cells);
+  assert.ok(values.includes('Omega'),'row 500 value must survive sorting');
+  assert.ok(values.includes('500'),'related cell must survive sorting');
+  assert.equal(Object.values(sheet.cellStyles).filter(x=>x.bold).length,1,'cell style must follow the sorted row');
+});
