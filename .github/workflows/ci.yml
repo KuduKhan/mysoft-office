@@ -1,7 +1,7 @@
 name: Verify MySoft Office
 on:
   push:
-    branches: [main, feat/v0.5-ooxml-interoperability]
+    branches: [main, feat/v0.5.1-studio-ui-polish]
   pull_request:
 permissions:
   contents: read

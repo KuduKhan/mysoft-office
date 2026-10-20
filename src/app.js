@@ -9,6 +9,7 @@ import { DocumentHistory, headingsFromHTML } from './document-history.js';
 import { createDOCX, importDOCX } from './ooxml-docx.js';
 import { createXLSX, importXLSX } from './ooxml-xlsx.js';
 import { createPPTX, importPPTX } from './ooxml-pptx.js';
+import { SLIDE_PRESETS } from './studio-tools.js';
 import { parseAddress, moveAddress, pasteGrid, populatedBounds, ROW_HEIGHT, HEADER_HEIGHT } from './sheet-window.js';
 
 const STORAGE_KEY='mysoft-office-v1';
@@ -285,9 +286,10 @@ function sheetsEditor(f){
 function slidesEditor(f){
   const s=f.slides[slideIndex]||f.slides[0];
   const theme=themes[s.theme]||themes.violet;
+  const studio=SLIDE_PRESETS[s.studioPreset]||SLIDE_PRESETS.ivory;
   return '<div class="slide-layout"><div class="slide-list"><button class="btn btn-soft btn-sm" data-action="slide-add" style="width:100%;margin-bottom:12px">'+icon('plus',14)+' Add slide</button>'+
     f.slides.map((slide,i)=>'<button class="slide-item '+(i===slideIndex?'active':'')+'" data-slide="'+i+'"><span>'+(i+1)+'</span><div class="slide-thumb"><strong>'+esc(slide.title)+'</strong><small>'+esc(slide.body).slice(0,46)+'</small></div></button>').join('')+'</div>'+
-    '<div class="slide-stage-wrap"><div class="slide-stage '+(theme.dark?'dark':'')+'" style="--slide-accent:'+theme.color+'"><div class="slide-tag">MySoft Slides · '+(slideIndex+1)+' / '+f.slides.length+'</div><div class="slide-title" contenteditable="true" id="slide-title" role="textbox" aria-label="Slide title" data-placeholder="Slide title">'+esc(s.title)+'</div><div class="slide-body" contenteditable="true" id="slide-body" role="textbox" aria-label="Slide body">'+esc(s.body)+'</div></div></div>'+
+    '<div class="slide-stage-wrap"><div class="slide-stage '+(theme.dark?'dark':'')+' studio-preset" style="--slide-accent:'+theme.color+';--studio-slide-bg:'+studio.background+';--studio-slide-text:'+studio.foreground+';--studio-slide-highlight:'+studio.accent+'"><div class="slide-tag">MySoft Slides · '+(slideIndex+1)+' / '+f.slides.length+'</div><div class="slide-title" contenteditable="true" id="slide-title" role="textbox" aria-label="Slide title" data-placeholder="Slide title">'+esc(s.title)+'</div><div class="slide-body" contenteditable="true" id="slide-body" role="textbox" aria-label="Slide body">'+esc(s.body)+'</div></div></div>'+
     '<div class="slide-controls"><h3>Design theme</h3>'+Object.entries(themes).map(([k,v])=>'<button class="theme-choice '+(s.theme===k?'active':'')+'" data-theme="'+k+'"><span class="theme-dot" style="background:'+v.color+'"></span>'+v.label+'</button>').join('')+
     '<h3 style="margin-top:30px">Slide actions</h3><button class="btn btn-light btn-sm" data-action="slide-duplicate" style="width:100%;margin:6px 0">'+icon('copy',14)+' Duplicate</button><button class="btn btn-light btn-sm" data-action="slide-delete" style="width:100%;margin:6px 0">'+icon('trash',14)+' Delete</button></div></div>';
 }
@@ -301,7 +303,10 @@ function editor(){
   const f=getActive();
   if(!f){view='files';return filesPage();}
   if(['docs','notes'].includes(f.type))documentHistory.seed(f.id,f.body||'');
-  return '<div class="editor-shell">'+editorHead(f)+powerRibbon(f,selectedCell,slideIndex)+(f.type==='docs'?docsEditor(f):f.type==='sheets'?sheetsEditor(f):f.type==='slides'?slidesEditor(f):notesEditor(f))+'</div>';
+  const zoom=Math.round(parseFloat(document.documentElement.style.getPropertyValue('--studio-zoom'))||100);
+  const status='<div class="studio-statusbar" role="status"><div class="studio-status-left"><span class="studio-status-dot"></span><span>MySoft '+typeNames[f.type]+'</span><span class="studio-status-divider">·</span><span>Saved in this browser</span></div>'+
+    '<div class="studio-status-right"><span class="studio-shortcut">Ctrl+S · Save</span><button data-ot-action="zoom-out" class="studio-zoom-btn" aria-label="Zoom out">−</button><span id="studio-zoom-value">'+zoom+'%</span><button data-ot-action="zoom-in" class="studio-zoom-btn" aria-label="Zoom in">+</button></div></div>';
+  return '<div class="editor-shell">'+editorHead(f)+powerRibbon(f,selectedCell,slideIndex)+(f.type==='docs'?docsEditor(f):f.type==='sheets'?sheetsEditor(f):f.type==='slides'?slidesEditor(f):notesEditor(f))+status+'</div>';
 }
 function render(){
   app.innerHTML='<div class="shell">'+sidebar()+'<main class="main">'+header()+(view==='editor'?editor():view==='home'?home():view==='templates'?templatesPage():filesPage())+'</main></div>';

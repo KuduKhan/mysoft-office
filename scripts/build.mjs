@@ -4,7 +4,7 @@ const check = (file) => {
   const result = spawnSync(process.execPath, ['--check', file], { stdio: 'inherit' });
   if (result.status !== 0) process.exit(result.status || 1);
 };
-for (const file of ['src/app.js', 'src/formulas.js', 'src/revisions.js', 'src/file-formats.js', 'src/cloud.js', 'src/cloud-config.js', 'src/office-model.js', 'src/office-ui.js', 'src/sheet-window.js', 'src/sheet-grid.js', 'src/document-history.js', 'src/ooxml-zip.js', 'src/ooxml-docx.js', 'src/ooxml-xlsx.js', 'src/ooxml-pptx.js', 'scripts/server.mjs']) check(file);
+for (const file of ['src/app.js', 'src/formulas.js', 'src/revisions.js', 'src/file-formats.js', 'src/cloud.js', 'src/cloud-config.js', 'src/office-model.js', 'src/office-ui.js', 'src/sheet-window.js', 'src/sheet-grid.js', 'src/document-history.js', 'src/ooxml-zip.js', 'src/ooxml-docx.js', 'src/ooxml-xlsx.js', 'src/ooxml-pptx.js', 'src/studio-tools.js', 'scripts/server.mjs']) check(file);
 await access('index.html');
 await rm('dist', { recursive: true, force: true });
 await mkdir('dist', { recursive: true });
