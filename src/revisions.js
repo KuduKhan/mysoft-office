@@ -5,7 +5,14 @@ export function versionContent(file) {
   if (!file || !['docs','sheets','slides','notes'].includes(file.type)) throw new Error('Invalid file');
   const version = {title:String(file.title||''),type:file.type};
   if (file.type==='docs' || file.type==='notes') version.body=String(file.body||'');
-  if (file.type==='sheets') version.cells=structuredClone(file.cells||{});
+  if (file.type==='sheets') {
+    version.cells=structuredClone(file.cells||{});
+    if(Array.isArray(file.worksheets)){
+      version.worksheets=structuredClone(file.worksheets);
+      version.activeSheetIndex=file.activeSheetIndex||0;
+      version.cellStyles=structuredClone(file.cellStyles||{});
+    }
+  }
   if (file.type==='slides') version.slides=structuredClone(file.slides||[]);
   return version;
 }
@@ -27,7 +34,18 @@ export function restoreRevision(file,revision) {
   const data=structuredClone(revision.content);
   copy.title=data.title;
   if(file.type==='docs'||file.type==='notes') copy.body=data.body;
-  if(file.type==='sheets') copy.cells=data.cells;
+  if(file.type==='sheets'){
+    copy.cells=data.cells;
+    if(Array.isArray(data.worksheets)){
+      copy.worksheets=data.worksheets;
+      copy.activeSheetIndex=data.activeSheetIndex||0;
+      copy.cellStyles=data.cellStyles||{};
+    }else{
+      delete copy.worksheets;
+      delete copy.activeSheetIndex;
+      delete copy.cellStyles;
+    }
+  }
   if(file.type==='slides') copy.slides=data.slides;
   copy.updatedAt=Date.now();
   return copy;
