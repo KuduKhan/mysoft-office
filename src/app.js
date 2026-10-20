@@ -631,10 +631,11 @@ externalInput.type='file';externalInput.accept='.txt,.md,.csv,.html,.htm';
 externalInput.id='external-file-upload';externalInput.hidden=true;
 document.body.appendChild(externalInput);
 initializeOfficeTools({
-  getFile:getActive,touch,render,sanitize,toast,
+  getFile:getActive,touch,persist,render,sanitize,toast,
   getSelectedCell:()=>selectedCell,getSlideIndex:()=>slideIndex,
   setSlideIndex:i=>{slideIndex=i;}
 });
+window.addEventListener('pagehide',()=>{clearTimeout(savedTimer);persist();});
 window.addEventListener('popstate',()=>{restoreRoute();render();});
 restoreRoute();
 persist();
