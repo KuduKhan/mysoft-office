@@ -277,7 +277,7 @@ function notesEditor(f){
   const notes=files.filter(v=>v.type==='notes').sort((a,b)=>b.updatedAt-a.updatedAt);
   return '<div class="note-layout"><div class="note-list"><div class="spread"><h3>All notes</h3><button class="icon-btn" data-create="notes" title="New note">'+icon('plus',16)+'</button></div>'+
     notes.map(n=>'<button class="note-list-item '+(n.id===f.id?'active':'')+'" data-open="'+esc(n.id)+'"><strong>'+esc(n.title)+'</strong><span>'+dateText(n.updatedAt)+'</span></button>').join('')+'</div>'+
-    '<div class="note-editor"><div class="eyebrow">MY NOTES</div><input class="note-title" id="note-title" aria-label="Note title" value="'+esc(f.title)+'" maxlength="120"><div class="note-meta">Private to this browser · Autosaved</div><div id="rich-content" class="note-content" contenteditable="true" spellcheck="true" role="textbox" aria-label="Note content" data-placeholder="Capture your thoughts...">'+sanitize(f.body)+'</div></div></div>';
+    '<div class="note-editor"><div class="eyebrow">MY NOTES</div><input class="note-title" id="note-title" aria-label="Note title" value="'+esc(f.title)+'" maxlength="120"><div class="note-meta">Private to this browser · Autosaved · Tags: '+esc((f.tags||[]).join(', ')||'none')+'</div><div id="rich-content" class="note-content" contenteditable="true" spellcheck="true" role="textbox" aria-label="Note content" data-placeholder="Capture your thoughts...">'+sanitize(f.body)+'</div></div></div>';
 }
 function editor(){
   const f=getActive();
