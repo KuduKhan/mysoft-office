@@ -106,7 +106,14 @@ export class BrowserWorkspaceStore {
     this.nextSequence=0;
     this.legacyStorage=null;
     this.knownRevision=0;
-    this.ownerToken=globalThis.crypto?.randomUUID?.()||'tab-'+Date.now()+'-'+Math.random().toString(36).slice(2);
+    // Session-scoped identity survives reload in this tab, not a normal new tab.
+    let owner=null;
+    try{owner=globalThis.sessionStorage?.getItem('mysoft-office-tab-id')||null;}catch{}
+    if(!owner||owner.length>120){
+      owner=globalThis.crypto?.randomUUID?.()||'tab-'+Date.now()+'-'+Math.random().toString(36).slice(2);
+      try{globalThis.sessionStorage?.setItem('mysoft-office-tab-id',owner);}catch{}
+    }
+    this.ownerToken=owner;
     this.queue = new OrderedWriteQueue(snapshot => this.write(snapshot));
   }
 
@@ -167,7 +174,8 @@ export class BrowserWorkspaceStore {
     catch{invalidJournal=true;} // Keep malformed optional journal for manual export.
     // Only replay edits that started from the exact committed version.
     // An old unversioned journal must never replace healthy IndexedDB content.
-    if(recovery && recovery.sequence>this.committedSequence &&
+    if(recovery && recovery.owner===this.ownerToken &&
+       recovery.sequence>this.committedSequence &&
        recovery.baseRevision===this.knownRevision){
       await this.queue.save({...recovery.workspace,_sequence:recovery.sequence});
       this.nextSequence=Math.max(this.nextSequence,recovery.sequence);
@@ -178,7 +186,8 @@ export class BrowserWorkspaceStore {
     let legacy=null;
     try{legacy=readLegacyWorkspace(legacyStorage);}
     catch(error){if(error?.name!=='SecurityError')throw error;}
-    const workspace = legacy || (recovery?.workspace) || validateWorkspace({ files: createStarter(), trash: [], versions: {} });
+    const workspace = legacy || (recovery?.owner===this.ownerToken?recovery.workspace:null) ||
+      validateWorkspace({ files: createStarter(), trash: [], versions: {} });
     await this.queue.save({...workspace,_sequence:0});
     return { workspace, source: legacy ? 'legacy-migrated' : 'new' };
   }
