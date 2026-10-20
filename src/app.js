@@ -55,26 +55,50 @@ function plain(html){
 }
 function sanitize(html){
   const parsed=new DOMParser().parseFromString(String(html||''),'text/html');
-  const allowed=new Set(['P','DIV','BR','H1','H2','H3','STRONG','B','EM','I','U','S','UL','OL','LI','BLOCKQUOTE','SPAN','A']);
-  const blocked=new Set(['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','SVG','MATH','FORM','INPUT','BUTTON','META','LINK','BASE']);
+  const allowed=new Set(['P','DIV','BR','H1','H2','H3','STRONG','B','EM','I','U','S','UL','OL','LI','BLOCKQUOTE','SPAN','A','TABLE','THEAD','TBODY','TFOOT','TR','TH','TD','HR','SUP','SUB','MARK','FONT']);
+  const blocked=new Set(['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','SVG','MATH','FORM','INPUT','BUTTON','META','LINK','BASE','IMG','VIDEO','AUDIO']);
+  const isColor=x=>/^#[0-9a-fA-F]{3,8}$/.test(x)||/^rgba?\([0-9 ,.]+\)$/.test(x);
+  const fonts=new Set(['arial','calibri','georgia','garamond','tahoma','times new roman','verdana']);
   function clean(node,doc){
-    if(node.nodeType===Node.TEXT_NODE) return doc.createTextNode(node.nodeValue||'');
-    if(node.nodeType!==Node.ELEMENT_NODE) return doc.createTextNode('');
-    if(blocked.has(node.tagName)) return doc.createTextNode('');
-    const wrapper=doc.createElement(allowed.has(node.tagName)?node.tagName.toLowerCase():'span');
+    if(node.nodeType===Node.TEXT_NODE)return doc.createTextNode(node.nodeValue||'');
+    if(node.nodeType!==Node.ELEMENT_NODE)return doc.createTextNode('');
+    if(blocked.has(node.tagName))return doc.createTextNode('');
+    const tag=allowed.has(node.tagName)?node.tagName.toLowerCase():'span';
+    const wrapper=doc.createElement(tag==='font'?'span':tag);
     if(node.tagName==='A'){
       const url=node.getAttribute('href')||'';
-      if(/^https?:\/\//i.test(url)){wrapper.setAttribute('href',url);wrapper.setAttribute('rel','noopener noreferrer');}
+      if(/^https?:\/\//i.test(url)){
+        wrapper.setAttribute('href',url);
+        wrapper.setAttribute('rel','noopener noreferrer');
+      }
     }
-    if(node.tagName==='SPAN'||node.tagName==='P'||node.tagName==='DIV'){
+    if(['SPAN','P','DIV','FONT','TH','TD'].includes(node.tagName)){
       const align=node.style?.textAlign;
-      if(['left','center','right','justify'].includes(align)) wrapper.style.textAlign=align;
+      if(['left','center','right','justify'].includes(align))wrapper.style.textAlign=align;
+      const foreground=node.style?.color||node.getAttribute('color');
+      const background=node.style?.backgroundColor;
+      const family=(node.style?.fontFamily||node.getAttribute('face')||'').replace(/["']/g,'');
+      const size=node.style?.fontSize;
+      if(foreground&&isColor(foreground))wrapper.style.color=foreground;
+      if(background&&isColor(background))wrapper.style.backgroundColor=background;
+      if(fonts.has(family.toLowerCase()))wrapper.style.fontFamily=family;
+      if(size&&/^(?:[1-9]|[12]\d|3[0-6])(?:px|pt)$/.test(size))wrapper.style.fontSize=size;
+      if(node.tagName==='FONT'){
+        const n=Number(node.getAttribute('size'));
+        if(Number.isInteger(n)&&n>=1&&n<=7)wrapper.style.fontSize=({1:10,2:13,3:16,4:18,5:24,6:32,7:48})[n]+'px';
+      }
     }
-    for(const child of node.childNodes) wrapper.appendChild(clean(child,doc));
+    if(['TD','TH'].includes(node.tagName)){
+      for(const attr of ['colspan','rowspan']){
+        const n=Number(node.getAttribute(attr)||1);
+        if(Number.isInteger(n)&&n>1&&n<=8)wrapper.setAttribute(attr,String(n));
+      }
+    }
+    for(const child of node.childNodes)wrapper.appendChild(clean(child,doc));
     return wrapper;
   }
   const output=document.implementation.createHTMLDocument('');
-  for(const child of parsed.body.childNodes) output.body.appendChild(clean(child,output));
+  for(const child of parsed.body.childNodes)output.body.appendChild(clean(child,output));
   return output.body.innerHTML;
 }
 function uuid(){return globalThis.crypto?.randomUUID?.()||'f'+Date.now()+Math.random().toString(36).slice(2);}
@@ -217,7 +241,14 @@ function docToolbar(){
     '<span class="toolbar-divider"></span><button class="tool" data-cmd="undo" title="Undo">↶</button><button class="tool" data-cmd="redo" title="Redo">↷</button><span class="sheet-hint">Select text to format</span></div>';
 }
 function docsEditor(f){
-  return docToolbar()+'<div class="editor-body"><div class="doc-canvas"><article id="rich-content" class="document-paper" contenteditable="true" spellcheck="true" role="textbox" aria-label="Document content" data-placeholder="Start writing your document...">'+sanitize(f.body)+'</article></div></div>';
+  const prefs=f.pageSettings||{};
+  const paper=PAGE_SIZES[prefs.paper]||PAGE_SIZES.A4;
+  const mm=prefs.orientation==='landscape'?[paper[1],paper[0]]:paper;
+  const margin={narrow:24,normal:60,wide:85}[prefs.margins]||60;
+  const background=/^#[0-9a-f]{6}$/i.test(prefs.background||'')?prefs.background:'#ffffff';
+  const lineHeight=['1.2','1.6','2'].includes(String(prefs.lineHeight))?prefs.lineHeight:'1.6';
+  const style='width:min(100%,'+Math.round(mm[0]*3.78)+'px);min-height:'+Math.round(mm[1]*3.78)+'px;padding:'+margin+'px;line-height:'+lineHeight+';background-color:'+background;
+  return docToolbar()+'<div class="editor-body"><div class="doc-canvas"><article id="rich-content" class="document-paper" style="'+style+'" contenteditable="true" spellcheck="true" role="textbox" aria-label="Document content" data-placeholder="Start writing your document...">'+sanitize(f.body)+'</article></div></div>';
 }
 function sheetsEditor(f){
   ensureWorkbook(f);
