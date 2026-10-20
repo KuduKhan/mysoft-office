@@ -5,6 +5,12 @@ export function versionContent(file) {
   if (!file || !['docs','sheets','slides','notes'].includes(file.type)) throw new Error('Invalid file');
   const version = {title:String(file.title||''),type:file.type};
   if (file.type==='docs' || file.type==='notes') version.body=String(file.body||'');
+  if (file.type==='docs') version.comments=structuredClone(file.comments||[]);
+  if (file.type==='notes') {
+    version.notebook=String(file.notebook||'Personal');
+    version.section=String(file.section||'General');
+    version.tags=structuredClone(file.tags||[]);
+  }
   if (file.type==='sheets') {
     version.cells=structuredClone(file.cells||{});
     if(Array.isArray(file.worksheets)){
@@ -34,6 +40,12 @@ export function restoreRevision(file,revision) {
   const data=structuredClone(revision.content);
   copy.title=data.title;
   if(file.type==='docs'||file.type==='notes') copy.body=data.body;
+  if(file.type==='docs')copy.comments=data.comments||[];
+  if(file.type==='notes'){
+    copy.notebook=data.notebook||'Personal';
+    copy.section=data.section||'General';
+    copy.tags=data.tags||[];
+  }
   if(file.type==='sheets'){
     copy.cells=data.cells;
     if(Array.isArray(data.worksheets)){
