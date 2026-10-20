@@ -92,7 +92,7 @@ export function evaluateCell(reference, cells, stack = new Set()) {
       if(!token) throw Error('Missing value');
       if(/^\d|^\./.test(token)) return Number(token);
       if(/^[A-Z]+[1-9][0-9]*$/.test(token)) return refValue(token);
-      if(['SUM','AVERAGE','MIN','MAX'].includes(token) && take()==='(') {
+      if(['SUM','AVERAGE','MIN','MAX','COUNT','COUNTA','PRODUCT','MEDIAN','ROUND','ABS','SQRT','POWER'].includes(token) && take()==='(') {
         const values=[];
         if(peek()!==')') {
           do {
@@ -110,7 +110,26 @@ export function evaluateCell(reference, cells, stack = new Set()) {
         if(token==='SUM') return values.reduce((a,b)=>a+b,0);
         if(token==='AVERAGE') return values.length ? values.reduce((a,b)=>a+b,0)/values.length : 0;
         if(token==='MIN') return values.length ? Math.min(...values) : 0;
-        return values.length ? Math.max(...values) : 0;
+        if(token==='MAX') return values.length ? Math.max(...values) : 0;
+        if(token==='COUNT'||token==='COUNTA') return values.length;
+        if(token==='PRODUCT') return values.reduce((a,b)=>a*b,1);
+        if(token==='MEDIAN') {
+          if(!values.length)return 0;
+          const items=[...values].sort((a,b)=>a-b);
+          const mid=Math.floor(items.length/2);
+          return items.length%2?items[mid]:(items[mid-1]+items[mid])/2;
+        }
+        if(token==='ROUND'){
+          if(values.length<1||values.length>2)throw Error('Invalid ROUND arguments');
+          const precision=values.length===2?Math.trunc(values[1]):0;
+          if(precision<-10||precision>10)throw Error('Invalid precision');
+          const base=Math.pow(10,precision);
+          return Math.round(values[0]*base)/base;
+        }
+        if(token==='ABS')return Math.abs(values[0]??0);
+        if(token==='SQRT')return Math.sqrt(values[0]??0);
+        if(token==='POWER')return Math.pow(values[0]??0,values[1]??1);
+        throw Error('Unsupported function');
       }
       throw Error('Unknown token');
     };
