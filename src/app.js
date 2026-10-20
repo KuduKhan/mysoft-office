@@ -55,14 +55,24 @@ function plain(html){
 }
 function sanitize(html){
   const parsed=new DOMParser().parseFromString(String(html||''),'text/html');
-  const allowed=new Set(['P','DIV','BR','H1','H2','H3','STRONG','B','EM','I','U','S','UL','OL','LI','BLOCKQUOTE','SPAN','A','TABLE','THEAD','TBODY','TFOOT','TR','TH','TD','HR','SUP','SUB','MARK','FONT']);
-  const blocked=new Set(['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','SVG','MATH','FORM','INPUT','BUTTON','META','LINK','BASE','IMG','VIDEO','AUDIO']);
+  const allowed=new Set(['P','DIV','BR','H1','H2','H3','STRONG','B','EM','I','U','S','UL','OL','LI','BLOCKQUOTE','SPAN','A','TABLE','THEAD','TBODY','TFOOT','TR','TH','TD','HR','SUP','SUB','MARK','FONT','IMG']);
+  const blocked=new Set(['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','SVG','MATH','FORM','INPUT','BUTTON','META','LINK','BASE','VIDEO','AUDIO']);
   const isColor=x=>/^#[0-9a-fA-F]{3,8}$/.test(x)||/^rgba?\([0-9 ,.]+\)$/.test(x);
   const fonts=new Set(['arial','calibri','georgia','garamond','tahoma','times new roman','verdana']);
   function clean(node,doc){
     if(node.nodeType===Node.TEXT_NODE)return doc.createTextNode(node.nodeValue||'');
     if(node.nodeType!==Node.ELEMENT_NODE)return doc.createTextNode('');
     if(blocked.has(node.tagName))return doc.createTextNode('');
+    if(node.tagName==='IMG'){
+      const data=node.getAttribute('src')||'';
+      if(data.length<225000&&/^data:image\/(?:png|jpeg|webp);base64,[a-zA-Z0-9+/=]+$/.test(data)){
+        const picture=doc.createElement('img');
+        picture.setAttribute('src',data);
+        picture.setAttribute('alt',String(node.getAttribute('alt')||'Inserted picture').slice(0,100));
+        return picture;
+      }
+      return doc.createTextNode('');
+    }
     const tag=allowed.has(node.tagName)?node.tagName.toLowerCase():'span';
     const wrapper=doc.createElement(tag==='font'?'span':tag);
     if(node.tagName==='A'){
