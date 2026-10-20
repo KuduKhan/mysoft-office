@@ -3,30 +3,42 @@ import {
   setCellStyle,sheetChartData,sortSheet,wordStatistics,
   PAGE_SIZES,FONT_FAMILIES,ACCENT_COLORS
 } from './office-model.js';
+import {STUDIO_ACCENTS,SLIDE_PRESETS,setSlidePreset,replaceSheetValues,fillDown,clearCell} from './studio-tools.js';
 
 const escapeHTML = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const COLORS=['#212d48','#6555e8','#176db3','#b04472','#e05d4a','#16957d'];
 const VALID_COLORS=new Set([...COLORS,...ACCENT_COLORS,'#ffffff','#f8f2ad','#eef0f5','#ffe4e6','#e0f2fe','#dcfce7']);
 const PREFS_KEY='mysoft-office-preferences-v3';
-const defaultPrefs={mode:'light',accent:'#6555e8',density:'comfortable',fontScale:100};
+const defaultPrefs={mode:'light',accent:'#ea4c24',density:'comfortable',fontScale:100,zoom:100};
 let prefs=defaultPrefs;
 try{prefs={...defaultPrefs,...JSON.parse(localStorage.getItem(PREFS_KEY)||'{}')};}catch{}
 let selectedTab={docs:'Home',sheets:'Home',slides:'Design',notes:'Write'};
 let savedRange=null;
 let slideshowIndex=0;
+let ribbonCollapsed=localStorage.getItem('mysoft-office-ribbon-collapsed')==='yes';
+const STUDIO_ACTIONS={
+  docs:['Home','Insert','Layout','Review'],
+  notes:['Write','Organize'],
+  sheets:['Home','Format','Data','Insert'],
+  slides:['Design','Arrange','Present']
+};
 
 export function applyPreferences(){
   const root=document.documentElement;
   root.dataset.mode=prefs.mode==='dark'?'dark':'light';
   root.dataset.density=prefs.density==='compact'?'compact':'comfortable';
+  const shade=STUDIO_ACCENTS.find(c=>c.value===prefs.accent)||STUDIO_ACCENTS[0];
   root.style.setProperty('--ot-accent',ACCENT_COLORS.includes(prefs.accent)?prefs.accent:defaultPrefs.accent);
+  root.style.setProperty('--studio-accent-soft',shade.soft);
+  root.style.setProperty('--studio-accent',shade.value);
+  root.style.setProperty('--studio-zoom',String(Math.max(75,Math.min(150,Number(prefs.zoom)||100)))+'%');
   root.style.setProperty('--ot-font-scale',String(Math.max(85,Math.min(120,Number(prefs.fontScale)||100))/100));
 }
 const button=(label,action,title='')=>'<button type="button" class="ot-btn" data-ot-action="'+action+'" title="'+escapeHTML(title||label)+'">'+label+'</button>';
 const choice=(name,options,current)=>'<label class="ot-select-label">'+escapeHTML(name)+' <select data-ot-input="'+name.toLowerCase().replace(/\s+/g,'-')+'">'+options.map(([value,text])=>'<option value="'+escapeHTML(value)+'"'+(value===current?' selected':'')+'>'+escapeHTML(text)+'</option>').join('')+'</select></label>';
 const color=(label,name,value)=>'<label class="ot-select-label">'+escapeHTML(label)+' <input type="color" data-ot-input="'+name+'" value="'+(/^#[0-9a-fA-F]{6}$/.test(value)?value:'#6555e8')+'"></label>';
 function tabsFor(type){
-  return {docs:['Home','Insert','Layout','Review'],sheets:['Home','Data','Insert'],slides:['Design','Arrange','Present'],notes:['Write','Organize']}[type]||[];
+  return STUDIO_ACTIONS[type]||[];
 }
 export function powerRibbon(file,selectedCell='A1',slideIndex=0){
   if(!file)return '';
@@ -38,11 +50,15 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
       body=choice('Font',FONT_FAMILIES.map(x=>[x,x]),'Arial')+
         choice('Font size',[['2','Small'],['3','Normal'],['4','Large'],['5','Heading'],['6','Display']], '3')+
         color('Text','text-color','#212d48')+color('Highlight','highlight','#f8f2ad')+
+        button('<b>B</b>','text-bold','Bold selection')+button('<i>I</i>','text-italic','Italic selection')+button('<u>U</u>','text-underline','Underline selection')+
+        button('≡','align-left','Align left')+button('☰','align-center','Align center')+button('≡›','align-right','Align right')+
+        button('• List','bullet-list')+button('1. List','numbered-list')+
         button('<b>S</b>','strike','Strikethrough')+button('x²','superscript')+button('x₂','subscript')+
-        button('Clear format','clear-format');
+        button('Clear','clear-format','Remove text formatting');
     } else if(active==='Insert'){
       body=button('⊞ Table 3×3','insert-table')+button('Table size…','custom-table')+button('Picture','insert-picture')+button('— Divider','insert-hr')+
-        button('🔗 Link','insert-link')+button('☐ Checklist','insert-checklist')+button('📅 Date','insert-date');
+        button('🔗 Link','insert-link')+button('☐ Checklist','insert-checklist')+button('📅 Date','insert-date')+
+        button('❝ Quote','insert-quote')+button('¶ Page break','insert-page-break');
     } else if(active==='Layout'){
       const p=file.pageSettings||{};
       body=choice('Paper',Object.keys(PAGE_SIZES).map(v=>[v,v]),p.paper||'A4')+
@@ -68,8 +84,16 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         color('Font','cell-color','#212d48')+color('Fill','cell-background','#ffffff')+
         button('KES','cell-currency','Kenyan shilling')+button('%','cell-percent')+
         button('Reset style','cell-reset');
+    } else if(active==='Format'){
+      body=button('⇤ Align left','cell-align-left')+button('↔ Center','cell-align-center')+
+        button('⇥ Align right','cell-align-right')+
+        color('Text','cell-color','#212d48')+color('Fill','cell-background','#ffffff')+
+        button('KES','cell-currency')+button('%','cell-percent')+
+        button('Reset style','cell-reset');
     } else if(active==='Data'){
-      body=button('Sort A → Z','sort-asc')+button('Sort Z → A','sort-desc')+
+      body=button('Find / Replace','sheet-find-replace')+
+        button('Fill down 5','sheet-fill-down')+button('Clear cell','sheet-clear-cell')+
+        button('Sort A → Z','sort-asc')+button('Sort Z → A','sort-desc')+
         button('Auto SUM','insert-sum')+button('Auto AVERAGE','insert-avg')+
         '<span class="ot-metric">Sorting applies to column A and keeps row 1 as header. Formula sheets are protected.</span>';
     } else {
@@ -79,7 +103,8 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
   } else if(file.type==='slides'){
     const slide=file.slides[slideIndex]||file.slides[0];
     if(active==='Design'){
-      body=choice('Layout',[['title','Title & content'],['section','Section heading'],['minimal','Minimal']],slide.layout||'title')+
+      body=choice('Backdrop',Object.keys(SLIDE_PRESETS).map(k=>[k,k.charAt(0).toUpperCase()+k.slice(1)]),slide.studioPreset||'ivory')+
+        choice('Layout',[['title','Title & content'],['section','Section heading'],['minimal','Minimal']],slide.layout||'title')+
         choice('Transition',[['none','None'],['fade','Fade'],['slide','Slide']],slide.transition||'none')+
         choice('Text size',[['normal','Normal'],['large','Large'],['compact','Compact']],slide.textScale||'normal')+
         button('Apply theme to all','theme-all');
@@ -93,7 +118,10 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
     }
   }
   const sheetTabs=file.type==='sheets'?'<div class="ot-sheet-tabs">'+(file.worksheets||[{name:'Sheet 1'}]).map((sh,i)=>'<button class="ot-sheet-tab '+((file.activeSheetIndex||0)===i?'active':'')+'" data-ot-sheet="'+i+'">'+escapeHTML(sh.name)+'</button>').join('')+'<button class="ot-sheet-tab" data-ot-action="sheet-add">＋</button></div>':'';
-  return '<section class="ot-ribbon" aria-label="Editing tools"><div class="ot-ribbon-top"><div class="ot-ribbon-tabs">'+tabs+'</div><span class="ot-ribbon-version">MYSoft Office · v0.3</span></div><div class="ot-ribbon-tools">'+body+'</div>'+sheetTabs+'</section>';
+  return '<section class="ot-ribbon'+(ribbonCollapsed?' collapsed':'')+'" aria-label="Editing tools"><div class="ot-ribbon-top"><div class="ot-ribbon-tabs" role="tablist" aria-label="Editor tool categories">'+tabs+'</div>'+
+    '<div class="ot-ribbon-meta"><span class="ot-ribbon-version">MYSoft Studio · 0.5.1</span>'+
+    button(ribbonCollapsed?'Show tools ▾':'Hide tools ▴','ribbon-toggle')+'</div></div>'+
+    '<div class="ot-ribbon-tools">'+body+'</div>'+sheetTabs+'</section>';
 }
 export function sheetCellAppearance(file,ref,value){
   const st=(file.cellStyles||{})[ref]||{};
