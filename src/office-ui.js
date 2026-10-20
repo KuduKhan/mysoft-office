@@ -186,7 +186,7 @@ function preferencesModal(){
 }
 function syncSheet(ctx,f){
   if(f.type==='sheets')ensureWorkbook(f);
-  ctx.touch(f);ctx.render();
+  ctx.touch(f);ctx.persist();ctx.render();
 }
 export function initializeOfficeTools(ctx){
   applyPreferences();
@@ -287,7 +287,7 @@ export function initializeOfficeTools(ctx){
     }
     if(name.startsWith('cell-')){
       const prop={'cell-color':'color','cell-background':'background'}[name];
-      if(prop){setCellStyle(f,ctx.getSelectedCell(),prop,value);ctx.touch(f);ctx.render();}return;
+      if(prop){setCellStyle(f,ctx.getSelectedCell(),prop,value);ctx.touch(f);ctx.persist();ctx.render();}return;
     }
     if(['layout','transition','text-size'].includes(name)&&f.type==='slides'){
       const prop={'layout':'layout','transition':'transition','text-size':'textScale'}[name];
