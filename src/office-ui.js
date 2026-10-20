@@ -4,6 +4,7 @@ import {
   PAGE_SIZES,FONT_FAMILIES,ACCENT_COLORS
 } from './office-model.js';
 import {STUDIO_ACCENTS,SLIDE_PRESETS,setSlidePreset,replaceSheetValues,fillDown,clearCell} from './studio-tools.js';
+import {formatRange,clearRange,copyRangeTSV,seriesFill,rangeSummary,parseRange} from './sheet-range.js';
 
 const escapeHTML = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const COLORS=['#212d48','#6555e8','#176db3','#b04472','#e05d4a','#16957d'];
@@ -17,9 +18,9 @@ let savedRange=null;
 let slideshowIndex=0;
 let ribbonCollapsed=localStorage.getItem('mysoft-office-ribbon-collapsed')==='yes';
 const STUDIO_ACTIONS={
-  docs:['Home','Insert','Layout','Review'],
+  docs:['Home','Insert','Table','Layout','Review'],
   notes:['Write','Organize'],
-  sheets:['Home','Format','Data','Insert'],
+  sheets:['Home','Format','Range','Data','Insert'],
   slides:['Design','Arrange','Present']
 };
 
@@ -59,6 +60,10 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
       body=button('⊞ Table 3×3','insert-table')+button('Table size…','custom-table')+button('Picture','insert-picture')+button('— Divider','insert-hr')+
         button('🔗 Link','insert-link')+button('☐ Checklist','insert-checklist')+button('📅 Date','insert-date')+
         button('❝ Quote','insert-quote')+button('¶ Page break','insert-page-break');
+    } else if(active==='Table'){
+      body=button('＋ Row below','table-add-row')+button('＋ Column right','table-add-column')+
+        button('− Delete row','table-remove-row')+button('− Delete column','table-remove-column')+
+        '<span class="ot-metric">Place your cursor inside an existing table cell first.</span>';
     } else if(active==='Layout'){
       const p=file.pageSettings||{};
       body=choice('Paper',Object.keys(PAGE_SIZES).map(v=>[v,v]),p.paper||'A4')+
@@ -90,6 +95,11 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         color('Text','cell-color','#212d48')+color('Fill','cell-background','#ffffff')+
         button('KES','cell-currency')+button('%','cell-percent')+
         button('Reset style','cell-reset');
+    } else if(active==='Range'){
+      body=button('Bold range','range-bold')+button('Highlight range','range-highlight')+
+        button('Clear range','range-clear')+button('Copy range','range-copy')+
+        button('Fill number series','range-series')+button('Range statistics','range-summary')+
+        '<span class="ot-metric">Choose a range such as A1:C10 (up to 2,600 cells).</span>';
     } else if(active==='Data'){
       body=button('Find / Replace','sheet-find-replace')+
         button('Fill down 5','sheet-fill-down')+button('Clear cell','sheet-clear-cell')+
@@ -161,6 +171,39 @@ function editorSelection(){
   const range=selection.getRangeAt(0);
   if(rich.contains(range.commonAncestorContainer)) savedRange=range.cloneRange();
 }
+function selectedTableCell(){
+  const editable=document.getElementById('rich-content');
+  const selection=window.getSelection();
+  const anchor=savedRange?.startContainer||selection?.anchorNode;
+  const node=anchor?.nodeType===Node.ELEMENT_NODE?anchor:anchor?.parentElement;
+  const cell=node?.closest?.('td,th');
+  return cell&&editable?.contains(cell)?cell:null;
+}
+function tableEdit(ctx,action){
+  const cell=selectedTableCell();
+  if(!cell)throw Error('Click inside a table cell first.');
+  const row=cell.closest('tr'),table=cell.closest('table');
+  if(!row||!table)throw Error('Select a valid table.');
+  const rows=[...table.rows],index=rows.indexOf(row),col=[...row.cells].indexOf(cell);
+  if(action==='table-add-row'){
+    if(rows.length>=40)throw Error('Maximum 40 table rows.');
+    const next=table.insertRow(index+1);
+    for(let i=0;i<row.cells.length;i++)next.insertCell(i).textContent='Cell';
+  }else if(action==='table-add-column'){
+    if(row.cells.length>=15)throw Error('Maximum 15 table columns.');
+    if(rows.some(r=>r.cells.length!==row.cells.length))throw Error('This table has irregular rows. Edit it manually.');
+    for(const r of rows)r.insertCell(col+1).textContent='Cell';
+  }else if(action==='table-remove-row'){
+    if(rows.length<2)throw Error('Keep at least one row.');
+    row.remove();
+  }else if(action==='table-remove-column'){
+    if(row.cells.length<2)throw Error('Keep at least one column.');
+    if(rows.some(r=>r.cells.length!==row.cells.length))throw Error('This table has irregular rows. Edit it manually.');
+    for(const r of rows)r.cells[col].remove();
+  }
+  const file=ctx.getFile(),editable=document.getElementById('rich-content');
+  if(file&&editable){file.body=ctx.sanitize(editable.innerHTML);ctx.touch(file);ctx.persist();}
+}
 function richCommand(ctx,command,value=null){
   const el=document.getElementById('rich-content');
   if(!el)return;
@@ -225,7 +268,7 @@ export function initializeOfficeTools(ctx){
   applyPreferences();
   document.addEventListener('selectionchange',editorSelection);
   document.addEventListener('mousedown',e=>{
-    if(e.target.closest('button[data-ot-action]')?.dataset.otAction && ['strike','superscript','subscript','clear-format','insert-table','insert-hr','insert-checklist','insert-date','insert-quote','insert-page-break','text-bold','text-italic','text-underline','align-left','align-center','align-right','bullet-list','numbered-list'].includes(e.target.closest('button').dataset.otAction))e.preventDefault();
+    if(e.target.closest('button[data-ot-action]')?.dataset.otAction && ['strike','superscript','subscript','clear-format','insert-table','insert-hr','insert-checklist','insert-date','insert-quote','insert-page-break','text-bold','text-italic','text-underline','align-left','align-center','align-right','bullet-list','numbered-list','table-add-row','table-add-column','table-remove-row','table-remove-column'].includes(e.target.closest('button').dataset.otAction))e.preventDefault();
   });
   document.addEventListener('click',event=>{
     const palette=event.target.closest('[data-ot-palette]');
@@ -266,6 +309,9 @@ export function initializeOfficeTools(ctx){
         strike:'strikeThrough','clear-format':'removeFormat',superscript:'superscript',subscript:'subscript'
       };
       if(Object.hasOwn(textActions,action)){richCommand(ctx,textActions[action]);return;}
+      if(['table-add-row','table-add-column','table-remove-row','table-remove-column'].includes(action)){
+        tableEdit(ctx,action);return;
+      }
       if(action==='insert-table'){richCommand(ctx,'insertHTML','<table><tbody>'+Array.from({length:3},()=>'<tr><td>Cell</td><td>Cell</td><td>Cell</td></tr>').join('')+'</tbody></table><p></p>');return;}
       if(action==='custom-table'){
         const rows=Number(prompt('How many rows? (1–10)','4'));
@@ -317,6 +363,36 @@ export function initializeOfficeTools(ctx){
         const replacement=document.getElementById('ot-replace')?.value||'';
         const count=replaceAllText(ctx,find,replacement);
         ctx.toast(count?count+' occurrences replaced':'No matches');return;
+      }
+      if(['range-bold','range-highlight','range-clear','range-copy','range-series','range-summary'].includes(action)){
+        const range=prompt('Cell range (e.g. A1:C10):',ctx.getSelectedCell());
+        if(range===null)return;
+        parseRange(range);
+        if(action==='range-bold')formatRange(f,range,'bold',true);
+        if(action==='range-highlight')formatRange(f,range,'background','#ffe8bd');
+        if(action==='range-clear'){
+          if(!confirm('Clear all values in '+range+'?'))return;
+          clearRange(f,range,false);
+        }
+        if(action==='range-series')seriesFill(f,range);
+        if(action==='range-copy'){
+          const contents=copyRangeTSV(f,range);
+          if(navigator.clipboard?.writeText){
+            navigator.clipboard.writeText(contents).then(()=>ctx.toast('Range copied as tabular text')).catch(()=>ctx.toast('Clipboard permission denied'));
+          }else{
+            modal('<h2>Copy range '+escapeHTML(range)+'</h2><p>Copy the values below:</p><textarea readonly class="ot-copy-values">'+escapeHTML(contents)+'</textarea>'+
+              '<div class="modal-actions"><button class="btn btn-light" data-ot-action="settings-close">Done</button></div>');
+          }
+          return;
+        }
+        if(action==='range-summary'){
+          const result=rangeSummary(f,range);
+          modal('<h2>Range statistics · '+escapeHTML(range)+'</h2><p>Cells: '+result.cells+' · Nonempty: '+result.nonempty+' · Numeric: '+result.numeric+
+            '</p><p>Sum: '+result.sum+' · Mean: '+result.average+' · Min: '+(result.min??'—')+' · Max: '+(result.max??'—')+'</p>'+
+            '<div class="modal-actions"><button class="btn btn-light" data-ot-action="settings-close">Close</button></div>');
+          return;
+        }
+        ctx.toast('Range '+range+' updated');syncSheet(ctx,f);return;
       }
       if(action==='sheet-find-replace'){
         const needle=prompt('Find in current worksheet (text only):','');
