@@ -43,7 +43,7 @@ test('spreadsheet includes alignment, text replacement and fill down',async({pag
   await expect(page.locator('[data-cell="A1"]')).toHaveCSS('text-align','center');
   await page.locator('[data-ot-tab="Data"]').click();
   let index=0;
-  page.on('dialog',d=>d.accept(index++===0?'Oranges':'Tangerines'));
+  page.on('dialog',d=>{const answers=['Oranges','Tangerines','5'];d.accept(answers[index++]||'5');});
   await page.locator('[data-ot-action="sheet-find-replace"]').click();
   await expect(page.locator('[data-cell="A1"]')).toHaveValue('Tangerines');
   await page.locator('[data-cell="A1"]').click();
