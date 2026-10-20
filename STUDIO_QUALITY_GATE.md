@@ -81,3 +81,13 @@ The app is not yet equivalent to WPS or Microsoft Office. We must extend the v0.
 - Slides object z-order controls, bounded drag snapping and keyboard movement; no full animation or vector scene graph yet.
 - Updated focus states, horizontal ribbon scrolling, print break styling, responsive layouts and regression tests.
 - The v0.6 cloud milestone is still on hold until editing and fidelity reach a more professional standard.
+
+## v0.5.6 — Editing Productivity Studio
+
+- Ctrl+K command search and mobile button; recent-file navigation, creation, save/export, customization.
+- Docs case-insensitive find-next/previous within visible text nodes without changing rich formatting. Deep matches crossing styled inline nodes, tracked changes and fully transactional rich editing remain unfinished.
+- Sheets worksheet-scoped conditional formatting for numeric comparisons and containing text; MySoft-native only, not fully interoperable with Excel conditional formatting.
+- Slides 90° rotation of rectangles, ellipses and text boxes, exported/imported for MySoft objects through PPTX transform metadata.
+- Notes pinned pages sorted ahead of others in each notebook and section; revision history preserves pin state.
+- UX improvements for 320px and up, dark mode, focus states, accent colors and modal fitting; continue auditing very long documents and complex tables.
+- **Important:** this milestone is not full WPS/MS Office parity. Advanced pagination, PivotTables, rich native-format fidelity, slide animations, and professional data integrity/storage architecture remain planned on the v0.5 line.
