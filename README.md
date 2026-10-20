@@ -16,6 +16,18 @@ npm run dev
 
 Open http://localhost:4173. No installation step or external npm dependencies are required for the local editor prototype. This repository includes static output configuration for Vercel, but the Vercel project is not connected yet.
 
+
+## v0.5.9 — Studio UX & navigation refinement
+
+- Collapsible desktop sidebar with persisted state, touch-friendly mobile navigation overlay and breadcrumb hierarchy.
+- Recent-file tabs inside the four editors; switch workspaces without revisiting file manager.
+- Focus Mode reduces distractions while retaining editor ribbons and commands; Escape restores full workspace.
+- Live Docs/Notes word/character counts, spreadsheet cell counts and slide totals.
+- `/` focuses file search when not editing. Preferences include navigation layout alongside the existing themes, density, font scale and zoom.
+- Unit and browser regression tests cover these flows.
+
+This UI enhancement builds on the v0.5.8 IndexedDB/recovery branch. It does not claim new cloud capabilities or full Office format fidelity.
+
 ## New in v0.5.8 — Local storage reliability
 
 - **IndexedDB workspace storage:** files, recycle bin and revision records now commit in a single IndexedDB transaction. No cloud account is required.

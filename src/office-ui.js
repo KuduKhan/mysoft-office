@@ -334,6 +334,8 @@ function preferencesModal(){
     '<label for="ot-density">Density</label><select id="ot-density" data-ot-pref="density"><option value="comfortable" '+(prefs.density==='comfortable'?'selected':'')+'>Comfortable</option><option value="compact" '+(prefs.density==='compact'?'selected':'')+'>Compact</option></select>'+
     '<label for="ot-font-scale">UI scale</label><select id="ot-font-scale" data-ot-pref="fontScale">'+[85,100,110,120].map(n=>'<option value="'+n+'" '+(Number(prefs.fontScale)===n?'selected':'')+'>'+n+'%</option>').join('')+'</select>'+
     '<label for="ot-zoom">Editor zoom</label><select id="ot-zoom" data-ot-pref="zoom">'+[75,90,100,110,125,150].map(n=>'<option value="'+n+'" '+(Number(prefs.zoom)===n?'selected':'')+'>'+n+'%</option>').join('')+'</select>'+
+    '<div class="studio-customize-nav"><strong>Navigation</strong><p>Use a full sidebar or a compact icon rail on desktop.</p><button type="button" class="btn btn-light" data-action="nav-collapse">Toggle sidebar layout</button></div>'+
+    '<p class="studio-settings-tip">Shortcuts: / to search files, Ctrl+K for commands. Use Focus inside an editor for distraction-free work.</p>'+
     '<div class="modal-actions"><button class="btn btn-light" data-ot-action="settings-close">Done</button></div>');
 }
 function syncSheet(ctx,f){
