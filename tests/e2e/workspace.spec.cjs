@@ -119,3 +119,47 @@ test('Docs can insert a small picture and preserve it after reload',async({page}
   await page.reload();
   await expect(page.locator('#rich-content img')).toHaveCount(1);
 });
+
+
+test('virtualized grid navigates to Z1000, saves, and restores without rendering 26000 inputs',async({page})=>{
+  await page.locator('[data-create="sheets"]').first().click();
+  await expect(page.locator('[data-cell]').count()).resolves.toBeLessThan(1500);
+  await page.locator('#cell-address').fill('Z1000');
+  await page.locator('#cell-address').press('Enter');
+  await expect(page.locator('[data-cell="Z1000"]')).toBeVisible();
+  await page.locator('[data-cell="Z1000"]').fill('993');
+  await page.reload();
+  await page.locator('#cell-address').fill('Z1000');
+  await page.locator('#cell-address').press('Enter');
+  await expect(page.locator('[data-cell="Z1000"]')).toHaveValue('993');
+});
+test('spreadsheet keyboard navigation moves focus and updates address',async({page})=>{
+  await page.locator('[data-create="sheets"]').first().click();
+  await page.locator('[data-cell="A1"]').fill('101');
+  await page.locator('[data-cell="A1"]').press('Tab');
+  await expect(page.locator('[data-cell="B1"]')).toBeFocused();
+  await expect(page.locator('#cell-address')).toHaveValue('B1');
+  await page.locator('[data-cell="B1"]').fill('202');
+  await page.locator('[data-cell="B1"]').press('Enter');
+  await expect(page.locator('[data-cell="B2"]')).toBeFocused();
+  await page.reload();
+  await expect(page.locator('[data-cell="A1"]')).toHaveValue('101');
+  await expect(page.locator('[data-cell="B1"]')).toHaveValue('202');
+});
+test('document outline and editor history support fast recovery',async({page})=>{
+  await page.locator('[data-create="docs"]').first().click();
+  const editor=page.locator('#rich-content');
+  await editor.fill('Draft text');
+  await editor.press('ControlOrMeta+z');
+  await expect(editor).toBeEmpty();
+  await editor.press('ControlOrMeta+Shift+z');
+  await expect(editor).toContainText('Draft text');
+  await editor.evaluate(el=>{
+    el.innerHTML='<h1>Overview</h1><p>Details</p><h2>Background</h2>';
+    el.dispatchEvent(new Event('input',{bubbles:true}));
+  });
+  await expect(page.locator('.doc-outline-link')).toHaveCount(2);
+  await expect(page.locator('.doc-outline-link').first()).toHaveText('Overview');
+  await page.reload();
+  await expect(page.locator('.doc-outline-link')).toHaveCount(2);
+});
