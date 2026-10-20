@@ -97,7 +97,7 @@ export function sortSheet(file,column='A',direction='asc'){
   if(Object.values(file.cells).some(value=>String(value).startsWith('=')))
     throw new Error('Sorting is disabled when formulas are present, to protect references.');
   const rows=[];
-  for(let row=2;row<=30;row++){
+  for(let row=2;row<=1000;row++){
     const values={},styles={};
     for(const c of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'){
       const ref=c+row;
