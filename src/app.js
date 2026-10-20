@@ -190,7 +190,7 @@ function download(content,name,type){
 function slug(name){return String(name).replace(/[^a-z0-9 -]/gi,'').trim().replace(/\s+/g,'-').slice(0,70)||'mysoft-file';}
 function sidebar(){
   const nav=(id,title,ic,extra='')=>'<button class="nav-link '+(view===id?'active':'')+'" data-nav="'+id+'">'+icon(ic,17)+esc(title)+extra+'</button>';
-  const usage=Math.min(100,Math.round(JSON.stringify(files).length/45000));
+  const usage=Math.min(100,Math.round(JSON.stringify(files).length/40000));
   return '<aside class="sidebar '+(mobileOpen?'open':'')+'"><div class="brand"><span class="brand-symbol"><b></b><b></b><b></b><b></b></span><div><strong>MySoft Office</strong><small>Your work. Your space.</small></div></div>'+
     '<div class="nav-caption">Workspace</div>'+nav('home','Overview','home')+nav('files','My files','folder','<span class="count">'+files.length+'</span>')+nav('starred','Starred','star')+nav('templates','Templates','grid')+nav('trash','Recycle bin','trash','<span class="count">'+trashFiles.length+'</span>')+
     '<div class="nav-caption">Applications</div>'+['docs','sheets','slides','notes'].map(t=>nav(t,labels[t],typeIcons[t])).join('')+
@@ -423,7 +423,7 @@ function validImport(payload){
     if(f.type==='docs'||f.type==='notes'){
       if(typeof f.body!=='string'||f.body.length>1000000) return null;
     }
-    if(f.type==='sheets'&&(!f.cells||typeof f.cells!=='object'||Array.isArray(f.cells)||Object.keys(f.cells).length>10000)) return null;
+    if(f.type==='sheets'&&(!f.cells||typeof f.cells!=='object'||Array.isArray(f.cells)||Object.keys(f.cells).length>26000)) return null;
     if(f.type==='slides'&&(!Array.isArray(f.slides)||f.slides.length<1||f.slides.length>200||f.slides.some(s=>!s||typeof s.title!=='string'||typeof s.body!=='string'||s.title.length>500||s.body.length>20000))) return null;
     output.push(f);
   }
