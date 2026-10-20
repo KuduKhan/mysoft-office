@@ -2,7 +2,7 @@
 
 **Your work. Your space.**
 
-MySoft Office is a browser-based productivity workspace. Version 0.1 provides a local-first workspace with functional document, spreadsheet, presentation, and note editors.
+MySoft Office is a browser-based productivity workspace. Version 0.2 provides a local-first workspace with functional document, spreadsheet, presentation, and note editors.
 
 ## Quick start
 
@@ -18,7 +18,7 @@ Open http://localhost:4173.
 
 No npm dependencies or database are needed for this first release.
 
-## Available in v0.1
+## Available in v0.2
 
 - Workspace dashboard, searching, sorting, recent files, favorites, and document creation
 - Docs: rich text formatting, autosave, HTML and plain-text export
@@ -27,9 +27,21 @@ No npm dependencies or database are needed for this first release.
 - Notes: distraction-free note editor, markdown/text export
 - JSON backup and restore; all workspace data stored in this browser
 
+## New in v0.2
+
+- Recoverable recycle bin (restore or permanently delete files)
+- Local version snapshots with a 12-revision limit and restore UI
+- Import CSV, TXT, Markdown, and sanitized HTML
+- Safer CSV exports that neutralize formula-like text values
+- Editor routes retained on reload and browser back/forward
+- Browser smoke tests using Playwright in GitHub Actions
+- Optional, manual MySoft Cloud snapshot sign-in and transfer adapter
+- A separate Supabase SQL schema with strict owner-only RLS; see [CLOUD_SETUP.md](CLOUD_SETUP.md)
+- Cloud is **not connected** until a dedicated MySoft database and public configuration are supplied.
+
 ## Privacy and limits
 
-This version saves data locally in the browser's localStorage. It **does not sync across devices** and is not suitable as the sole copy of critical files. Use *Export backup* regularly. Clearing site data erases locally stored work. Authentication, true OOXML import/export, cloud storage, collaboration, and advanced formatting are **not implemented yet**.
+By default, this version saves data locally in the browser's localStorage. Local revisions also consume browser storage. It **does not sync across devices** and is not suitable as the sole copy of critical files. Use *Export backup* regularly. Clearing site data erases locally stored work. Cloud authentication and manual snapshot uploads are implemented in an optional adapter but **not activated**; true OOXML import/export, cloud autosave, collaboration, and advanced editing are **not implemented yet**.
 
 Do not use this build to store classified, sensitive military, or regulated personal information.
 
