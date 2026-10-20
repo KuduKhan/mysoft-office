@@ -408,8 +408,8 @@ function modal(kind,id){
     const fmt={docs:'DOCX',sheets:'XLSX',slides:'PPTX'}[f.type];
     const notices={
       docs:'Only paragraphs, basic headings, emphasis, simple tables and visible text are retained. Images, hyperlinks, complex layout and comments are not faithfully exported.',
-      sheets:'Exports the supported A1:Z1000 range, up to 20 worksheets, formulas and basic styles. Charts, external references, pivots and advanced Excel features are not included.',
-      slides:'Exports editable title and body text into each slide. Custom objects, images, speaker notes, animations and precise layouts are not preserved.'
+      sheets:'Exports the supported A1:Z1000 range, up to 20 worksheets, formulas and basic styles. MySoft conditional formatting, charts, external references, pivots and advanced Excel features are not preserved.',
+      slides:'Exports title/body and basic MySoft text boxes, rectangles, ellipses and quarter-turn rotations. Complex PowerPoint objects, images, speaker notes, animations and precise third-party layouts are not fully preserved.'
     };
     modalRoot.innerHTML='<div class="modal-backdrop"><div class="modal"><h2>Export to '+fmt+'</h2><p>'+notices[f.type]+'</p><p>For full preservation, also export a JSON workspace backup.</p><div class="modal-actions"><button class="btn btn-light" data-action="modal-close">Cancel</button><button class="btn btn-primary" data-action="office-export-confirm">Export '+fmt+'</button></div></div></div>';
   } else if(kind==='commands'){
