@@ -26,7 +26,9 @@ function paragraphFromHTML(node,kind='',prefix=''){
 }
 function tableFromHTML(table){
   const rows=[...table.querySelectorAll(':scope > tbody > tr, :scope > thead > tr, :scope > tr')].slice(0,80);
-  return '<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/></w:tblPr>'+
+  const maxCols=Math.max(1,...rows.map(row=>[...row.children].filter(x=>['TD','TH'].includes(x.tagName)).length));
+  const grid='<w:tblGrid>'+Array.from({length:maxCols},()=>'<w:gridCol w:w="'+Math.round(9000/maxCols)+'"/>').join('')+'</w:tblGrid>';
+  return '<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/></w:tblPr>'+grid+
     rows.map(row=>'<w:tr>'+[...row.children].filter(x=>['TD','TH'].includes(x.tagName)).slice(0,20).map(cell=>
       '<w:tc><w:tcPr><w:tcW w:w="0" w:type="auto"/></w:tcPr>'+
       paragraphFromHTML(cell)+'</w:tc>').join('')+'</w:tr>').join('')+'</w:tbl>';
