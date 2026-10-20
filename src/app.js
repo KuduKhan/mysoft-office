@@ -1,5 +1,5 @@
 import {studioShortcut} from './studio-shortcuts.js';
-import { BrowserWorkspaceStore, readLegacyWorkspace, LEGACY_KEYS } from './workspace-storage.js';
+import { BrowserWorkspaceStore, readLegacyWorkspace, readRecoveryJournal, LEGACY_KEYS, RECOVERY_KEY } from './workspace-storage.js';
 import { COLUMNS, ROW_COUNT, displayCell } from './formulas.js';
 import { addRevision, restoreRevision } from './revisions.js';
 import { parseCSV, makeCSV } from './file-formats.js';
@@ -197,6 +197,7 @@ function touch(file,trackHistory=true){
   file.updatedAt=Date.now();snapshot(file);
   const mark=document.getElementById('save-status');
   updateSaveStatus('saving');
+  if(storageReady)workspaceStore.stage(workspaceSnapshot());
   clearTimeout(savedTimer);savedTimer=setTimeout(()=>{void persist();},350);
 }
 function workspaceSnapshot(){return {version:2,exportedAt:new Date().toISOString(),files,trash:trashFiles,versions:revisions};}
@@ -1051,21 +1052,27 @@ async function bootWorkspace(){
     storageReady=true;
     restoreRoute();render();updateSaveStatus('saved');
     if(result.source==='legacy-migrated')toast('Existing workspace migrated. Original browser data kept for recovery.');
+    if(result.source==='journal-recovered')toast('Unsaved edits recovered from the local recovery journal.');
   }catch(error){
     storageReady=false;
-    let legacy;
+    let legacy,recovery;
+    try{recovery=readRecoveryJournal(localStorage);}catch{}
     try{legacy=readLegacyWorkspace(localStorage);}
     catch{
+      if(recovery)legacy=recovery.workspace;
+      else{
       app.innerHTML='<main style="max-width:720px;padding:40px;margin:auto"><h1>Workspace recovery required</h1><p>Existing browser data may be damaged. MySoft did not overwrite or delete it. Export the raw recovery data before troubleshooting.</p><button class="btn btn-primary" id="export-legacy-recovery">Export recovery data</button></main>';
       document.getElementById('export-legacy-recovery').addEventListener('click',()=>{
-        const data=Object.fromEntries(Object.entries(LEGACY_KEYS).map(([key,id])=>[key,localStorage.getItem(id)]));
+        const data=Object.fromEntries(Object.entries({...LEGACY_KEYS,recovery:RECOVERY_KEY}).map(([key,id])=>[key,localStorage.getItem(id)]));
         download(JSON.stringify(data,null,2),'mysoft-legacy-recovery.json','application/json');
       });
       return;
+      }
     }
-    files=legacy?.files||starter();
-    trashFiles=legacy?.trash||[];
-    revisions=legacy?.versions||{};
+    const safeState=recovery?.workspace||legacy;
+    files=safeState?.files||starter();
+    trashFiles=safeState?.trash||[];
+    revisions=safeState?.versions||{};
     restoreRoute();render();updateSaveStatus('failed');
     toast('Browser database unavailable. Export backup; editing is not durable.');
   }
