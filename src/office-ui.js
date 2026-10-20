@@ -41,7 +41,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         button('<b>S</b>','strike','Strikethrough')+button('x²','superscript')+button('x₂','subscript')+
         button('Clear format','clear-format');
     } else if(active==='Insert'){
-      body=button('⊞ Table 3×3','insert-table')+button('— Divider','insert-hr')+
+      body=button('⊞ Table 3×3','insert-table')+button('Table size…','custom-table')+button('Picture','insert-picture')+button('— Divider','insert-hr')+
         button('🔗 Link','insert-link')+button('☐ Checklist','insert-checklist')+button('📅 Date','insert-date');
     } else if(active==='Layout'){
       const p=file.pageSettings||{};
@@ -213,6 +213,39 @@ export function initializeOfficeTools(ctx){
         richCommand(ctx,{strike:'strikeThrough','clear-format':'removeFormat',superscript:'superscript',subscript:'subscript'}[action]);return;
       }
       if(action==='insert-table'){richCommand(ctx,'insertHTML','<table><tbody>'+Array.from({length:3},()=>'<tr><td>Cell</td><td>Cell</td><td>Cell</td></tr>').join('')+'</tbody></table><p></p>');return;}
+      if(action==='custom-table'){
+        const rows=Number(prompt('How many rows? (1–10)','4'));
+        if(!Number.isInteger(rows)||rows<1||rows>10)return ctx.toast('Rows must be between 1 and 10');
+        const cols=Number(prompt('How many columns? (1–10)','3'));
+        if(!Number.isInteger(cols)||cols<1||cols>10)return ctx.toast('Columns must be between 1 and 10');
+        richCommand(ctx,'insertHTML','<table><tbody>'+Array.from({length:rows},()=>'<tr>'+Array.from({length:cols},()=>'<td>Cell</td>').join('')+'</tr>').join('')+'</tbody></table><p></p>');
+        return;
+      }
+      if(action==='insert-picture'){
+        let input=document.getElementById('ot-picture-upload');
+        if(!input){
+          input=document.createElement('input');
+          input.type='file';input.accept='image/png,image/jpeg,image/webp';input.hidden=true;input.id='ot-picture-upload';
+          document.body.appendChild(input);
+          input.addEventListener('change',async()=>{
+            const file=input.files?.[0];if(!file)return;
+            try{
+              if(file.size>150000)throw Error('Picture must be smaller than 150 KB for local storage.');
+              if(!['image/png','image/jpeg','image/webp'].includes(file.type))throw Error('Use PNG, JPEG or WebP.');
+              const data=await new Promise((resolve,reject)=>{
+                const reader=new FileReader();
+                reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(Error('Cannot read picture'));
+                reader.readAsDataURL(file);
+              });
+              if(!/^data:image\/(png|jpeg|webp);base64,[a-zA-Z0-9+/=]+$/.test(data))throw Error('Invalid image format');
+              richCommand(ctx,'insertHTML','<img src="'+data+'" alt="'+escapeHTML(file.name.slice(0,80))+'">');
+              ctx.toast('Picture inserted locally');
+            }catch(error){ctx.toast(error.message||'Picture could not be inserted');}
+            finally{input.value='';}
+          });
+        }
+        input.click();return;
+      }
       if(action==='insert-hr'){richCommand(ctx,'insertHTML','<hr><p></p>');return;}
       if(action==='insert-checklist'){richCommand(ctx,'insertHTML','<ul><li>☐ Task</li></ul>');return;}
       if(action==='insert-date'){richCommand(ctx,'insertText',new Intl.DateTimeFormat('en-GB',{dateStyle:'long'}).format(new Date()));return;}
