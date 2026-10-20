@@ -2,7 +2,7 @@
 
 **Your work. Your space.**
 
-MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.5.7 Studio Workflow Refinement** retains native DOCX/XLSX/PPTX support and adds a redesigned, responsive workspace with orangered/color theme options, denser editing ribbons and new functional commands. This remains a local-first prototype, not full Microsoft Office parity. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
+MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.5.8 Data Integrity & Recovery** retains native DOCX/XLSX/PPTX support and adds a redesigned, responsive workspace with orangered/color theme options, denser editing ribbons and new functional commands. This remains a local-first prototype, not full Microsoft Office parity. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
 
 ## Quick start
 
@@ -15,6 +15,27 @@ npm run dev
 ```
 
 Open http://localhost:4173. No installation step or external npm dependencies are required for the local editor prototype. This repository includes static output configuration for Vercel, but the Vercel project is not connected yet.
+
+
+## v0.5.9 — Studio UX & navigation refinement
+
+- Collapsible desktop sidebar with persisted state, touch-friendly mobile navigation overlay and breadcrumb hierarchy.
+- Recent-file tabs inside the four editors; switch workspaces without revisiting file manager.
+- Focus Mode reduces distractions while retaining editor ribbons and commands; Escape restores full workspace.
+- Live Docs/Notes word/character counts, spreadsheet cell counts and slide totals.
+- `/` focuses file search when not editing. Preferences include navigation layout alongside the existing themes, density, font scale and zoom.
+- Unit and browser regression tests cover these flows.
+
+This UI enhancement builds on the v0.5.8 IndexedDB/recovery branch. It does not claim new cloud capabilities or full Office format fidelity.
+
+## New in v0.5.8 — Local storage reliability
+
+- **IndexedDB workspace storage:** files, recycle bin and revision records now commit in a single IndexedDB transaction. No cloud account is required.
+- **Safe one-time migration:** existing `mysoft-office-v1` localStorage data is imported before the app opens. Legacy keys are **not deleted**, so a pre-migration recovery copy remains available.
+- **Verified save status:** Ctrl/Cmd+S, command-palette saves and autosave report `Saved on device` only after the database transaction completes. Failed writes show a visible error and backup warning.
+- **Recovery precautions:** edits are staged to a small synchronous localStorage recovery journal before asynchronous writes. Pending snapshots replay after interrupted reloads; malformed legacy data offers raw recovery export instead of silently replacing documents. Failed JSON/cloud workspace restoration leaves the current workspace untouched.
+- **Regression tests:** unit tests cover migration parsing and ordered write failures; Chromium tests cover migration, save errors, failed import and corrupt-legacy recovery.
+- **Limitations:** browser data can still be cleared by users or storage eviction; export external backups. The localStorage recovery journal is quota-bound and not a guaranteed substitute for IndexedDB transactions. Per-file writes are currently full-workspace transactional replacements.
 
 ## New in v0.5.7 — Keyboard workflow refinement
 
@@ -129,7 +150,7 @@ Open http://localhost:4173. No installation step or external npm dependencies ar
 
 ## Data protection and limitations
 
-This is still a browser prototype using localStorage. Large or dense spreadsheets can exceed browser storage quotas. It is not an appropriate sole archive for critical work, and it does not provide classification-grade security. Browser cleanup, corruption or device loss can remove local files. Export JSON backups routinely. Cloud authentication and manual workspace snapshot code exists but **remains disabled** until a separately authorized MySoft Supabase project is configured. Do not use your KHANIVERSITY database for this app.
+This is still a browser prototype, now using IndexedDB for the authoritative workspace and retaining previous localStorage keys as read-only migration recovery copies. Large or dense spreadsheets can exceed browser storage quotas. It is not an appropriate sole archive for critical work, and it does not provide classification-grade security. Browser cleanup, corruption or device loss can remove local files. Export JSON backups routinely. Cloud authentication and manual workspace snapshot code exists but **remains disabled** until a separately authorized MySoft Supabase project is configured. Do not use your KHANIVERSITY database for this app.
 
 File interoperability adds a defined subset of DOCX/XLSX/PPTX alongside TXT, CSV and sanitized HTML. **Full-fidelity DOCX/XLSX/PPTX editing, real PDF authoring, advanced chart objects, equations, pivot tables, macros, co-authoring and complete accessibility are not implemented.**
 

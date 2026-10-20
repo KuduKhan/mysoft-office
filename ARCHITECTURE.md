@@ -12,7 +12,7 @@ The current app is a dependency-free browser application using ES modules, HTML 
 - `scripts/build.mjs`: static build validation and packaging.
 - `tests/`: Node native test runner.
 
-Persistence: `localStorage` namespace `mysoft-office-v1`. Data is not encrypted, synced or backed up automatically. Do not confuse a browser prototype with a production document storage service.
+Original v0.1 persistence used the `localStorage` namespace `mysoft-office-v1`; v0.5.8 replaces authoritative workspace persistence with IndexedDB. Data is not encrypted, synced or backed up automatically. Do not confuse a browser prototype with a production document storage service.
 
 ## Planned evolution
 
@@ -61,3 +61,16 @@ Persistence: `localStorage` namespace `mysoft-office-v1`. Data is not encrypted,
 The dependency-free ZIP/Open Packaging Conventions adapter in src/ooxml-zip.js validates archive size, CRC, paths, entry counts, compression ratio and XML payloads. Format-specific DOCX, XLSX and PPTX modules convert only the documented supported semantic subset into MySoft editor files. Import review is explicit and never modifies the source Office file. Export uses ZIP STORE with native OOXML package metadata. See OFFICE_COMPATIBILITY.md for a detailed matrix.
 
 CI now tests browsers with independently generated compressed Office fixtures and opens our exported documents in python-docx, openpyxl and python-pptx to catch structural compatibility defects. This is not comprehensive file security auditing nor full OOXML fidelity.
+
+
+## v0.5.8 — Atomic browser workspace persistence
+
+`src/workspace-storage.js` opens `mysoft-office-workspace-v3` and writes files, trash, revisions, and version metadata within **one readwrite IndexedDB transaction**. Metadata includes expected record counts, checked when the workspace is loaded. Writes are serialized with immutable snapshots; failed writes do not block later attempts.
+
+On a fresh database the app reads the legacy `mysoft-office-v1` / trash / revisions keys and migrates only validated records. The old browser keys are intentionally preserved for manual recovery. An invalid legacy workspace blocks normal startup and exposes raw recovery download, rather than overwriting the source. IndexedDB unavailable/failed writes show a persistent editing warning. JSON/cloud restoration commits to IndexedDB before replacing the active in-memory workspace.
+
+Save confirmations wait for committed transactions; pagehide/visibilitychange saves are **best effort**, not a guarantee after abrupt process termination. External JSON backups remain recommended. Browser storage remains subject to quota and eviction.
+
+**Next storage upgrades:** incremental per-file transactions, export snapshots and hash checks for larger attachments, quota/eviction telemetry, OPFS where appropriate, multi-tab conflict control, and independently restored disaster-recovery backups.
+
+The synchronous `mysoft-office-pending-v3` recovery journal stages small pending edits before the IndexedDB debounce. A monotonically increasing sequence on committed database metadata prevents stale journal replay. Journal entries at or below the committed sequence are cleared; newer journal entries are replayed at startup. Large workspaces can exhaust localStorage quota, in which case the IndexedDB path still operates but immediate-reload recovery cannot be guaranteed.

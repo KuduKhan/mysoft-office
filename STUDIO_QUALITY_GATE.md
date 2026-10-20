@@ -91,3 +91,23 @@ The app is not yet equivalent to WPS or Microsoft Office. We must extend the v0.
 - Notes pinned pages sorted ahead of others in each notebook and section; revision history preserves pin state.
 - UX improvements for 320px and up, dark mode, focus states, accent colors and modal fitting; continue auditing very long documents and complex tables.
 - **Important:** this milestone is not full WPS/MS Office parity. Advanced pagination, PivotTables, rich native-format fidelity, slide animations, and professional data integrity/storage architecture remain planned on the v0.5 line.
+
+
+## v0.5.8 — Data Integrity & Recovery
+
+- Browser workspace persistence moved to IndexedDB with a single transaction for files, trash, revisions and metadata. Legacy localStorage entries remain untouched during migration.
+- Save feedback waits for IndexedDB commit. Failed writes never trigger a "Saved" notification.
+- Workspace import/restore only replaces active files after durable commit; corrupt original browser data is exported, not silently overwritten.
+- Node storage tests and browser failure/migration tests are added to CI.
+- Deliberately **not** claiming cloud sync, guaranteed crash-time flush, encrypted local database, or production-ready archive durability.
+
+## v0.5.9 — Studio UX & navigation refinement
+
+- Collapsible desktop sidebar with persisted state, touch-friendly mobile navigation overlay and breadcrumb hierarchy.
+- Recent-file tabs inside the four editors; switch workspaces without revisiting file manager.
+- Focus Mode reduces distractions while retaining editor ribbons and commands; Escape restores full workspace.
+- Live Docs/Notes word/character counts, spreadsheet cell counts and slide totals.
+- `/` focuses file search when not editing. Preferences include navigation layout alongside the existing themes, density, font scale and zoom.
+- Unit and browser regression tests cover these flows.
+
+This UI enhancement builds on the v0.5.8 IndexedDB/recovery branch. It does not claim new cloud capabilities or full Office format fidelity.
