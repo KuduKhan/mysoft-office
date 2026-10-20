@@ -55,3 +55,9 @@ Persistence: `localStorage` namespace `mysoft-office-v1`. Data is not encrypted,
 - `src/document-history.js`: explicit in-session rich editor undo/redo and H1–H3 heading outline extraction, separate from persistent version snapshots.
 - The app retains existing `localStorage` keys and file models. Dense sheets may hit browser quota limits; moving to IndexedDB and a transactional editor remain mandatory before professional availability.
 - GitHub browser tests cover last-row editing, keyboard navigation, outline persistence and editor history.
+
+## v0.5 — Office Open XML adapters
+
+The dependency-free ZIP/Open Packaging Conventions adapter in src/ooxml-zip.js validates archive size, CRC, paths, entry counts, compression ratio and XML payloads. Format-specific DOCX, XLSX and PPTX modules convert only the documented supported semantic subset into MySoft editor files. Import review is explicit and never modifies the source Office file. Export uses ZIP STORE with native OOXML package metadata. See OFFICE_COMPATIBILITY.md for a detailed matrix.
+
+CI now tests browsers with independently generated compressed Office fixtures and opens our exported documents in python-docx, openpyxl and python-pptx to catch structural compatibility defects. This is not comprehensive file security auditing nor full OOXML fidelity.
