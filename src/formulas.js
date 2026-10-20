@@ -15,6 +15,7 @@ export function cellRange(from, to) {
   if (!left || !right) throw Error('Invalid range');
   const [a, b] = [columnIndex(left[1]), columnIndex(right[1])].sort((x,y)=>x-y);
   const [c, d] = [Number(left[2]), Number(right[2])].sort((x,y)=>x-y);
+  if(a<0||b>=26||c<1||d>ROW_COUNT)throw Error('Range outside supported grid');
   if ((b-a+1)*(d-c+1) > 10000) throw Error('Range too large');
   const names = [];
   for (let row=c; row<=d; row++) {
@@ -92,7 +93,7 @@ export function evaluateCell(reference, cells, stack = new Set()) {
       if(!token) throw Error('Missing value');
       if(/^\d|^\./.test(token)) return Number(token);
       if(/^[A-Z]+[1-9][0-9]*$/.test(token)) return refValue(token);
-      if(['SUM','AVERAGE','MIN','MAX','COUNT','COUNTA','PRODUCT','MEDIAN','ROUND','ABS','SQRT','POWER'].includes(token) && take()==='(') {
+      if(['SUM','AVERAGE','MIN','MAX','COUNT','COUNTA','PRODUCT','MEDIAN','ROUND','ABS','SQRT','POWER','MOD','INT','CEILING','FLOOR','SUMSQ','STDEV','VAR','SIGN'].includes(token) && take()==='(') {
         const values=[];
         if(peek()!==')') {
           do {
@@ -129,6 +130,31 @@ export function evaluateCell(reference, cells, stack = new Set()) {
         if(token==='ABS')return Math.abs(values[0]??0);
         if(token==='SQRT')return Math.sqrt(values[0]??0);
         if(token==='POWER')return Math.pow(values[0]??0,values[1]??1);
+        if(token==='MOD'){
+          if(values.length!==2||values[1]===0)throw Error(values[1]===0?'#DIV/0!':'Invalid MOD arguments');
+          return ((values[0]%values[1])+values[1])%values[1];
+        }
+        if(token==='INT'){
+          if(values.length!==1)throw Error('INT expects one number');
+          return Math.floor(values[0]);
+        }
+        if(token==='SIGN'){
+          if(values.length!==1)throw Error('SIGN expects one number');
+          return Math.sign(values[0]);
+        }
+        if(token==='CEILING'||token==='FLOOR'){
+          if(values.length<1||values.length>2)throw Error('Invalid rounding arguments');
+          const step=values.length===2?Math.abs(values[1]):1;
+          if(!step)throw Error('#DIV/0!');
+          return (token==='CEILING'?Math.ceil(values[0]/step):Math.floor(values[0]/step))*step;
+        }
+        if(token==='SUMSQ')return values.reduce((sum,v)=>sum+v*v,0);
+        if(token==='STDEV'||token==='VAR'){
+          if(values.length<2)throw Error('At least two numeric values required');
+          const mean=values.reduce((total,value)=>total+value,0)/values.length;
+          const variance=values.reduce((total,value)=>total+(value-mean)**2,0)/(values.length-1);
+          return token==='STDEV'?Math.sqrt(variance):variance;
+        }
         throw Error('Unsupported function');
       }
       throw Error('Unknown token');

@@ -10,6 +10,9 @@ import { createDOCX, importDOCX } from './ooxml-docx.js';
 import { createXLSX, importXLSX } from './ooxml-xlsx.js';
 import { createPPTX, importPPTX } from './ooxml-pptx.js';
 import { SLIDE_PRESETS } from './studio-tools.js';
+import {renderedSlideObjects,getSlideObject,updateSlideObject} from './slide-objects.js';
+import {organizeNotes,noteLocation,moveNote} from './note-structure.js';
+import {docComments,toggleDocComment,deleteDocComment,commentSummary} from './doc-review.js';
 import { parseAddress, moveAddress, pasteGrid, populatedBounds, ROW_HEIGHT, HEADER_HEIGHT } from './sheet-window.js';
 
 const STORAGE_KEY='mysoft-office-v1';
@@ -151,6 +154,7 @@ let revisions=readStored(HISTORY_KEY,{});
 if(!revisions||typeof revisions!=='object'||Array.isArray(revisions))revisions={};
 let cloudUser=null;
 let pendingOfficeImport=null;
+let activeObjectId=null,selectedReviewQuote='',slideDrag=null;
 const documentHistory=new DocumentHistory();
 let view='home',activeId=null,query='',fileFilter='all',selectedCell='A1',slideIndex=0,mobileOpen=false,sheetScrollTop=0;
 let savedTimer=0,toastTimer=0;
@@ -264,6 +268,15 @@ function outlineItems(f){
   const headings=headingsFromHTML(sanitize(f.body));
   return headings.length?headings.map((h,i)=>'<button class="doc-outline-link indent-'+h.level+'" data-outline-index="'+i+'">'+esc(h.title)+'</button>').join(''):'<p>Use headings to build an outline automatically.</p>';
 }
+function reviewPanel(f){
+  const comments=docComments(f),status=commentSummary(f);
+  return '<section class="studio-review-section"><strong>Review notes · '+status.open+' open</strong>'+
+    (comments.length?comments.map(item=>
+      '<div class="studio-review-comment '+(item.resolved?'resolved':'')+'"><blockquote>'+esc(item.quote)+'</blockquote><p>'+esc(item.body)+'</p>'+
+      '<div class="studio-review-actions"><button type="button" data-review-toggle="'+esc(item.id)+'">'+(item.resolved?'Reopen':'Resolve')+'</button>'+
+      '<button type="button" data-review-delete="'+esc(item.id)+'">Delete</button></div></div>').join(''):
+      '<p>No review comments yet. Select text, then choose Add comment under Review.</p>')+'</section>';
+}
 function docsEditor(f){
   const prefs=f.pageSettings||{};
   const paper=PAGE_SIZES[prefs.paper]||PAGE_SIZES.A4;
@@ -272,7 +285,7 @@ function docsEditor(f){
   const background=/^#[0-9a-f]{6}$/i.test(prefs.background||'')?prefs.background:'#ffffff';
   const lineHeight=['1.2','1.6','2'].includes(String(prefs.lineHeight))?prefs.lineHeight:'1.6';
   const style='width:min(100%,'+Math.round(mm[0]*3.78)+'px);min-height:'+Math.round(mm[1]*3.78)+'px;padding:'+margin+'px;line-height:'+lineHeight+';background-color:'+background;
-  return docToolbar()+'<div class="editor-body"><div class="doc-edit-layout"><aside class="doc-outline"><strong>Document outline</strong><div id="doc-outline-list">'+outlineItems(f)+'</div></aside><div class="doc-canvas"><article id="rich-content" class="document-paper" style="'+style+'" contenteditable="true" spellcheck="true" role="textbox" aria-label="Document content" data-placeholder="Start writing your document...">'+sanitize(f.body)+'</article></div></div></div>';
+  return docToolbar()+'<div class="editor-body"><div class="doc-edit-layout"><aside class="doc-outline"><strong>Document outline</strong><div id="doc-outline-list">'+outlineItems(f)+'</div>'+reviewPanel(f)+'</aside><div class="doc-canvas"><article id="rich-content" class="document-paper" style="'+style+'" contenteditable="true" spellcheck="true" role="textbox" aria-label="Document content" data-placeholder="Start writing your document...">'+sanitize(f.body)+'</article></div></div></div>';
 }
 function sheetsEditor(f){
   ensureWorkbook(f);
@@ -289,15 +302,24 @@ function slidesEditor(f){
   const studio=SLIDE_PRESETS[s.studioPreset]||SLIDE_PRESETS.ivory;
   return '<div class="slide-layout"><div class="slide-list"><button class="btn btn-soft btn-sm" data-action="slide-add" style="width:100%;margin-bottom:12px">'+icon('plus',14)+' Add slide</button>'+
     f.slides.map((slide,i)=>'<button class="slide-item '+(i===slideIndex?'active':'')+'" data-slide="'+i+'"><span>'+(i+1)+'</span><div class="slide-thumb"><strong>'+esc(slide.title)+'</strong><small>'+esc(slide.body).slice(0,46)+'</small></div></button>').join('')+'</div>'+
-    '<div class="slide-stage-wrap"><div class="slide-stage '+(theme.dark?'dark':'')+' studio-preset" style="--slide-accent:'+theme.color+';--studio-slide-bg:'+studio.background+';--studio-slide-text:'+studio.foreground+';--studio-slide-highlight:'+studio.accent+'"><div class="slide-tag">MySoft Slides · '+(slideIndex+1)+' / '+f.slides.length+'</div><div class="slide-title" contenteditable="true" id="slide-title" role="textbox" aria-label="Slide title" data-placeholder="Slide title">'+esc(s.title)+'</div><div class="slide-body" contenteditable="true" id="slide-body" role="textbox" aria-label="Slide body">'+esc(s.body)+'</div></div></div>'+
+    '<div class="slide-stage-wrap"><div class="slide-stage '+(theme.dark?'dark':'')+' studio-preset" style="--slide-accent:'+theme.color+';--studio-slide-bg:'+studio.background+';--studio-slide-text:'+studio.foreground+';--studio-slide-highlight:'+studio.accent+'"><div class="slide-tag">MySoft Slides · '+(slideIndex+1)+' / '+f.slides.length+'</div><div class="slide-title" contenteditable="true" id="slide-title" role="textbox" aria-label="Slide title" data-placeholder="Slide title">'+esc(s.title)+'</div><div class="slide-body" contenteditable="true" id="slide-body" role="textbox" aria-label="Slide body">'+esc(s.body)+'</div><div class="studio-object-layer" aria-label="Editable slide objects">'+renderedSlideObjects(s,{editable:true,selectedId:activeObjectId})+'</div></div></div>'+
     '<div class="slide-controls"><h3>Design theme</h3>'+Object.entries(themes).map(([k,v])=>'<button class="theme-choice '+(s.theme===k?'active':'')+'" data-theme="'+k+'"><span class="theme-dot" style="background:'+v.color+'"></span>'+v.label+'</button>').join('')+
     '<h3 style="margin-top:30px">Slide actions</h3><button class="btn btn-light btn-sm" data-action="slide-duplicate" style="width:100%;margin:6px 0">'+icon('copy',14)+' Duplicate</button><button class="btn btn-light btn-sm" data-action="slide-delete" style="width:100%;margin:6px 0">'+icon('trash',14)+' Delete</button></div></div>';
 }
 function notesEditor(f){
-  const notes=files.filter(v=>v.type==='notes').sort((a,b)=>b.updatedAt-a.updatedAt);
-  return '<div class="note-layout"><div class="note-list"><div class="spread"><h3>All notes</h3><button class="icon-btn" data-create="notes" title="New note">'+icon('plus',16)+'</button></div>'+
-    notes.map(n=>'<button class="note-list-item '+(n.id===f.id?'active':'')+'" data-open="'+esc(n.id)+'"><strong>'+esc(n.title)+'</strong><span>'+dateText(n.updatedAt)+'</span></button>').join('')+'</div>'+
-    '<div class="note-editor"><div class="eyebrow">MY NOTES</div><input class="note-title" id="note-title" aria-label="Note title" value="'+esc(f.title)+'" maxlength="120"><div class="note-meta">Private to this browser · Autosaved · Tags: '+esc((f.tags||[]).join(', ')||'none')+'</div><div id="rich-content" class="note-content" contenteditable="true" spellcheck="true" role="textbox" aria-label="Note content" data-placeholder="Capture your thoughts...">'+sanitize(f.body)+'</div></div></div>';
+  const groups=organizeNotes(files),location=noteLocation(f);
+  const tree=groups.map(book=>'<div class="studio-notebook-group"><div class="studio-notebook-title">'+esc(book.name)+'</div>'+
+    book.sections.map(sec=>'<div class="studio-notebook-section">'+esc(sec.title)+'</div>'+
+      sec.notes.map(n=>'<button class="note-list-item '+(n.id===f.id?'active':'')+'" data-open="'+esc(n.id)+'"><strong>'+esc(n.title)+'</strong><span>'+dateText(n.updatedAt)+'</span></button>').join('')
+    ).join('')+'</div>').join('');
+  return '<div class="note-layout"><div class="note-list"><div class="spread"><h3>Notebooks</h3><button class="icon-btn" data-create="notes" title="New note">'+icon('plus',16)+'</button></div>'+tree+'</div>'+
+    '<div class="note-editor"><div class="eyebrow">MY NOTES</div><div class="studio-note-organizer">'+
+    '<label>Notebook<input id="note-notebook" aria-label="Notebook" maxlength="40" value="'+esc(location.notebook)+'"></label>'+
+    '<label>Section<input id="note-section" aria-label="Section" maxlength="40" value="'+esc(location.section)+'"></label>'+
+    '<button class="btn btn-soft btn-sm" data-note-move="true">Move note</button></div>'+
+    '<input class="note-title" id="note-title" aria-label="Note title" value="'+esc(f.title)+'" maxlength="120">'+
+    '<div class="note-meta">Private to this browser · Autosaved · Tags: '+esc((f.tags||[]).join(', ')||'none')+'</div>'+
+    '<div id="rich-content" class="note-content" contenteditable="true" spellcheck="true" role="textbox" aria-label="Note content" data-placeholder="Capture your thoughts...">'+sanitize(f.body)+'</div></div></div>';
 }
 function editor(){
   const f=getActive();
@@ -325,7 +347,7 @@ function navigate(destination){
 function openFile(id){
   if(!files.some(f=>f.id===id))return;
   if(view==='editor'&&getActive())snapshot(getActive(),true);
-  activeId=id;view='editor';slideIndex=0;selectedCell='A1';sheetScrollTop=0;mobileOpen=false;
+  activeId=id;view='editor';slideIndex=0;activeObjectId=null;selectedReviewQuote='';selectedCell='A1';sheetScrollTop=0;mobileOpen=false;
   window.history.pushState(null,'','#/file/'+encodeURIComponent(id));
   snapshot(getActive(),true);persist();render();
 }
@@ -597,9 +619,36 @@ document.addEventListener('mousedown',event=>{
   if(event.target.closest('[data-cmd]')) event.preventDefault();
 });
 document.addEventListener('click',event=>{
-  const el=event.target.closest('[data-action],[data-nav],[data-create],[data-open],[data-star],[data-delete],[data-duplicate],[data-slide],[data-theme],[data-template],[data-cmd],[data-restore-trash],[data-purge],[data-revision],[data-outline-index]');
+  const object=event.target.closest('[data-slide-object]');
+  if(object&&getActive()?.type==='slides'&&!event.target.closest('.studio-shape-text')){
+    activeObjectId=object.dataset.slideObject;
+    document.querySelectorAll('[data-slide-object]').forEach(el=>el.classList.toggle('selected',el.dataset.slideObject===activeObjectId));
+    return;
+  }
+  const el=event.target.closest('[data-action],[data-nav],[data-create],[data-open],[data-star],[data-delete],[data-duplicate],[data-slide],[data-theme],[data-template],[data-cmd],[data-restore-trash],[data-purge],[data-revision],[data-outline-index],[data-review-toggle],[data-review-delete],[data-note-move]');
   if(!el){
     if(event.target.classList.contains('modal-backdrop'))closeModal();
+    return;
+  }
+  if(el.dataset.noteMove!==undefined){
+    const file=getActive();
+    if(file?.type==='notes'){
+      moveNote(file,document.getElementById('note-notebook')?.value,document.getElementById('note-section')?.value);
+      touch(file);persist();render();toast('Note moved into notebook section');
+    }
+    return;
+  }
+  if(el.dataset.reviewToggle!==undefined||el.dataset.reviewDelete!==undefined){
+    const file=getActive();if(file?.type!=='docs')return;
+    try{
+      if(el.dataset.reviewToggle!==undefined){
+        const item=docComments(file).find(x=>x.id===el.dataset.reviewToggle);
+        if(!item)throw Error('Comment not found');
+        toggleDocComment(file,el.dataset.reviewToggle,!item.resolved);
+      }else if(confirm('Delete this review comment?'))deleteDocComment(file,el.dataset.reviewDelete);
+      else return;
+      touch(file);persist();render();
+    }catch(error){toast(error.message);}
     return;
   }
   if(el.dataset.outlineIndex!==undefined){
@@ -628,7 +677,7 @@ document.addEventListener('click',event=>{
   if(el.dataset.duplicate){duplicate(el.dataset.duplicate);return;}
   if(el.dataset.delete){modal('delete',el.dataset.delete);return;}
   if(el.dataset.template!==undefined){createTemplate(Number(el.dataset.template));return;}
-  if(el.dataset.slide!==undefined){slideIndex=Number(el.dataset.slide);render();return;}
+  if(el.dataset.slide!==undefined){slideIndex=Number(el.dataset.slide);activeObjectId=null;render();return;}
   if(el.dataset.theme){const f=getActive();if(f?.type==='slides'){f.slides[slideIndex].theme=el.dataset.theme;touch(f);render();}return;}
   if(el.dataset.cmd){
     if(['undo','redo'].includes(el.dataset.cmd)){undoDocument(el.dataset.cmd);return;}
@@ -690,6 +739,11 @@ document.addEventListener('input',event=>{
     touch(f);
   }
   if(target.id==='rich-content'){f.body=target.innerHTML;touch(f);updateDocumentOutline(f);}
+  if(target.matches('[data-slide-object-text]')&&f.type==='slides'){
+    const obj=getSlideObject(f.slides[slideIndex],target.dataset.slideObjectText);
+    if(obj){updateSlideObject(f.slides[slideIndex],obj.id,{text:target.textContent||''});touch(f);}
+    return;
+  }
   if(target.id==='slide-title'||target.id==='slide-body'){
     f.slides[slideIndex][target.id==='slide-title'?'title':'body']=target.textContent||'';touch(f);
   }
@@ -702,6 +756,42 @@ document.addEventListener('input',event=>{
     const cell=document.querySelector('[data-cell="'+selectedCell+'"]');
     if(cell&&document.activeElement!==cell)cell.value=target.value;
   }
+});
+document.addEventListener('selectionchange',()=>{
+  const file=getActive();if(file?.type!=='docs')return;
+  const selection=window.getSelection();if(!selection||selection.isCollapsed)return;
+  const content=document.getElementById('rich-content');
+  if(content?.contains(selection.anchorNode)&&content.contains(selection.focusNode))
+    selectedReviewQuote=selection.toString().trim().slice(0,240);
+});
+document.addEventListener('pointerdown',event=>{
+  if(getActive()?.type!=='slides')return;
+  const grip=event.target.closest('.studio-shape-grip');
+  if(!grip)return;
+  const shape=grip.closest('[data-slide-object]'),stage=shape?.closest('.slide-stage');
+  const object=getSlideObject(getActive().slides[slideIndex],shape?.dataset.slideObject);
+  if(!object||!stage)return;
+  activeObjectId=object.id;
+  slideDrag={id:object.id,stage,startX:event.clientX,startY:event.clientY,x:object.x,y:object.y};
+  event.preventDefault();
+});
+document.addEventListener('pointermove',event=>{
+  if(!slideDrag||getActive()?.type!=='slides')return;
+  const shape=document.querySelector('[data-slide-object="'+slideDrag.id+'"]');
+  if(!shape)return;
+  const rect=slideDrag.stage.getBoundingClientRect();
+  if(!rect.width||!rect.height)return;
+  const slide=getActive().slides[slideIndex];
+  const x=slideDrag.x+(event.clientX-slideDrag.startX)/rect.width*100;
+  const y=slideDrag.y+(event.clientY-slideDrag.startY)/rect.height*100;
+  updateSlideObject(slide,slideDrag.id,{x,y});
+  const object=getSlideObject(slide,slideDrag.id);
+  shape.style.left=object.x+'%';shape.style.top=object.y+'%';
+  event.preventDefault();
+});
+document.addEventListener('pointerup',()=>{
+  if(slideDrag&&getActive()?.type==='slides'){touch(getActive());persist();}
+  slideDrag=null;
 });
 document.addEventListener('focusin',event=>{
   const cell=event.target.closest('[data-cell]');if(!cell)return;
@@ -804,7 +894,9 @@ document.body.appendChild(externalInput);
 initializeOfficeTools({
   getFile:getActive,touch,persist,render,sanitize,toast,
   getSelectedCell:()=>selectedCell,getSlideIndex:()=>slideIndex,
-  setSlideIndex:i=>{slideIndex=i;}
+  getSlideObjectId:()=>activeObjectId,setSlideObjectId:id=>{activeObjectId=id;},
+  getReviewQuote:()=>selectedReviewQuote,
+  setSlideIndex:i=>{slideIndex=i;activeObjectId=null;}
 });
 window.addEventListener('pagehide',()=>{clearTimeout(savedTimer);persist();});
 window.addEventListener('popstate',()=>{restoreRoute();render();});

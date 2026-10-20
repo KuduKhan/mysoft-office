@@ -8,7 +8,7 @@ MySoft Office now supports importing and exporting **real Open XML files**: DOCX
 |---|---|---|---|
 | DOCX | Paragraphs, basic headings, bold, italic, underline, simple tables | Paragraphs, headings, inline emphasis and tables | Images, comments, tracked changes, links, advanced styles, section layout, complex tables |
 | XLSX | Up to 20 sheets, A1:Z1000, text/numbers, formulas, basic font and fill styles | Same | Pivot tables, data validation, images, charts, conditional formatting, merged cells, unsupported formulas and links |
-| PPTX | Up to 200 slides, title and body text extracted as editable content | Title/body text on editable slides | Exact layout, animations, pictures, shapes, notes, media, masters and charts |
+| PPTX | Up to 200 slides, title and body text extracted as editable content | Editable title/body text and MySoft rectangle/ellipse/text boxes | Exact layout, animations, pictures, shapes, notes, media, masters and charts |
 
 An import confirmation screen always warns that unsupported content may be lost on re-export. Exporting through the DOCX, XLSX or PPTX control also discloses limitations. Files are read locally, converted into new MySoft files, and do not modify the source.
 

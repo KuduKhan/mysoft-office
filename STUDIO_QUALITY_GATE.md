@@ -57,3 +57,11 @@ The app is not yet equivalent to WPS or Microsoft Office. We must extend the v0.
 - Fixed sorting to include rows 2–1000; previously populated rows after row 30 were vulnerable to removal.
 - Added unit tests for range bounds, mutation integrity and preserving deep-row data while sorting; added browser tests for table and range editing.
 - Advanced collaborative editing, professional DOCX/WPS fidelity, worksheet dependency graphs and freeform PPTX editing remain out of scope.
+
+## v0.5.3 — Editing expansion
+
+- Docs review: quoted text annotations with resolve/reopen/delete; remarks remain in the local document and revision snapshots. Comments are non-destructive and based on quoted text, not full tracked-changes annotations.
+- Sheets: additional numeric functions MOD, INT, SIGN, CEILING, FLOOR, SUMSQ, STDEV and VAR with bounds checks and tests. No advanced dependency engine yet.
+- Slides: native rectangles, ellipses and editable text boxes with repositioning, duplication, deletion and custom colors. These persist locally and basic shapes are included in MySoft's own PPTX round-trip subset. Complex Office shapes, animations and masters remain unsupported.
+- Notes: notebook and section organization with grouped navigation, relocation controls and metadata preserved through revisions; mobile navigation stays visible in a bounded panel.
+- The release remains v0.5.x. A structured text editor, professional spreadsheet engine, freeform animations and fully featured note hierarchy remain required before any cloud milestone.
