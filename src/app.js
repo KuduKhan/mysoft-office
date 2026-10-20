@@ -1,3 +1,4 @@
+import {icon} from './icons.js';
 import {studioShortcut} from './studio-shortcuts.js';
 import {recentWorkspaceFiles,editorMetric} from './studio-workspace.js';
 import {searchWorkspaceFiles,workspaceMatchSource} from './workspace-search.js';
@@ -33,35 +34,6 @@ const themes={
   forest:{label:'Forest',color:'#22a88e',dark:false},
   midnight:{label:'Midnight',color:'#a58bff',dark:true}
 };
-const icons={
-  home:'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 21v-8h6v8"/>',
-  folder:'<path d="M3 7a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
-  star:'<path d="m12 2 3 6.5 7 1-5 4.9 1.2 7L12 18l-6.2 3.4 1.2-7-5-4.9 7-1z"/>',
-  grid:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
-  search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
-  plus:'<path d="M12 5v14M5 12h14"/>',
-  'file-text':'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/>',
-  table:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/>',
-  presentation:'<rect x="3" y="3" width="18" height="13" rx="2"/><path d="M12 16v5M8 21h8M7 9h10"/>',
-  notebook:'<path d="M6 3h13a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM8 3v18M11 8h6M11 12h5"/>',
-  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/>',
-  upload:'<path d="M12 16V3m-5 5 5-5 5 5M4 17v3h16v-3"/>',
-  download:'<path d="M12 3v13m-5-5 5 5 5-5M4 17v4h16v-4"/>',
-  chevron:'<path d="m9 18 6-6-6-6"/>',
-  back:'<path d="m15 18-6-6 6-6M9 12h12"/>',
-  check:'<path d="m4 12 5 5L20 6"/>',
-  trash:'<path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 10v7M14 10v7"/>',
-  copy:'<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
-  menu:'<path d="M3 6h18M3 12h18M3 18h18"/>',
-  'more':'<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
-  sparkles:'<path d="m12 3 2 6 6 2-6 2-2 6-2-6-6-2 6-2zM19 17l1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/>',
-  x:'<path d="M5 5l14 14M19 5 5 19"/>',
-  info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
-  'arrow-right':'<path d="M4 12h16m-6-6 6 6-6 6"/>'
-};
-function icon(name,size=18){
-  return '<svg xmlns="http://www.w3.org/2000/svg" width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(icons[name]||icons.grid)+'</svg>';
-}
 function esc(value){
   return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 }
@@ -235,11 +207,11 @@ function sidebar(){
     '<nav class="sidebar-nav" aria-label="Primary navigation"><div class="nav-caption">Workspace</div>'+nav('home','Overview','home')+nav('files','My files','folder','<span class="count">'+files.length+'</span>')+nav('starred','Starred','star')+nav('templates','Templates','grid')+nav('trash','Recycle bin','trash','<span class="count">'+trashFiles.length+'</span>')+
     '<div class="nav-caption">Applications</div>'+['docs','sheets','slides','notes'].map(t=>nav(t,labels[t],typeIcons[t])).join('')+'</nav>'+
     '<footer class="side-foot"><div class="storage-label"><span>Local workspace</span><strong>'+files.length+' files</strong></div><div class="storage-help">Files stay on this device. Export backups regularly.</div>'+
-    action('cloud','Cloud snapshots','upload')+action('import-file','Import file','plus')+action('backup','Export backup','download')+action('import','Import backup','upload')+'</footer></aside>';
+    action('cloud','Cloud snapshots','cloud')+action('import-file','Import file','import')+action('backup','Export backup','download')+action('import','Import backup','upload')+'</footer></aside>';
 }
 function header(){
   const current=view==='editor'?labels[getActive()?.type]||'Editor':({home:'Overview',files:'My files',starred:'Starred',templates:'Templates',trash:'Recycle bin'})[view]||labels[view]||'Workspace';
-  return '<header class="topbar"><div class="topbar-left"><button class="icon-btn mobile-menu" data-action="mobile" aria-label="Open navigation" aria-expanded="'+mobileOpen+'" aria-controls="studio-sidebar">'+icon('menu')+'</button><div class="studio-breadcrumb"><button data-nav="home">Workspace</button><span aria-hidden="true">/</span><strong>'+esc(current)+'</strong></div><div class="searchbox">'+icon('search',17)+'<input id="global-search" aria-label="Search filenames and content" placeholder="Search files and content  /" value="'+esc(query)+'"></div></div><div class="top-actions"><button class="btn btn-light studio-command-trigger" data-action="commands" title="Search commands (Ctrl+K)" aria-label="Search commands">⌕ <span>Commands</span></button><button class="btn btn-light studio-customize" data-ot-action="preferences">⚙ <span>Customize</span></button><button class="btn btn-primary" data-action="new">'+icon('plus',16)+'<span>New file</span></button><div class="avatar" title="Local workspace">MS</div></div></header>';
+  return '<header class="topbar"><div class="topbar-left"><button class="icon-btn mobile-menu" data-action="mobile" aria-label="Open navigation" aria-expanded="'+mobileOpen+'" aria-controls="studio-sidebar">'+icon('menu')+'</button><div class="studio-breadcrumb"><button data-nav="home">Workspace</button><span aria-hidden="true">/</span><strong>'+esc(current)+'</strong></div><div class="searchbox">'+icon('search',17)+'<input id="global-search" aria-label="Search filenames and content" placeholder="Search files and content  /" value="'+esc(query)+'"></div></div><div class="top-actions"><button class="btn btn-light studio-command-trigger" data-action="commands" title="Search commands (Ctrl+K)" aria-label="Search commands">'+icon('command',16)+'<span>Commands</span></button><button class="btn btn-light studio-customize" data-ot-action="preferences" title="Customize workspace" aria-label="Customize workspace">'+icon('settings',16)+'<span>Customize</span></button><button class="btn btn-primary" data-action="new">'+icon('plus',16)+'<span>New file</span></button><div class="avatar" title="Local workspace">MS</div></div></header>';
 }
 function appTiles(){
   const descriptions={docs:'Write and format',sheets:'Calculate and analyze',slides:'Present your ideas',notes:'Capture your thoughts'};
@@ -265,7 +237,7 @@ function updateEditorMetrics(){
 }
 function home(){
   const sorted=filtered(files);
-  return '<div class="content"><div class="eyebrow">YOUR PERSONAL WORKSPACE</div><h1 style="margin-top:8px">Welcome to MySoft Office <span style="font-size:26px">✦</span></h1><p class="subtitle">Everything you need to create, organize and get things done.</p>'+
+  return '<div class="content"><div class="eyebrow">YOUR PERSONAL WORKSPACE</div><h1 style="margin-top:8px">Welcome to MySoft Office <span class="welcome-spark">'+icon('sparkles',25)+'</span></h1><p class="subtitle">Everything you need to create, organize and get things done.</p>'+
     '<div class="hero"><div><div class="eyebrow" style="color:#d7d0ff">THE WORKSPACE THAT WORKS FOR YOU</div><h1>Your ideas deserve a better space.</h1><p>Bring your documents, numbers, stories and thoughts together — in one beautiful place.</p><button class="btn" data-action="new">'+icon('plus',16)+' Create something</button></div><div class="hero-art"><div class="art-page"><div class="art-dot"></div><div class="art-line"></div><div class="art-line short"></div><div class="art-line"></div></div><div class="art-page second"><div class="art-dot"></div><div class="art-line"></div><div class="art-line"></div><div class="art-line short"></div></div></div></div>'+
     sectionHead('Create with MySoft','Choose an app and start making something great.')+appTiles()+
     sectionHead('Recent files','Pick up where you left off.','files','View all files')+renderRows(sorted.slice(0,7))+'</div>';
@@ -291,15 +263,15 @@ function templatesPage(){
   return '<div class="content"><div class="eyebrow">START WITH A HEAD START</div><h1 style="margin:8px 0">Templates</h1><p class="subtitle">Useful starting points for your next project.</p><div class="templates-grid" style="margin-top:27px">'+templates.map((t,i)=>'<button class="template-card" data-template="'+i+'"><span class="app-icon '+t.type+'">'+icon(typeIcons[t.type],22)+'</span><h3>'+t.title+'</h3><p>'+t.description+'</p></button>').join('')+'</div></div>';
 }
 function editorHead(f){
-  return '<div class="editor-head"><button class="icon-btn" data-action="close-editor" title="Back to files">'+icon('back',19)+'</button><span class="file-icon '+f.type+'">'+icon(typeIcons[f.type],18)+'</span><input class="doc-title" id="document-title" aria-label="File title" value="'+esc(f.title)+'" maxlength="120"><div class="save-mark" id="save-status" role="status">'+esc(saveLabel())+'</div>'+(f.type==='notes'?'':'<button class="btn btn-soft btn-sm" data-action="office-export">'+icon('download',15)+' '+({docs:'DOCX',sheets:'XLSX',slides:'PPTX'}[f.type])+'</button>')+'<button class="btn btn-light btn-sm" data-action="revisions">'+icon('clock',15)+' History</button><button class="btn btn-light btn-sm" data-action="export">'+icon('download',15)+' Export</button><button type="button" class="btn btn-light btn-sm studio-focus-toggle" data-action="focus-mode" aria-pressed="'+focusMode+'" title="'+(focusMode?'Exit':'Enter')+' focus mode">'+icon('grid',14)+'<span class="studio-focus-label">'+(focusMode?'Exit focus':'Focus')+'</span></button></div>';
+  return '<div class="editor-head"><button class="icon-btn" data-action="close-editor" title="Back to files">'+icon('back',19)+'</button><span class="file-icon '+f.type+'">'+icon(typeIcons[f.type],18)+'</span><input class="doc-title" id="document-title" aria-label="File title" value="'+esc(f.title)+'" maxlength="120"><div class="save-mark" id="save-status" role="status">'+esc(saveLabel())+'</div>'+(f.type==='notes'?'':'<button class="btn btn-soft btn-sm" data-action="office-export">'+icon('download',15)+' '+({docs:'DOCX',sheets:'XLSX',slides:'PPTX'}[f.type])+'</button>')+'<button class="btn btn-light btn-sm" data-action="revisions">'+icon('clock',15)+' History</button><button class="btn btn-light btn-sm" data-action="export">'+icon('download',15)+' Export</button><button type="button" class="btn btn-light btn-sm studio-focus-toggle" data-action="focus-mode" aria-pressed="'+focusMode+'" title="'+(focusMode?'Exit':'Enter')+' focus mode">'+icon('focus',14)+'<span class="studio-focus-label">'+(focusMode?'Exit focus':'Focus')+'</span></button></div>';
 }
 function docToolbar(){
   return '<div class="toolbar">'+
     '<select id="doc-block" aria-label="Paragraph style"><option value="P">Normal text</option><option value="H1">Heading 1</option><option value="H2">Heading 2</option><option value="H3">Heading 3</option><option value="BLOCKQUOTE">Quote</option></select><span class="toolbar-divider"></span>'+
-    [['bold','B'],['italic','I'],['underline','U']].map(([cmd,label])=>'<button class="tool" data-cmd="'+cmd+'" title="'+cmd+'">'+label+'</button>').join('')+
-    '<span class="toolbar-divider"></span><button class="tool" data-cmd="insertUnorderedList" title="Bulleted list">☷</button><button class="tool" data-cmd="insertOrderedList" title="Numbered list">≡</button>'+
-    '<span class="toolbar-divider"></span><button class="tool" data-cmd="justifyLeft" title="Align left">☰</button><button class="tool" data-cmd="justifyCenter" title="Align center">≡</button><button class="tool" data-cmd="justifyRight" title="Align right">☷</button>'+
-    '<span class="toolbar-divider"></span><button class="tool" data-cmd="undo" title="Undo">↶</button><button class="tool" data-cmd="redo" title="Redo">↷</button><span class="sheet-hint">Select text to format</span></div>';
+    ['bold','italic','underline'].map(cmd=>'<button class="tool" data-cmd="'+cmd+'" title="'+cmd+'" aria-label="'+cmd+'">'+icon(cmd,16)+'</button>').join('')+
+    '<span class="toolbar-divider"></span><button class="tool" data-cmd="insertUnorderedList" title="Bulleted list">'+icon('list',16)+'</button><button class="tool" data-cmd="insertOrderedList" title="Numbered list">'+icon('list-ordered',16)+'</button>'+
+    '<span class="toolbar-divider"></span><button class="tool" data-cmd="justifyLeft" title="Align left">'+icon('align-left',16)+'</button><button class="tool" data-cmd="justifyCenter" title="Align center">'+icon('align-center',16)+'</button><button class="tool" data-cmd="justifyRight" title="Align right">'+icon('align-right',16)+'</button>'+
+    '<span class="toolbar-divider"></span><button class="tool" data-cmd="undo" title="Undo">'+icon('undo-2',16)+'</button><button class="tool" data-cmd="redo" title="Redo">'+icon('redo-2',16)+'</button><span class="sheet-hint">Select text to format</span></div>';
 }
 function outlineItems(f){
   const headings=headingsFromHTML(sanitize(f.body));
@@ -350,7 +322,7 @@ function notesEditor(f){
     ).join('')+'</div>').join('');
   return '<div class="note-layout"><div class="note-list"><div class="spread"><h3>Notebooks</h3><button class="icon-btn" data-create="notes" title="New note">'+icon('plus',16)+'</button></div>'+'<input id="note-search" type="search" class="studio-note-search" aria-label="Search notebooks and notes" placeholder="Search title, tags, content…"><p id="note-no-results" class="studio-note-no-results" hidden>No matching notes.</p>'+tree+'</div>'+
     '<div class="note-editor"><div class="studio-note-heading"><div class="eyebrow">MY NOTES</div>'+
-    '<button type="button" class="studio-pin-btn '+(f.pinned?'is-pinned':'')+'" data-note-pin="true" aria-pressed="'+Boolean(f.pinned)+'">'+(f.pinned?'★ Pinned':'☆ Pin note')+'</button></div><div class="studio-note-organizer">'+
+    '<button type="button" class="studio-pin-btn '+(f.pinned?'is-pinned':'')+'" data-note-pin="true" aria-pressed="'+Boolean(f.pinned)+'">'+icon('pin',14)+'<span>'+(f.pinned?'Pinned':'Pin note')+'</span></button></div><div class="studio-note-organizer">'+
     '<label>Notebook<input id="note-notebook" aria-label="Notebook" maxlength="40" value="'+esc(location.notebook)+'"></label>'+
     '<label>Section<input id="note-section" aria-label="Section" maxlength="40" value="'+esc(location.section)+'"></label>'+
     '<button class="btn btn-soft btn-sm" data-note-move="true">Move note</button></div>'+
@@ -364,7 +336,7 @@ function editor(){
   if(['docs','notes'].includes(f.type))documentHistory.seed(f.id,f.body||'');
   const zoom=Math.round(parseFloat(document.documentElement.style.getPropertyValue('--studio-zoom'))||100);
   const status='<div class="studio-statusbar" role="status"><div class="studio-status-left"><span class="studio-status-dot"></span><span>MySoft '+typeNames[f.type]+'</span><span class="studio-status-divider">·</span><span id="studio-storage-status">'+esc(saveLabel())+'</span></div>'+
-    '<div class="studio-status-right"><span id="studio-editor-metric">'+esc(editorMetric(f,['docs','notes'].includes(f.type)?plain(f.body):''))+'</span><span class="studio-shortcut">Ctrl+S · Save</span><button data-ot-action="zoom-out" class="studio-zoom-btn" aria-label="Zoom out">−</button><span id="studio-zoom-value">'+zoom+'%</span><button data-ot-action="zoom-in" class="studio-zoom-btn" aria-label="Zoom in">+</button></div></div>';
+    '<div class="studio-status-right"><span id="studio-editor-metric">'+esc(editorMetric(f,['docs','notes'].includes(f.type)?plain(f.body):''))+'</span><span class="studio-shortcut">Ctrl+S · Save</span><button data-ot-action="zoom-out" class="studio-zoom-btn" aria-label="Zoom out">'+icon('minus',13)+'</button><span id="studio-zoom-value">'+zoom+'%</span><button data-ot-action="zoom-in" class="studio-zoom-btn" aria-label="Zoom in">'+icon('plus',13)+'</button></div></div>';
   const tabs=recentWorkspaceFiles(files,f.id,recentFileIds).map(file=>'<button type="button" class="studio-file-tab '+(file.id===f.id?'active':'')+'" data-workspace-tab="'+esc(file.id)+'" title="'+esc(file.title)+'" aria-label="Open '+esc(file.title)+'"'+(file.id===f.id?' aria-current="page"':'')+'><span class="studio-file-tab-icon '+file.type+'">'+icon(typeIcons[file.type],14)+'</span><span class="studio-file-tab-name">'+esc(file.title)+'</span></button>').join('');
   return '<div class="editor-shell">'+editorHead(f)+'<nav class="studio-file-tabs" aria-label="Recent files">'+tabs+'</nav>'+powerRibbon(f,selectedCell,slideIndex)+(f.type==='docs'?docsEditor(f):f.type==='sheets'?sheetsEditor(f):f.type==='slides'?slidesEditor(f):notesEditor(f))+status+'</div>';
 }
