@@ -2,11 +2,11 @@
 
 **Your work. Your space.**
 
-MySoft Office is a browser-based productivity workspace. Version 0.2 provides a local-first workspace with functional document, spreadsheet, presentation, and note editors.
+MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.3.0** expands editing tools and personal customization. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
 
 ## Quick start
 
-Prerequisite: Node.js 20+.
+Node.js 20+:
 
 ```bash
 git clone https://github.com/KuduKhan/mysoft-office.git
@@ -14,55 +14,63 @@ cd mysoft-office
 npm run dev
 ```
 
-Open http://localhost:4173.
+Open http://localhost:4173. No installation step or external npm dependencies are required for the local editor prototype. This repository includes static output configuration for Vercel, but the Vercel project is not connected yet.
 
-No npm dependencies or database are needed for this first release.
+## v0.3 Office Power Tools
 
-## Available in v0.2
+**Shared workspace**
+- Unified launcher, search, templates, recycle bin, local version history, backup and restore.
+- Customizable light/dark theme, accent color, compact or comfortable spacing, and UI scale.
+- App-specific contextual tool ribbons, including more discoverable commands.
 
-- Workspace dashboard, searching, sorting, recent files, favorites, and document creation
-- Docs: rich text formatting, autosave, HTML and plain-text export
-- Sheets: 12-column grid, formulas including SUM/AVERAGE/MIN/MAX, CSV export
-- Slides: editable titles and body, slides management, theme choices, printable HTML export
-- Notes: distraction-free note editor, markdown/text export
-- JSON backup and restore; all workspace data stored in this browser
+**MySoft Docs**
+- Paragraph styles, common rich-text formatting, and text alignment.
+- Custom font, font size, text color, highlight, superscript/subscript and strikethrough.
+- Tables (including custom dimensions), small embedded pictures (up to 150 KB, PNG/JPEG/WebP), hyperlinks, dividers, checklists, dates and text find/replace.
+- Page size (A4/Letter/Legal), orientation, margins, page color, line spacing, print-to-PDF.
 
-## New in v0.2
+**MySoft Sheets**
+- 12×30 grid with up to 20 worksheets in each file, rename, duplicate and delete.
+- Cell text/background colors, bold/italic styles, number display presets (KES, percent).
+- Sorting with formula reference safeguards, auto SUM/AVERAGE, bar and line previews.
+- Arithmetic and aggregates: SUM, AVERAGE, MIN, MAX, COUNT, COUNTA, PRODUCT, MEDIAN, ROUND, ABS, SQRT, POWER.
+- CSV import/export and basic formula evaluation.
 
-- Recoverable recycle bin (restore or permanently delete files)
-- Local version snapshots with a 12-revision limit and restore UI
-- Import CSV, TXT, Markdown, and sanitized HTML
-- Safer CSV exports that neutralize formula-like text values
-- Editor routes retained on reload and browser back/forward
-- Browser smoke tests using Playwright in GitHub Actions
-- Optional, manual MySoft Cloud snapshot sign-in and transfer adapter
-- A separate Supabase SQL schema with strict owner-only RLS; see [CLOUD_SETUP.md](CLOUD_SETUP.md)
-- Cloud is **not connected** until a dedicated MySoft database and public configuration are supplied.
+**MySoft Slides**
+- Slide creation, deletion, duplication, ordering and design themes.
+- Title, section and minimal layouts, text scales, speaker notes.
+- In-browser slide show, keyboard navigation and fade/slide transitions.
+- Export to basic printable HTML.
 
-## Privacy and limits
+**MySoft Notes**
+- Rich text, tags, checklists, formatting and text export.
 
-By default, this version saves data locally in the browser's localStorage. Local revisions also consume browser storage. It **does not sync across devices** and is not suitable as the sole copy of critical files. Use *Export backup* regularly. Clearing site data erases locally stored work. Cloud authentication and manual snapshot uploads are implemented in an optional adapter but **not activated**; true OOXML import/export, cloud autosave, collaboration, and advanced editing are **not implemented yet**.
+## Data protection and limitations
 
-Do not use this build to store classified, sensitive military, or regulated personal information.
+This is still a browser prototype using localStorage. It is not an appropriate sole archive for critical work, and it does not provide classification-grade security. Browser cleanup, corruption or device loss can remove local files. Export JSON backups routinely. Cloud authentication and manual workspace snapshot code exists but **remains disabled** until a separately authorized MySoft Supabase project is configured. Do not use your KHANIVERSITY database for this app.
 
-## Commands
+File interoperability is intentionally limited to simpler formats: TXT, CSV and sanitized HTML input; HTML, CSV, TXT and printable HTML output. **DOCX, XLSX and PPTX native editing, real PDF authoring, advanced chart objects, equations, pivot tables, macros, co-authoring and complete accessibility are not implemented.**
+
+MySoft Docs still uses native contenteditable/execCommand as an intermediate editor. Production-level Word-style editing needs a modern structured editor and extensive file-fidelity tests. Do not store classified, military operational, health or other regulated sensitive content here.
+
+## Engineering checks
 
 ```bash
-npm run dev
 npm test
 npm run build
+npm run dev
 ```
 
-A dependency-free static build is generated in `dist/` for hosting. The project is configured for Vercel.
+GitHub Actions runs Node unit/build checks and Playwright Chromium browser smoke tests. See `tests/`.
 
-## Roadmap
+Architecture documentation:
+- [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) — full Word, Excel, PowerPoint, OneNote-class targets.
+- [ARCHITECTURE.md](ARCHITECTURE.md) — architecture decisions and evolution.
+- [CLOUD_SETUP.md](CLOUD_SETUP.md) — optional dedicated cloud setup.
 
-1. Replace browser-only storage with authenticated workspace sync and revisions.
-2. Adopt purpose-built document, spreadsheet, and slide engines with accessibility and fidelity testing.
-3. Implement secure DOCX/XLSX/PPTX import/export.
-4. Add server-side AI features with user controls, privacy protections, and usage limits.
-5. Add shared editing, comments, audit logs, and offline synchronization.
+## Development principles
 
-## Architecture
-
-`src/app.js` powers the workspace and editors. `src/formulas.js` contains the dependency-free sheet formula engine and is unit tested. `src/styles.css` contains the design system. `scripts/server.mjs` is the local development server and `scripts/build.mjs` packages static assets.
+- Feature quality, recoverability and compatibility before cosmetic Ribbon parity.
+- Existing v0.1/v0.2 browser workspaces continue to load.
+- Advanced desktop/Office file formats are not advertised until round-trip tests prove them.
+- All server-side storage and collaboration must be designed with strict access control.

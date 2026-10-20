@@ -2,6 +2,8 @@ import { COLUMNS, ROW_COUNT, displayCell } from './formulas.js';
 import { addRevision, restoreRevision } from './revisions.js';
 import { parseCSV, makeCSV } from './file-formats.js';
 import { cloudConfigured, cloudCurrentUser, cloudSignIn, cloudSignOut, cloudPush, cloudPull } from './cloud.js';
+import { ensureWorkbook, PAGE_SIZES } from './office-model.js';
+import { powerRibbon, sheetCellAppearance, initializeOfficeTools } from './office-ui.js';
 
 const STORAGE_KEY='mysoft-office-v1';
 const TRASH_KEY='mysoft-office-trash-v2';
@@ -53,26 +55,60 @@ function plain(html){
 }
 function sanitize(html){
   const parsed=new DOMParser().parseFromString(String(html||''),'text/html');
-  const allowed=new Set(['P','DIV','BR','H1','H2','H3','STRONG','B','EM','I','U','S','UL','OL','LI','BLOCKQUOTE','SPAN','A']);
-  const blocked=new Set(['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','SVG','MATH','FORM','INPUT','BUTTON','META','LINK','BASE']);
+  const allowed=new Set(['P','DIV','BR','H1','H2','H3','STRONG','B','EM','I','U','S','UL','OL','LI','BLOCKQUOTE','SPAN','A','TABLE','THEAD','TBODY','TFOOT','TR','TH','TD','HR','SUP','SUB','MARK','FONT','IMG']);
+  const blocked=new Set(['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','SVG','MATH','FORM','INPUT','BUTTON','META','LINK','BASE','VIDEO','AUDIO']);
+  const isColor=x=>/^#[0-9a-fA-F]{3,8}$/.test(x)||/^rgba?\([0-9 ,.]+\)$/.test(x);
+  const fonts=new Set(['arial','calibri','georgia','garamond','tahoma','times new roman','verdana']);
   function clean(node,doc){
-    if(node.nodeType===Node.TEXT_NODE) return doc.createTextNode(node.nodeValue||'');
-    if(node.nodeType!==Node.ELEMENT_NODE) return doc.createTextNode('');
-    if(blocked.has(node.tagName)) return doc.createTextNode('');
-    const wrapper=doc.createElement(allowed.has(node.tagName)?node.tagName.toLowerCase():'span');
+    if(node.nodeType===Node.TEXT_NODE)return doc.createTextNode(node.nodeValue||'');
+    if(node.nodeType!==Node.ELEMENT_NODE)return doc.createTextNode('');
+    if(blocked.has(node.tagName))return doc.createTextNode('');
+    if(node.tagName==='IMG'){
+      const data=node.getAttribute('src')||'';
+      if(data.length<225000&&/^data:image\/(?:png|jpeg|webp);base64,[a-zA-Z0-9+/=]+$/.test(data)){
+        const picture=doc.createElement('img');
+        picture.setAttribute('src',data);
+        picture.setAttribute('alt',String(node.getAttribute('alt')||'Inserted picture').slice(0,100));
+        return picture;
+      }
+      return doc.createTextNode('');
+    }
+    const tag=allowed.has(node.tagName)?node.tagName.toLowerCase():'span';
+    const wrapper=doc.createElement(tag==='font'?'span':tag);
     if(node.tagName==='A'){
       const url=node.getAttribute('href')||'';
-      if(/^https?:\/\//i.test(url)){wrapper.setAttribute('href',url);wrapper.setAttribute('rel','noopener noreferrer');}
+      if(/^https?:\/\//i.test(url)){
+        wrapper.setAttribute('href',url);
+        wrapper.setAttribute('rel','noopener noreferrer');
+      }
     }
-    if(node.tagName==='SPAN'||node.tagName==='P'||node.tagName==='DIV'){
+    if(['SPAN','P','DIV','FONT','TH','TD'].includes(node.tagName)){
       const align=node.style?.textAlign;
-      if(['left','center','right','justify'].includes(align)) wrapper.style.textAlign=align;
+      if(['left','center','right','justify'].includes(align))wrapper.style.textAlign=align;
+      const foreground=node.style?.color||node.getAttribute('color');
+      const background=node.style?.backgroundColor;
+      const family=(node.style?.fontFamily||node.getAttribute('face')||'').replace(/["']/g,'');
+      const size=node.style?.fontSize;
+      if(foreground&&isColor(foreground))wrapper.style.color=foreground;
+      if(background&&isColor(background))wrapper.style.backgroundColor=background;
+      if(fonts.has(family.toLowerCase()))wrapper.style.fontFamily=family;
+      if(size&&/^(?:[1-9]|[12]\d|3[0-6])(?:px|pt)$/.test(size))wrapper.style.fontSize=size;
+      if(node.tagName==='FONT'){
+        const n=Number(node.getAttribute('size'));
+        if(Number.isInteger(n)&&n>=1&&n<=7)wrapper.style.fontSize=({1:10,2:13,3:16,4:18,5:24,6:32,7:48})[n]+'px';
+      }
     }
-    for(const child of node.childNodes) wrapper.appendChild(clean(child,doc));
+    if(['TD','TH'].includes(node.tagName)){
+      for(const attr of ['colspan','rowspan']){
+        const n=Number(node.getAttribute(attr)||1);
+        if(Number.isInteger(n)&&n>1&&n<=8)wrapper.setAttribute(attr,String(n));
+      }
+    }
+    for(const child of node.childNodes)wrapper.appendChild(clean(child,doc));
     return wrapper;
   }
   const output=document.implementation.createHTMLDocument('');
-  for(const child of parsed.body.childNodes) output.body.appendChild(clean(child,output));
+  for(const child of parsed.body.childNodes)output.body.appendChild(clean(child,output));
   return output.body.innerHTML;
 }
 function uuid(){return globalThis.crypto?.randomUUID?.()||'f'+Date.now()+Math.random().toString(36).slice(2);}
@@ -156,7 +192,7 @@ function sidebar(){
     '<div class="sidebar-spacer"></div><div class="side-foot"><div class="storage-label"><span>Local workspace</span><strong>'+files.length+' files</strong></div><div class="storage-track"><span class="storage-fill" style="width:'+usage+'%"></span></div><div class="storage-help">Local autosave. Cloud snapshots are optional.</div><button class="nav-link" data-action="cloud" style="margin-top:13px">'+icon('upload',17)+'Cloud snapshots</button><button class="nav-link" data-action="import-file">'+icon('plus',17)+'Import file</button><button class="nav-link" data-action="backup">'+icon('download',17)+'Export backup</button><button class="nav-link" data-action="import">'+icon('upload',17)+'Import backup</button></div></aside>';
 }
 function header(){
-  return '<header class="topbar"><div class="topbar-left"><button class="icon-btn mobile-menu" data-action="mobile" aria-label="Open menu">'+icon('menu')+'</button><div class="searchbox">'+icon('search',17)+'<input id="global-search" aria-label="Search files" placeholder="Search your files (Enter)" value="'+esc(query)+'"></div></div><div class="top-actions"><button class="btn btn-primary" data-action="new">'+icon('plus',16)+' New file</button><div class="avatar" title="Local workspace">MS</div></div></header>';
+  return '<header class="topbar"><div class="topbar-left"><button class="icon-btn mobile-menu" data-action="mobile" aria-label="Open menu">'+icon('menu')+'</button><div class="searchbox">'+icon('search',17)+'<input id="global-search" aria-label="Search files" placeholder="Search your files (Enter)" value="'+esc(query)+'"></div></div><div class="top-actions"><button class="btn btn-light" data-ot-action="preferences">⚙ Customize</button><button class="btn btn-primary" data-action="new">'+icon('plus',16)+' New file</button><div class="avatar" title="Local workspace">MS</div></div></header>';
 }
 function appTiles(){
   const descriptions={docs:'Write and format',sheets:'Calculate and analyze',slides:'Present your ideas',notes:'Capture your thoughts'};
@@ -215,15 +251,24 @@ function docToolbar(){
     '<span class="toolbar-divider"></span><button class="tool" data-cmd="undo" title="Undo">↶</button><button class="tool" data-cmd="redo" title="Redo">↷</button><span class="sheet-hint">Select text to format</span></div>';
 }
 function docsEditor(f){
-  return docToolbar()+'<div class="editor-body"><div class="doc-canvas"><article id="rich-content" class="document-paper" contenteditable="true" spellcheck="true" role="textbox" aria-label="Document content" data-placeholder="Start writing your document...">'+sanitize(f.body)+'</article></div></div>';
+  const prefs=f.pageSettings||{};
+  const paper=PAGE_SIZES[prefs.paper]||PAGE_SIZES.A4;
+  const mm=prefs.orientation==='landscape'?[paper[1],paper[0]]:paper;
+  const margin={narrow:24,normal:60,wide:85}[prefs.margins]||60;
+  const background=/^#[0-9a-f]{6}$/i.test(prefs.background||'')?prefs.background:'#ffffff';
+  const lineHeight=['1.2','1.6','2'].includes(String(prefs.lineHeight))?prefs.lineHeight:'1.6';
+  const style='width:min(100%,'+Math.round(mm[0]*3.78)+'px);min-height:'+Math.round(mm[1]*3.78)+'px;padding:'+margin+'px;line-height:'+lineHeight+';background-color:'+background;
+  return docToolbar()+'<div class="editor-body"><div class="doc-canvas"><article id="rich-content" class="document-paper" style="'+style+'" contenteditable="true" spellcheck="true" role="textbox" aria-label="Document content" data-placeholder="Start writing your document...">'+sanitize(f.body)+'</article></div></div>';
 }
 function sheetsEditor(f){
+  ensureWorkbook(f);
   let rows='<tr><th></th>'+COLUMNS.map(c=>'<th scope="col">'+c+'</th>').join('')+'</tr>';
   for(let r=1;r<=ROW_COUNT;r++){
     rows+='<tr><td>'+r+'</td>';
     for(const c of COLUMNS){
       const ref=c+r;
-      rows+='<td class="'+(selectedCell===ref?'selected':'')+'"><input class="sheet-cell '+(String(f.cells[ref]||'').startsWith('=')?'formula-result':'')+'" data-cell="'+ref+'" title="'+ref+'" aria-label="Cell '+ref+'" value="'+esc(displayCell(ref,f.cells))+'"></td>';
+      const appearance=sheetCellAppearance(f,ref,displayCell(ref,f.cells));
+      rows+='<td class="'+(selectedCell===ref?'selected':'')+'"><input class="sheet-cell '+(String(f.cells[ref]||'').startsWith('=')?'formula-result':'')+'" data-cell="'+ref+'" title="'+ref+'" aria-label="Cell '+ref+'" style="'+esc(appearance.style)+'" value="'+esc(appearance.value)+'"></td>';
     }
     rows+='</tr>';
   }
@@ -242,12 +287,12 @@ function notesEditor(f){
   const notes=files.filter(v=>v.type==='notes').sort((a,b)=>b.updatedAt-a.updatedAt);
   return '<div class="note-layout"><div class="note-list"><div class="spread"><h3>All notes</h3><button class="icon-btn" data-create="notes" title="New note">'+icon('plus',16)+'</button></div>'+
     notes.map(n=>'<button class="note-list-item '+(n.id===f.id?'active':'')+'" data-open="'+esc(n.id)+'"><strong>'+esc(n.title)+'</strong><span>'+dateText(n.updatedAt)+'</span></button>').join('')+'</div>'+
-    '<div class="note-editor"><div class="eyebrow">MY NOTES</div><input class="note-title" id="note-title" aria-label="Note title" value="'+esc(f.title)+'" maxlength="120"><div class="note-meta">Private to this browser · Autosaved</div><div id="rich-content" class="note-content" contenteditable="true" spellcheck="true" role="textbox" aria-label="Note content" data-placeholder="Capture your thoughts...">'+sanitize(f.body)+'</div></div></div>';
+    '<div class="note-editor"><div class="eyebrow">MY NOTES</div><input class="note-title" id="note-title" aria-label="Note title" value="'+esc(f.title)+'" maxlength="120"><div class="note-meta">Private to this browser · Autosaved · Tags: '+esc((f.tags||[]).join(', ')||'none')+'</div><div id="rich-content" class="note-content" contenteditable="true" spellcheck="true" role="textbox" aria-label="Note content" data-placeholder="Capture your thoughts...">'+sanitize(f.body)+'</div></div></div>';
 }
 function editor(){
   const f=getActive();
   if(!f){view='files';return filesPage();}
-  return '<div class="editor-shell">'+editorHead(f)+(f.type==='docs'?docsEditor(f):f.type==='sheets'?sheetsEditor(f):f.type==='slides'?slidesEditor(f):notesEditor(f))+'</div>';
+  return '<div class="editor-shell">'+editorHead(f)+powerRibbon(f,selectedCell,slideIndex)+(f.type==='docs'?docsEditor(f):f.type==='sheets'?sheetsEditor(f):f.type==='slides'?slidesEditor(f):notesEditor(f))+'</div>';
 }
 function render(){
   app.innerHTML='<div class="shell">'+sidebar()+'<main class="main">'+header()+(view==='editor'?editor():view==='home'?home():view==='templates'?templatesPage():filesPage())+'</main></div>';
@@ -433,7 +478,7 @@ function updateCell(ref,raw,rerender=false){
 function refreshCells(){
   const f=getActive();if(!f||f.type!=='sheets')return;
   document.querySelectorAll('[data-cell]').forEach(el=>{
-    if(document.activeElement!==el) el.value=displayCell(el.dataset.cell,f.cells);
+    if(document.activeElement!==el) el.value=sheetCellAppearance(f,el.dataset.cell,displayCell(el.dataset.cell,f.cells)).value;
   });
 }
 document.addEventListener('mousedown',event=>{
@@ -595,6 +640,12 @@ const externalInput=document.createElement('input');
 externalInput.type='file';externalInput.accept='.txt,.md,.csv,.html,.htm';
 externalInput.id='external-file-upload';externalInput.hidden=true;
 document.body.appendChild(externalInput);
+initializeOfficeTools({
+  getFile:getActive,touch,persist,render,sanitize,toast,
+  getSelectedCell:()=>selectedCell,getSlideIndex:()=>slideIndex,
+  setSlideIndex:i=>{slideIndex=i;}
+});
+window.addEventListener('pagehide',()=>{clearTimeout(savedTimer);persist();});
 window.addEventListener('popstate',()=>{restoreRoute();render();});
 restoreRoute();
 persist();

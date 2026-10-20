@@ -1,7 +1,7 @@
 name: Browser smoke tests
 on:
   push:
-    branches: [main, feat/v0.2]
+    branches: [main, feat/v0.2, feat/v0.3-office-power-tools]
   pull_request:
 permissions:
   contents: read

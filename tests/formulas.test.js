@@ -28,3 +28,21 @@ test('reports invalid expressions, cycles and division by zero', () => {
   assert.equal(evaluateCell('C1',cells),'#DIV/0!');
   assert.equal(evaluateCell('D1',cells),'#ERROR!');
 });
+
+
+test('power formulas calculate safely',()=>{
+  const cells={
+    A1:'10',A2:'20',A3:'30',
+    B1:'=COUNT(A1:A3)',B2:'=PRODUCT(2,3,4)',B3:'=MEDIAN(A1:A3)',
+    C1:'=ROUND(4.456,2)',C2:'=ABS(-7)',C3:'=SQRT(9)',
+    D1:'=POWER(2,3)',D2:'=SUM(ROUND(2.44,1),3)'
+  };
+  assert.equal(evaluateCell('B1',cells),3);
+  assert.equal(evaluateCell('B2',cells),24);
+  assert.equal(evaluateCell('B3',cells),20);
+  assert.equal(evaluateCell('C1',cells),4.46);
+  assert.equal(evaluateCell('C2',cells),7);
+  assert.equal(evaluateCell('C3',cells),3);
+  assert.equal(evaluateCell('D1',cells),8);
+  assert.equal(evaluateCell('D2',cells),5.4);
+});
