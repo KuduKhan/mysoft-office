@@ -2,7 +2,7 @@
 
 **Your work. Your space.**
 
-MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.3.0** expands editing tools and personal customization. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
+MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.4.0** strengthens editor foundations, navigation, undo/redo, and spreadsheet scale while preserving v0.3 customization. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
 
 ## Quick start
 
@@ -15,6 +15,17 @@ npm run dev
 ```
 
 Open http://localhost:4173. No installation step or external npm dependencies are required for the local editor prototype. This repository includes static output configuration for Vercel, but the Vercel project is not connected yet.
+
+## New in v0.4 — Editor foundations
+
+- Sheets: a 26-column × 1,000-row windowed grid (A1:Z1000). Only 48 rows are drawn at once for lower DOM cost.
+- Sheets: editable address box for direct navigation (e.g., Z1000); keyboard movement with Enter, Tab and arrow keys, plus Ctrl+G to jump.
+- Sheets: bounded multi-cell TSV paste and CSV imports/exports up to the expanded grid.
+- Docs: live hierarchical outline from H1/H2/H3 headings, with jump-to-section controls.
+- Docs and Notes: independent in-session undo/redo engine, with Ctrl+Z and Ctrl+Y/Ctrl+Shift+Z. Saved file history remains available separately.
+- Backward compatible with files from prior versions; dedicated v0.4 unit and browser regression tests.
+
+**Limits:** The spreadsheet remains a lightweight prototype, not a virtualized Excel computation engine. It does not yet support cross-sheet formula references, pivots, charts as editable objects or large XLSX roundtrips. The rich-text editor still uses contenteditable for input, with a separate explicit undo stack; replacing this with a transactional structured document editor remains the next major architecture task.
 
 ## v0.3 Office Power Tools
 
@@ -30,7 +41,7 @@ Open http://localhost:4173. No installation step or external npm dependencies ar
 - Page size (A4/Letter/Legal), orientation, margins, page color, line spacing, print-to-PDF.
 
 **MySoft Sheets**
-- 12×30 grid with up to 20 worksheets in each file, rename, duplicate and delete.
+- 26×1,000 windowed grid with up to 20 worksheets in each file, rename, duplicate and delete.
 - Cell text/background colors, bold/italic styles, number display presets (KES, percent).
 - Sorting with formula reference safeguards, auto SUM/AVERAGE, bar and line previews.
 - Arithmetic and aggregates: SUM, AVERAGE, MIN, MAX, COUNT, COUNTA, PRODUCT, MEDIAN, ROUND, ABS, SQRT, POWER.
@@ -47,7 +58,7 @@ Open http://localhost:4173. No installation step or external npm dependencies ar
 
 ## Data protection and limitations
 
-This is still a browser prototype using localStorage. It is not an appropriate sole archive for critical work, and it does not provide classification-grade security. Browser cleanup, corruption or device loss can remove local files. Export JSON backups routinely. Cloud authentication and manual workspace snapshot code exists but **remains disabled** until a separately authorized MySoft Supabase project is configured. Do not use your KHANIVERSITY database for this app.
+This is still a browser prototype using localStorage. Large or dense spreadsheets can exceed browser storage quotas. It is not an appropriate sole archive for critical work, and it does not provide classification-grade security. Browser cleanup, corruption or device loss can remove local files. Export JSON backups routinely. Cloud authentication and manual workspace snapshot code exists but **remains disabled** until a separately authorized MySoft Supabase project is configured. Do not use your KHANIVERSITY database for this app.
 
 File interoperability is intentionally limited to simpler formats: TXT, CSV and sanitized HTML input; HTML, CSV, TXT and printable HTML output. **DOCX, XLSX and PPTX native editing, real PDF authoring, advanced chart objects, equations, pivot tables, macros, co-authoring and complete accessibility are not implemented.**
 

@@ -4,6 +4,9 @@ import { parseCSV, makeCSV } from './file-formats.js';
 import { cloudConfigured, cloudCurrentUser, cloudSignIn, cloudSignOut, cloudPush, cloudPull } from './cloud.js';
 import { ensureWorkbook, PAGE_SIZES } from './office-model.js';
 import { powerRibbon, sheetCellAppearance, initializeOfficeTools } from './office-ui.js';
+import { sheetGrid, repaintGrid } from './sheet-grid.js';
+import { DocumentHistory, headingsFromHTML } from './document-history.js';
+import { parseAddress, moveAddress, pasteGrid, populatedBounds, ROW_HEIGHT, HEADER_HEIGHT } from './sheet-window.js';
 
 const STORAGE_KEY='mysoft-office-v1';
 const TRASH_KEY='mysoft-office-trash-v2';
@@ -143,7 +146,8 @@ if(!Array.isArray(trashFiles))trashFiles=[];
 let revisions=readStored(HISTORY_KEY,{});
 if(!revisions||typeof revisions!=='object'||Array.isArray(revisions))revisions={};
 let cloudUser=null;
-let view='home',activeId=null,query='',fileFilter='all',selectedCell='A1',slideIndex=0,mobileOpen=false;
+const documentHistory=new DocumentHistory();
+let view='home',activeId=null,query='',fileFilter='all',selectedCell='A1',slideIndex=0,mobileOpen=false,sheetScrollTop=0;
 let savedTimer=0,toastTimer=0;
 const app=document.getElementById('app');
 const modalRoot=document.getElementById('modal-root');
@@ -159,7 +163,8 @@ function persist(){
   return saved;
 }
 function snapshot(file,force=false){if(file)revisions=addRevision(revisions,file,Date.now(),force);}
-function touch(file){
+function touch(file,trackHistory=true){
+  if(trackHistory&&['docs','notes'].includes(file.type))documentHistory.record(file.id,file.body||'');
   file.updatedAt=Date.now();snapshot(file);
   const mark=document.getElementById('save-status');
   if(mark)mark.textContent='Saving…';
@@ -185,7 +190,7 @@ function download(content,name,type){
 function slug(name){return String(name).replace(/[^a-z0-9 -]/gi,'').trim().replace(/\s+/g,'-').slice(0,70)||'mysoft-file';}
 function sidebar(){
   const nav=(id,title,ic,extra='')=>'<button class="nav-link '+(view===id?'active':'')+'" data-nav="'+id+'">'+icon(ic,17)+esc(title)+extra+'</button>';
-  const usage=Math.min(100,Math.round(JSON.stringify(files).length/45000));
+  const usage=Math.min(100,Math.round(JSON.stringify(files).length/40000));
   return '<aside class="sidebar '+(mobileOpen?'open':'')+'"><div class="brand"><span class="brand-symbol"><b></b><b></b><b></b><b></b></span><div><strong>MySoft Office</strong><small>Your work. Your space.</small></div></div>'+
     '<div class="nav-caption">Workspace</div>'+nav('home','Overview','home')+nav('files','My files','folder','<span class="count">'+files.length+'</span>')+nav('starred','Starred','star')+nav('templates','Templates','grid')+nav('trash','Recycle bin','trash','<span class="count">'+trashFiles.length+'</span>')+
     '<div class="nav-caption">Applications</div>'+['docs','sheets','slides','notes'].map(t=>nav(t,labels[t],typeIcons[t])).join('')+
@@ -250,6 +255,10 @@ function docToolbar(){
     '<span class="toolbar-divider"></span><button class="tool" data-cmd="justifyLeft" title="Align left">☰</button><button class="tool" data-cmd="justifyCenter" title="Align center">≡</button><button class="tool" data-cmd="justifyRight" title="Align right">☷</button>'+
     '<span class="toolbar-divider"></span><button class="tool" data-cmd="undo" title="Undo">↶</button><button class="tool" data-cmd="redo" title="Redo">↷</button><span class="sheet-hint">Select text to format</span></div>';
 }
+function outlineItems(f){
+  const headings=headingsFromHTML(sanitize(f.body));
+  return headings.length?headings.map((h,i)=>'<button class="doc-outline-link indent-'+h.level+'" data-outline-index="'+i+'">'+esc(h.title)+'</button>').join(''):'<p>Use headings to build an outline automatically.</p>';
+}
 function docsEditor(f){
   const prefs=f.pageSettings||{};
   const paper=PAGE_SIZES[prefs.paper]||PAGE_SIZES.A4;
@@ -258,21 +267,16 @@ function docsEditor(f){
   const background=/^#[0-9a-f]{6}$/i.test(prefs.background||'')?prefs.background:'#ffffff';
   const lineHeight=['1.2','1.6','2'].includes(String(prefs.lineHeight))?prefs.lineHeight:'1.6';
   const style='width:min(100%,'+Math.round(mm[0]*3.78)+'px);min-height:'+Math.round(mm[1]*3.78)+'px;padding:'+margin+'px;line-height:'+lineHeight+';background-color:'+background;
-  return docToolbar()+'<div class="editor-body"><div class="doc-canvas"><article id="rich-content" class="document-paper" style="'+style+'" contenteditable="true" spellcheck="true" role="textbox" aria-label="Document content" data-placeholder="Start writing your document...">'+sanitize(f.body)+'</article></div></div>';
+  return docToolbar()+'<div class="editor-body"><div class="doc-edit-layout"><aside class="doc-outline"><strong>Document outline</strong><div id="doc-outline-list">'+outlineItems(f)+'</div></aside><div class="doc-canvas"><article id="rich-content" class="document-paper" style="'+style+'" contenteditable="true" spellcheck="true" role="textbox" aria-label="Document content" data-placeholder="Start writing your document...">'+sanitize(f.body)+'</article></div></div></div>';
 }
 function sheetsEditor(f){
   ensureWorkbook(f);
-  let rows='<tr><th></th>'+COLUMNS.map(c=>'<th scope="col">'+c+'</th>').join('')+'</tr>';
-  for(let r=1;r<=ROW_COUNT;r++){
-    rows+='<tr><td>'+r+'</td>';
-    for(const c of COLUMNS){
-      const ref=c+r;
-      const appearance=sheetCellAppearance(f,ref,displayCell(ref,f.cells));
-      rows+='<td class="'+(selectedCell===ref?'selected':'')+'"><input class="sheet-cell '+(String(f.cells[ref]||'').startsWith('=')?'formula-result':'')+'" data-cell="'+ref+'" title="'+ref+'" aria-label="Cell '+ref+'" style="'+esc(appearance.style)+'" value="'+esc(appearance.value)+'"></td>';
-    }
-    rows+='</tr>';
-  }
-  return '<div class="sheet-layout"><div class="sheet-formula"><strong id="selected-cell">'+esc(selectedCell)+'</strong><span style="color:#8c97ad;font-weight:800">fx</span><input id="formula-input" aria-label="Formula" value="'+esc(f.cells[selectedCell]||'')+'" placeholder="Type text, numbers or =SUM(A1:A3)"></div><div class="sheet-scroll"><table class="sheet-table" aria-label="Spreadsheet"><tbody>'+rows+'</tbody></table></div></div>';
+  return '<div class="sheet-layout"><div class="sheet-formula">'+
+    '<input id="cell-address" aria-label="Cell address" title="Enter a cell, for example Z1000" value="'+esc(selectedCell)+'" spellcheck="false">'+
+    '<span style="color:#8c97ad;font-weight:800">fx</span>'+
+    '<input id="formula-input" aria-label="Formula" value="'+esc(f.cells[selectedCell]||'')+'" placeholder="Type text, numbers or =SUM(A1:A3)">'+
+    '<span class="sheet-capacity">A1–Z1000 · Ctrl+G to navigate</span></div>'+
+    sheetGrid(f,selectedCell)+'</div>';
 }
 function slidesEditor(f){
   const s=f.slides[slideIndex]||f.slides[0];
@@ -292,10 +296,16 @@ function notesEditor(f){
 function editor(){
   const f=getActive();
   if(!f){view='files';return filesPage();}
+  if(['docs','notes'].includes(f.type))documentHistory.seed(f.id,f.body||'');
   return '<div class="editor-shell">'+editorHead(f)+powerRibbon(f,selectedCell,slideIndex)+(f.type==='docs'?docsEditor(f):f.type==='sheets'?sheetsEditor(f):f.type==='slides'?slidesEditor(f):notesEditor(f))+'</div>';
 }
 function render(){
   app.innerHTML='<div class="shell">'+sidebar()+'<main class="main">'+header()+(view==='editor'?editor():view==='home'?home():view==='templates'?templatesPage():filesPage())+'</main></div>';
+  const sc=document.getElementById('sheet-scroll');
+  if(sc&&getActive()?.type==='sheets'){
+    sc.scrollTop=sheetScrollTop;
+    repaintGrid(sc,getActive(),selectedCell,true);
+  }
 }
 function navigate(destination){
   if(view==='editor'&&getActive())snapshot(getActive(),true);
@@ -306,7 +316,7 @@ function navigate(destination){
 function openFile(id){
   if(!files.some(f=>f.id===id))return;
   if(view==='editor'&&getActive())snapshot(getActive(),true);
-  activeId=id;view='editor';slideIndex=0;selectedCell='A1';mobileOpen=false;
+  activeId=id;view='editor';slideIndex=0;selectedCell='A1';sheetScrollTop=0;mobileOpen=false;
   window.history.pushState(null,'','#/file/'+encodeURIComponent(id));
   snapshot(getActive(),true);persist();render();
 }
@@ -392,9 +402,9 @@ function exportFile(){
   }
   if(f.type==='notes') download(plain(f.body),name+'.txt','text/plain;charset=utf-8');
   if(f.type==='sheets'){
-    const values=Array.from({length:ROW_COUNT},(_,i)=>COLUMNS.map(c=>displayCell(c+(i+1),f.cells)));
-    const last=values.reduce((a,row,i)=>row.some(v=>v!=='')?i:a,0);
-    const csv=makeCSV(values.slice(0,last+1));
+    const {maxRow,maxCol}=populatedBounds(f.cells);
+    const values=Array.from({length:maxRow},(_,i)=>COLUMNS.slice(0,maxCol).map(c=>displayCell(c+(i+1),f.cells)));
+    const csv=makeCSV(values);
     download(csv,name+'.csv','text/csv;charset=utf-8');
   }
   if(f.type==='slides'){
@@ -413,7 +423,7 @@ function validImport(payload){
     if(f.type==='docs'||f.type==='notes'){
       if(typeof f.body!=='string'||f.body.length>1000000) return null;
     }
-    if(f.type==='sheets'&&(!f.cells||typeof f.cells!=='object'||Array.isArray(f.cells)||Object.keys(f.cells).length>10000)) return null;
+    if(f.type==='sheets'&&(!f.cells||typeof f.cells!=='object'||Array.isArray(f.cells)||Object.keys(f.cells).length>26000)) return null;
     if(f.type==='slides'&&(!Array.isArray(f.slides)||f.slides.length<1||f.slides.length>200||f.slides.some(s=>!s||typeof s.title!=='string'||typeof s.body!=='string'||s.title.length>500||s.body.length>20000))) return null;
     output.push(f);
   }
@@ -475,19 +485,68 @@ function updateCell(ref,raw,rerender=false){
   touch(f);
   if(rerender) refreshCells();
 }
+function updateDocumentOutline(file){
+  const list=document.getElementById('doc-outline-list');
+  if(list&&file?.type==='docs')list.innerHTML=outlineItems(file);
+}
+function undoDocument(direction){
+  const file=getActive();
+  if(!file||!['docs','notes'].includes(file.type))return;
+  const html=direction==='undo'?documentHistory.undo(file.id):documentHistory.redo(file.id);
+  if(html===null){toast('No more '+direction+' steps in this session');return;}
+  file.body=sanitize(html);
+  const editor=document.getElementById('rich-content');
+  if(editor){editor.innerHTML=file.body;editor.focus();}
+  updateDocumentOutline(file);
+  touch(file,false);persist();
+}
 function refreshCells(){
   const f=getActive();if(!f||f.type!=='sheets')return;
   document.querySelectorAll('[data-cell]').forEach(el=>{
-    if(document.activeElement!==el) el.value=sheetCellAppearance(f,el.dataset.cell,displayCell(el.dataset.cell,f.cells)).value;
+    if(document.activeElement!==el)el.value=sheetCellAppearance(f,el.dataset.cell,displayCell(el.dataset.cell,f.cells)).value;
   });
 }
+function goToCell(address,focus=true){
+  const location=parseAddress(address);
+  if(!location){toast('Enter a cell from A1 to Z1000');return false;}
+  selectedCell=location.address;
+  const scroll=document.getElementById('sheet-scroll');
+  if(!scroll)return false;
+  const desiredTop=(location.row-1)*ROW_HEIGHT;
+  const topVisible=Math.floor(scroll.scrollTop/ROW_HEIGHT)+1;
+  const lastVisible=topVisible+Math.floor(scroll.clientHeight/ROW_HEIGHT)-3;
+  if(location.row<topVisible||location.row>lastVisible)scroll.scrollTop=Math.max(0,desiredTop-HEADER_HEIGHT);
+  const desiredLeft=location.col*124;
+  if(desiredLeft<scroll.scrollLeft||desiredLeft>scroll.scrollLeft+scroll.clientWidth-150)
+    scroll.scrollLeft=Math.max(0,desiredLeft-124);
+  sheetScrollTop=scroll.scrollTop;
+  repaintGrid(scroll,getActive(),selectedCell,true);
+  const input=scroll.querySelector('[data-cell="'+location.address+'"]');
+  if(focus&&input)input.focus({preventScroll:true});
+  const bar=document.getElementById('formula-input');
+  if(bar)bar.value=getActive().cells[selectedCell]||'';
+  const name=document.getElementById('cell-address');
+  if(name)name.value=selectedCell;
+  return true;
+}
+document.addEventListener('scroll',event=>{
+  const target=event.target;
+  if(target?.id!=='sheet-scroll'||view!=='editor')return;
+  sheetScrollTop=target.scrollTop;
+  const f=getActive();
+  if(f?.type==='sheets')repaintGrid(target,f,selectedCell);
+},true);
 document.addEventListener('mousedown',event=>{
   if(event.target.closest('[data-cmd]')) event.preventDefault();
 });
 document.addEventListener('click',event=>{
-  const el=event.target.closest('[data-action],[data-nav],[data-create],[data-open],[data-star],[data-delete],[data-duplicate],[data-slide],[data-theme],[data-template],[data-cmd],[data-restore-trash],[data-purge],[data-revision]');
+  const el=event.target.closest('[data-action],[data-nav],[data-create],[data-open],[data-star],[data-delete],[data-duplicate],[data-slide],[data-theme],[data-template],[data-cmd],[data-restore-trash],[data-purge],[data-revision],[data-outline-index]');
   if(!el){
     if(event.target.classList.contains('modal-backdrop'))closeModal();
+    return;
+  }
+  if(el.dataset.outlineIndex!==undefined){
+    document.querySelectorAll('#rich-content h1,#rich-content h2,#rich-content h3')[Number(el.dataset.outlineIndex)]?.scrollIntoView({block:'center',behavior:'smooth'});
     return;
   }
   if(el.dataset.restoreTrash){restoreTrash(el.dataset.restoreTrash);return;}
@@ -515,6 +574,7 @@ document.addEventListener('click',event=>{
   if(el.dataset.slide!==undefined){slideIndex=Number(el.dataset.slide);render();return;}
   if(el.dataset.theme){const f=getActive();if(f?.type==='slides'){f.slides[slideIndex].theme=el.dataset.theme;touch(f);render();}return;}
   if(el.dataset.cmd){
+    if(['undo','redo'].includes(el.dataset.cmd)){undoDocument(el.dataset.cmd);return;}
     const editable=document.getElementById('rich-content');
     editable?.focus();
     document.execCommand(el.dataset.cmd,false,null);
@@ -569,7 +629,7 @@ document.addEventListener('input',event=>{
     if(companion)companion.value=f.title;
     touch(f);
   }
-  if(target.id==='rich-content'){f.body=target.innerHTML;touch(f);}
+  if(target.id==='rich-content'){f.body=target.innerHTML;touch(f);updateDocumentOutline(f);}
   if(target.id==='slide-title'||target.id==='slide-body'){
     f.slides[slideIndex][target.id==='slide-title'?'title':'body']=target.textContent||'';touch(f);
   }
@@ -589,14 +649,14 @@ document.addEventListener('focusin',event=>{
   document.querySelectorAll('.sheet-table td.selected').forEach(td=>td.classList.remove('selected'));
   selectedCell=cell.dataset.cell;cell.parentElement.classList.add('selected');
   cell.value=f.cells[selectedCell]||'';
-  const name=document.getElementById('selected-cell'),formula=document.getElementById('formula-input');
-  if(name)name.textContent=selectedCell;
+  const name=document.getElementById('cell-address'),formula=document.getElementById('formula-input');
+  if(name)name.value=selectedCell;
   if(formula)formula.value=cell.value;
 });
 document.addEventListener('focusout',event=>{
   const t=event.target,f=getActive();
   if(!f)return;
-  if(t.id==='rich-content'){t.innerHTML=sanitize(t.innerHTML);f.body=t.innerHTML;touch(f);}
+  if(t.id==='rich-content'){t.innerHTML=sanitize(t.innerHTML);f.body=t.innerHTML;touch(f);updateDocumentOutline(f);}
   if(t.matches('[data-cell]'))setTimeout(refreshCells,0);
   if(t.id==='formula-input')setTimeout(refreshCells,0);
 });
@@ -617,14 +677,55 @@ document.addEventListener('change',event=>{
   }
 });
 document.addEventListener('keydown',event=>{
+  if(view==='editor'&&['docs','notes'].includes(getActive()?.type)&&
+      event.target.closest('#rich-content')&&(event.ctrlKey||event.metaKey)){
+    const key=event.key.toLowerCase();
+    if(key==='z'||key==='y'){
+      event.preventDefault();undoDocument((key==='z'&&!event.shiftKey)?'undo':'redo');return;
+    }
+  }
   if(event.target.id==='global-search'&&event.key==='Enter'){event.preventDefault();view='files';fileFilter='all';render();return;}
   if(event.key==='Escape'){closeModal();return;}
   if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='s'){
     event.preventDefault();persist();toast('Saved locally');
   }
-  if(event.target.id==='formula-input'&&event.key==='Enter'){event.preventDefault();event.target.blur();}
+  if(event.target.id==='formula-input'&&event.key==='Enter'){event.preventDefault();event.target.blur();refreshCells();}
+  if(event.target.id==='cell-address'&&event.key==='Enter'){
+    event.preventDefault();goToCell(event.target.value);
+    return;
+  }
+  if(view==='editor'&&getActive()?.type==='sheets'){
+    if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='g'){
+      event.preventDefault();document.getElementById('cell-address')?.focus();document.getElementById('cell-address')?.select();return;
+    }
+    const cell=event.target.closest('[data-cell]');
+    if(cell&&!event.ctrlKey&&!event.metaKey){
+      const deltas={ArrowUp:[-1,0],ArrowDown:[1,0],ArrowLeft:[0,-1],ArrowRight:[0,1],Enter:[event.shiftKey?-1:1,0],Tab:[0,event.shiftKey?-1:1]};
+      if(deltas[event.key]){
+        event.preventDefault();
+        const [dr,dc]=deltas[event.key];
+        const f=getActive();const raw=cell.value;
+        if(raw!==String(f.cells[cell.dataset.cell]||''))updateCell(cell.dataset.cell,raw);
+        goToCell(moveAddress(cell.dataset.cell,dr,dc));
+        return;
+      }
+    }
+  }
 });
 document.addEventListener('paste',event=>{
+  const cell=event.target.closest('[data-cell]');
+  if(cell&&view==='editor'&&getActive()?.type==='sheets'){
+    const input=event.clipboardData.getData('text/plain');
+    if(input.includes('\t')||input.includes('\n')||input.includes('\r')){
+      event.preventDefault();
+      const f=getActive();
+      const count=pasteGrid(f.cells,cell.dataset.cell,input);
+      touch(f);persist();
+      repaintGrid(document.getElementById('sheet-scroll'),f,selectedCell,true);
+      toast(count+' cells pasted');
+      return;
+    }
+  }
   if(event.target.closest('[contenteditable="true"]')){
     event.preventDefault();
     document.execCommand('insertText',false,event.clipboardData.getData('text/plain'));

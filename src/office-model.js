@@ -74,7 +74,7 @@ export function deleteSheet(file){
 }
 export function setCellStyle(file,reference,property,value){
   ensureWorkbook(file);
-  if(!/^[A-L](?:[1-9]|[12][0-9]|30)$/.test(reference))throw new Error('Invalid cell');
+  if(!/^[A-Z](?:[1-9]|[1-9]\d{1,2}|1000)$/.test(reference))throw new Error('Invalid cell');
   if(!['bold','italic','align','color','background','format'].includes(property))throw new Error('Unsupported style');
   const style=file.cellStyles[reference]||{};
   style[property]=value;file.cellStyles[reference]=style;return file;
@@ -82,7 +82,7 @@ export function setCellStyle(file,reference,property,value){
 export function sheetChartData(file){
   ensureWorkbook(file);
   const data=[];
-  for(let row=2;row<=30;row++){
+  for(let row=2;row<=1000;row++){
     const label=String(displayCell('A'+row,file.cells)).trim();
     const raw=displayCell('B'+row,file.cells);
     const value=Number(raw);
@@ -92,14 +92,14 @@ export function sheetChartData(file){
 }
 export function sortSheet(file,column='A',direction='asc'){
   ensureWorkbook(file);
-  if(!/^[A-L]$/.test(column))throw new Error('Unsupported column');
+  if(!/^[A-Z]$/.test(column))throw new Error('Unsupported column');
   // Sorting formulas would change relative references; refuse instead of corrupting them.
   if(Object.values(file.cells).some(value=>String(value).startsWith('=')))
     throw new Error('Sorting is disabled when formulas are present, to protect references.');
   const rows=[];
   for(let row=2;row<=30;row++){
     const values={},styles={};
-    for(const c of 'ABCDEFGHIJKL'){
+    for(const c of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'){
       const ref=c+row;
       if(Object.prototype.hasOwnProperty.call(file.cells,ref))values[c]=file.cells[ref];
       if(Object.prototype.hasOwnProperty.call(file.cellStyles,ref))styles[c]=structuredClone(file.cellStyles[ref]);

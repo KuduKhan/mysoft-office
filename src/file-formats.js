@@ -1,5 +1,5 @@
 // Input/export utilities used by MySoft v0.2. No formulas are executed from imported CSV.
-export function parseCSV(text, rowLimit=30, colLimit=12) {
+export function parseCSV(text, rowLimit=1000, colLimit=26) {
   const rows=[];let row=[],value='',quoted=false;
   for(let i=0;i<text.length;i++){
     const char=text[i];

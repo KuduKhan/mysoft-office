@@ -47,3 +47,11 @@ Persistence: `localStorage` namespace `mysoft-office-v1`. Data is not encrypted,
 4. Exported documents pass the corresponding format validation.
 5. New code passes automated tests and a deployed preview review.
 6. All documented capabilities are distinguishable from roadmap-only features.
+
+## v0.4 editor foundations (October 2026)
+
+- `src/sheet-window.js`: pure navigation, viewport and bounded TSV operations for a 26 × 1,000 grid.
+- `src/sheet-grid.js`: renders only 48 rows at a time and replaces that window on scroll rather than creating 26,000 inputs.
+- `src/document-history.js`: explicit in-session rich editor undo/redo and H1–H3 heading outline extraction, separate from persistent version snapshots.
+- The app retains existing `localStorage` keys and file models. Dense sheets may hit browser quota limits; moving to IndexedDB and a transactional editor remain mandatory before professional availability.
+- GitHub browser tests cover last-row editing, keyboard navigation, outline persistence and editor history.

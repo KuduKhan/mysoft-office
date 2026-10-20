@@ -288,3 +288,43 @@ html[data-mode="dark"] .ot-tab.active{color:#bdb2ff}
 @media(prefers-reduced-motion:reduce){.ot-effect-fade,.ot-effect-slide{animation:none!important}}
 
 .document-paper img,.note-content img{display:block;max-width:100%;height:auto;margin:16px 0;border-radius:6px}
+
+
+/* v0.4 windowed worksheet: 1,000 rows × 26 columns, rendered in batches of 48 */
+.sheet-scroll{position:relative;contain:layout paint;overflow:auto;flex:1;overscroll-behavior:contain}
+.sheet-virtual-grid{width:3270px;position:relative;}
+.sheet-head,.sheet-window .sheet-table{width:3270px;min-width:3270px;max-width:3270px;table-layout:fixed;border-collapse:collapse}
+.sheet-head{position:sticky;top:0;z-index:12;background:#f5f7fc}
+.sheet-head th{height:31px;max-height:31px;padding:0;text-align:center;color:#75819a;font-weight:650;font-size:11px;background:#f5f7fc;border:1px solid #e4e8f0}
+.sheet-head th:first-child,.sheet-window td:first-child{width:46px;min-width:46px;max-width:46px}
+.sheet-head th:not(:first-child),.sheet-window td:not(:first-child){width:124px;min-width:124px;max-width:124px}
+.sheet-head th:first-child{position:sticky;left:0;z-index:14}
+.sheet-window{position:absolute;left:0;width:3270px}
+.sheet-window .sheet-table{min-width:3270px}
+.sheet-window tr{height:30px;max-height:30px}
+.sheet-window td{height:30px;max-height:30px;overflow:hidden}
+.sheet-window td:first-child{position:sticky;left:0;z-index:3;background:#f4f6fa;text-align:center}
+.sheet-window input{height:29px;min-height:29px;max-height:29px;white-space:nowrap}
+.sheet-formula #cell-address{flex:none;width:88px;min-width:88px;max-width:88px;border:1px solid #dce0ed;border-radius:7px;background:#f5f6fa;font-weight:750;text-align:center;color:#35415f;letter-spacing:.4px;padding:7px}
+.sheet-capacity{font-size:10px;color:#8d98b0;white-space:nowrap;font-weight:650}
+html[data-mode="dark"] .sheet-head th,html[data-mode="dark"] .sheet-window td:first-child{background:#263551;color:#dfe7f7;border-color:#465471}
+html[data-mode="dark"] .sheet-formula #cell-address{background:#263551;color:#f2f4fc;border-color:#465471}
+@media(max-width:800px){.sheet-capacity{display:none}}
+
+
+/* v0.4 document outline and accessible contextual navigation */
+.doc-edit-layout{display:grid;grid-template-columns:205px minmax(0,1fr);gap:24px;min-height:100%;align-items:start}
+.doc-outline{position:sticky;top:2px;align-self:start;background:#fff;border:1px solid #e6eaf2;border-radius:12px;padding:18px 13px;max-height:calc(100vh - 265px);overflow:auto;box-shadow:0 8px 22px rgba(35,42,82,.04)}
+.doc-outline strong{font-size:11px;color:#4f5e7c;letter-spacing:.35px;text-transform:uppercase;display:block;margin:0 8px 13px}
+.doc-outline p{font-size:11px;color:#95a0b5;line-height:1.7;padding:0 8px}
+.doc-outline-link{display:block;width:100%;text-align:left;background:none;border-radius:7px;color:#68748e;padding:8px 8px;font-size:12px;line-height:1.35;white-space:normal;overflow-wrap:anywhere}
+.doc-outline-link:hover{background:#f0eeff;color:#594bc4}
+.doc-outline-link.indent-1{font-weight:750;color:#303d59}
+.doc-outline-link.indent-2{padding-left:18px}
+.doc-outline-link.indent-3{padding-left:29px;font-size:11px}
+.doc-edit-layout .doc-canvas{min-width:0;justify-content:flex-start}
+.doc-edit-layout .document-paper{margin:0 auto;flex:none}
+html[data-mode="dark"] .doc-outline{background:#202d47;border-color:#394661}
+html[data-mode="dark"] .doc-outline-link,html[data-mode="dark"] .doc-outline-link.indent-1{color:#ced8ef}
+@media(max-width:950px){.doc-edit-layout{grid-template-columns:1fr}.doc-outline{position:static;max-height:100px;overflow:auto}.doc-edit-layout .doc-canvas{justify-content:center}}
+@media print{.doc-outline{display:none}.doc-edit-layout{display:block}}
