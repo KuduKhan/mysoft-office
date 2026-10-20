@@ -31,8 +31,8 @@ test('Notes notebook and section organization persists across reload',async({pag
   await page.locator('#note-notebook').fill('Projects');
   await page.locator('#note-section').fill('Releases');
   await page.locator('[data-note-move]').click();
-  await expect(page.locator('.studio-notebook-title')).toContainText('Projects');
-  await expect(page.locator('.studio-notebook-section')).toContainText('Releases');
+  await expect(page.locator('.studio-notebook-title').filter({hasText:'Projects'})).toHaveCount(1);
+  await expect(page.locator('.studio-notebook-section').filter({hasText:'Releases'})).toHaveCount(1);
   await page.reload();
   await expect(page.locator('#note-notebook')).toHaveValue('Projects');
   await expect(page.locator('#note-section')).toHaveValue('Releases');
