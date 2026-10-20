@@ -2,7 +2,7 @@
 
 **Your work. Your space.**
 
-MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.5.1 Studio Refresh** retains native DOCX/XLSX/PPTX support and adds a redesigned, responsive workspace with orangered/color theme options, denser editing ribbons and new functional commands. This remains a local-first prototype, not full Microsoft Office parity. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
+MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.5.2 Editor Depth** retains native DOCX/XLSX/PPTX support and adds a redesigned, responsive workspace with orangered/color theme options, denser editing ribbons and new functional commands. This remains a local-first prototype, not full Microsoft Office parity. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
 
 ## Quick start
 
@@ -15,6 +15,14 @@ npm run dev
 ```
 
 Open http://localhost:4173. No installation step or external npm dependencies are required for the local editor prototype. This repository includes static output configuration for Vercel, but the Vercel project is not connected yet.
+
+## New in v0.5.2 — Editing depth and data integrity
+
+- MySoft Docs: a dedicated Table ribbon enables inserting/removing table rows and columns, using the actual editable table cursor position (simple rectangular tables only).
+- MySoft Sheets: a new Range ribbon operates on validated ranges of up to 2,600 cells: bulk bold/highlight, clear contents, copy as tab-separated values, numeric series fill, and statistical summaries.
+- **Fixed potential data loss**: sorting now keeps cells and styles from all 1,000 supported rows instead of discarding populated rows after row 30.
+- New pure range model with validation, unit tests and browser tests covering real edit/reload behavior.
+- This is a targeted v0.5.x editor refinement. Cloud development remains deferred until deeper Office-class editing goals are met.
 
 ## New in v0.5.1 — MySoft Studio UI and editing tools
 
