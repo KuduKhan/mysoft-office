@@ -44,6 +44,8 @@ test('Slides adds a freeform text box, persists edits and exposes shape actions'
   await page.locator('[data-ot-action="shape-text"]').click();
   await expect(page.locator('[data-slide-object]')).toHaveCount(1);
   await page.locator('[data-slide-object-text]').fill('Editable caption');
+  await page.locator('[data-ot-input="shape-fill"]').fill('#ff5500');
+  await expect(page.locator('.studio-shape').first()).toHaveCSS('background-color','rgb(255, 85, 0)');
   await page.locator('[data-ot-action="shape-right"]').click();
   await expect(page.locator('[data-slide-object]')).toHaveCount(1);
   await page.locator('[data-ot-action="shape-duplicate"]').click();
