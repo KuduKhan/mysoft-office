@@ -2,7 +2,7 @@
 
 **Your work. Your space.**
 
-MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.5.2 Editor Depth** retains native DOCX/XLSX/PPTX support and adds a redesigned, responsive workspace with orangered/color theme options, denser editing ribbons and new functional commands. This remains a local-first prototype, not full Microsoft Office parity. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
+MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.5.3 Editor Power** retains native DOCX/XLSX/PPTX support and adds a redesigned, responsive workspace with orangered/color theme options, denser editing ribbons and new functional commands. This remains a local-first prototype, not full Microsoft Office parity. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
 
 ## Quick start
 
@@ -15,6 +15,14 @@ npm run dev
 ```
 
 Open http://localhost:4173. No installation step or external npm dependencies are required for the local editor prototype. This repository includes static output configuration for Vercel, but the Vercel project is not connected yet.
+
+## New in v0.5.3 — Deeper editing in all four applications
+
+- **Docs:** comments tied to selected text, with resolve/reopen/delete and revision recovery. These are review annotations, not track changes.
+- **Sheets:** eight additional safe numeric functions: MOD, INT, SIGN, CEILING, FLOOR, SUMSQ, STDEV, VAR.
+- **Slides:** editable text boxes, rectangles and ellipses on the slide canvas. Move, duplicate, delete, recolor and adjust text size. Basic MySoft shapes now roundtrip in MySoft PPTX.
+- **Notes:** notebooks and sections, organized sidebar navigation and explicit note relocation, retained in revision history.
+- Responsive, local-first operation continues across the Studio UI. No cloud deployment or new cloud schema.
 
 ## New in v0.5.2 — Editing depth and data integrity
 
