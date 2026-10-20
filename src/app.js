@@ -5,6 +5,7 @@ import { cloudConfigured, cloudCurrentUser, cloudSignIn, cloudSignOut, cloudPush
 import { ensureWorkbook, PAGE_SIZES } from './office-model.js';
 import { powerRibbon, sheetCellAppearance, initializeOfficeTools } from './office-ui.js';
 import { sheetGrid, repaintGrid } from './sheet-grid.js';
+import { DocumentHistory, headingsFromHTML } from './document-history.js';
 import { parseAddress, moveAddress, pasteGrid, populatedBounds, ROW_HEIGHT, HEADER_HEIGHT } from './sheet-window.js';
 
 const STORAGE_KEY='mysoft-office-v1';
@@ -145,6 +146,7 @@ if(!Array.isArray(trashFiles))trashFiles=[];
 let revisions=readStored(HISTORY_KEY,{});
 if(!revisions||typeof revisions!=='object'||Array.isArray(revisions))revisions={};
 let cloudUser=null;
+const documentHistory=new DocumentHistory();
 let view='home',activeId=null,query='',fileFilter='all',selectedCell='A1',slideIndex=0,mobileOpen=false,sheetScrollTop=0;
 let savedTimer=0,toastTimer=0;
 const app=document.getElementById('app');
@@ -161,7 +163,8 @@ function persist(){
   return saved;
 }
 function snapshot(file,force=false){if(file)revisions=addRevision(revisions,file,Date.now(),force);}
-function touch(file){
+function touch(file,trackHistory=true){
+  if(trackHistory&&['docs','notes'].includes(file.type))documentHistory.record(file.id,file.body||'');
   file.updatedAt=Date.now();snapshot(file);
   const mark=document.getElementById('save-status');
   if(mark)mark.textContent='Saving…';
@@ -252,6 +255,10 @@ function docToolbar(){
     '<span class="toolbar-divider"></span><button class="tool" data-cmd="justifyLeft" title="Align left">☰</button><button class="tool" data-cmd="justifyCenter" title="Align center">≡</button><button class="tool" data-cmd="justifyRight" title="Align right">☷</button>'+
     '<span class="toolbar-divider"></span><button class="tool" data-cmd="undo" title="Undo">↶</button><button class="tool" data-cmd="redo" title="Redo">↷</button><span class="sheet-hint">Select text to format</span></div>';
 }
+function outlineItems(f){
+  const headings=headingsFromHTML(sanitize(f.body));
+  return headings.length?headings.map((h,i)=>'<button class="doc-outline-link indent-'+h.level+'" data-outline-index="'+i+'">'+esc(h.title)+'</button>').join(''):'<p>Use headings to build an outline automatically.</p>';
+}
 function docsEditor(f){
   const prefs=f.pageSettings||{};
   const paper=PAGE_SIZES[prefs.paper]||PAGE_SIZES.A4;
@@ -260,7 +267,7 @@ function docsEditor(f){
   const background=/^#[0-9a-f]{6}$/i.test(prefs.background||'')?prefs.background:'#ffffff';
   const lineHeight=['1.2','1.6','2'].includes(String(prefs.lineHeight))?prefs.lineHeight:'1.6';
   const style='width:min(100%,'+Math.round(mm[0]*3.78)+'px);min-height:'+Math.round(mm[1]*3.78)+'px;padding:'+margin+'px;line-height:'+lineHeight+';background-color:'+background;
-  return docToolbar()+'<div class="editor-body"><div class="doc-canvas"><article id="rich-content" class="document-paper" style="'+style+'" contenteditable="true" spellcheck="true" role="textbox" aria-label="Document content" data-placeholder="Start writing your document...">'+sanitize(f.body)+'</article></div></div>';
+  return docToolbar()+'<div class="editor-body"><div class="doc-edit-layout"><aside class="doc-outline"><strong>Document outline</strong><div id="doc-outline-list">'+outlineItems(f)+'</div></aside><div class="doc-canvas"><article id="rich-content" class="document-paper" style="'+style+'" contenteditable="true" spellcheck="true" role="textbox" aria-label="Document content" data-placeholder="Start writing your document...">'+sanitize(f.body)+'</article></div></div></div>';
 }
 function sheetsEditor(f){
   ensureWorkbook(f);
@@ -289,6 +296,7 @@ function notesEditor(f){
 function editor(){
   const f=getActive();
   if(!f){view='files';return filesPage();}
+  if(['docs','notes'].includes(f.type))documentHistory.seed(f.id,f.body||'');
   return '<div class="editor-shell">'+editorHead(f)+powerRibbon(f,selectedCell,slideIndex)+(f.type==='docs'?docsEditor(f):f.type==='sheets'?sheetsEditor(f):f.type==='slides'?slidesEditor(f):notesEditor(f))+'</div>';
 }
 function render(){
@@ -477,6 +485,21 @@ function updateCell(ref,raw,rerender=false){
   touch(f);
   if(rerender) refreshCells();
 }
+function updateDocumentOutline(file){
+  const list=document.getElementById('doc-outline-list');
+  if(list&&file?.type==='docs')list.innerHTML=outlineItems(file);
+}
+function undoDocument(direction){
+  const file=getActive();
+  if(!file||!['docs','notes'].includes(file.type))return;
+  const html=direction==='undo'?documentHistory.undo(file.id):documentHistory.redo(file.id);
+  if(html===null){toast('No more '+direction+' steps in this session');return;}
+  file.body=sanitize(html);
+  const editor=document.getElementById('rich-content');
+  if(editor){editor.innerHTML=file.body;editor.focus();}
+  updateDocumentOutline(file);
+  touch(file,false);persist();
+}
 function refreshCells(){
   const f=getActive();if(!f||f.type!=='sheets')return;
   document.querySelectorAll('[data-cell]').forEach(el=>{
@@ -517,9 +540,13 @@ document.addEventListener('mousedown',event=>{
   if(event.target.closest('[data-cmd]')) event.preventDefault();
 });
 document.addEventListener('click',event=>{
-  const el=event.target.closest('[data-action],[data-nav],[data-create],[data-open],[data-star],[data-delete],[data-duplicate],[data-slide],[data-theme],[data-template],[data-cmd],[data-restore-trash],[data-purge],[data-revision]');
+  const el=event.target.closest('[data-action],[data-nav],[data-create],[data-open],[data-star],[data-delete],[data-duplicate],[data-slide],[data-theme],[data-template],[data-cmd],[data-restore-trash],[data-purge],[data-revision],[data-outline-index]');
   if(!el){
     if(event.target.classList.contains('modal-backdrop'))closeModal();
+    return;
+  }
+  if(el.dataset.outlineIndex!==undefined){
+    document.querySelectorAll('#rich-content h1,#rich-content h2,#rich-content h3')[Number(el.dataset.outlineIndex)]?.scrollIntoView({block:'center',behavior:'smooth'});
     return;
   }
   if(el.dataset.restoreTrash){restoreTrash(el.dataset.restoreTrash);return;}
@@ -547,6 +574,7 @@ document.addEventListener('click',event=>{
   if(el.dataset.slide!==undefined){slideIndex=Number(el.dataset.slide);render();return;}
   if(el.dataset.theme){const f=getActive();if(f?.type==='slides'){f.slides[slideIndex].theme=el.dataset.theme;touch(f);render();}return;}
   if(el.dataset.cmd){
+    if(['undo','redo'].includes(el.dataset.cmd)){undoDocument(el.dataset.cmd);return;}
     const editable=document.getElementById('rich-content');
     editable?.focus();
     document.execCommand(el.dataset.cmd,false,null);
@@ -601,7 +629,7 @@ document.addEventListener('input',event=>{
     if(companion)companion.value=f.title;
     touch(f);
   }
-  if(target.id==='rich-content'){f.body=target.innerHTML;touch(f);}
+  if(target.id==='rich-content'){f.body=target.innerHTML;touch(f);updateDocumentOutline(f);}
   if(target.id==='slide-title'||target.id==='slide-body'){
     f.slides[slideIndex][target.id==='slide-title'?'title':'body']=target.textContent||'';touch(f);
   }
@@ -621,14 +649,14 @@ document.addEventListener('focusin',event=>{
   document.querySelectorAll('.sheet-table td.selected').forEach(td=>td.classList.remove('selected'));
   selectedCell=cell.dataset.cell;cell.parentElement.classList.add('selected');
   cell.value=f.cells[selectedCell]||'';
-  const name=document.getElementById('selected-cell'),formula=document.getElementById('formula-input');
+  const name=document.getElementById('cell-address'),formula=document.getElementById('formula-input');
   if(name)name.value=selectedCell;
   if(formula)formula.value=cell.value;
 });
 document.addEventListener('focusout',event=>{
   const t=event.target,f=getActive();
   if(!f)return;
-  if(t.id==='rich-content'){t.innerHTML=sanitize(t.innerHTML);f.body=t.innerHTML;touch(f);}
+  if(t.id==='rich-content'){t.innerHTML=sanitize(t.innerHTML);f.body=t.innerHTML;touch(f);updateDocumentOutline(f);}
   if(t.matches('[data-cell]'))setTimeout(refreshCells,0);
   if(t.id==='formula-input')setTimeout(refreshCells,0);
 });
@@ -649,6 +677,13 @@ document.addEventListener('change',event=>{
   }
 });
 document.addEventListener('keydown',event=>{
+  if(view==='editor'&&['docs','notes'].includes(getActive()?.type)&&
+      event.target.closest('#rich-content')&&(event.ctrlKey||event.metaKey)){
+    const key=event.key.toLowerCase();
+    if(key==='z'||key==='y'){
+      event.preventDefault();undoDocument((key==='z'&&!event.shiftKey)?'undo':'redo');return;
+    }
+  }
   if(event.target.id==='global-search'&&event.key==='Enter'){event.preventDefault();view='files';fileFilter='all';render();return;}
   if(event.key==='Escape'){closeModal();return;}
   if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='s'){
