@@ -492,17 +492,26 @@ async function importBackup(file){
   }catch{toast('Could not read this backup');}
 }
 async function importExternalFile(file){
-  if(file.size>1000000){toast('Maximum import size is 1 MB');return;}
+  if(file.size>18000000){toast('File exceeds the 18 MB import limit');return;}
   const ext=file.name.toLowerCase().split('.').pop();
+  const title=file.name.replace(/\.[^.]+$/,'').slice(0,120);
+  if(['docx','xlsx','pptx'].includes(ext)){
+    try {
+      const data=await file.arrayBuffer();
+      const result=ext==='docx'?await importDOCX(data):ext==='xlsx'?await importXLSX(data):await importPPTX(data);
+      officeImportReview(result,title);
+    } catch(error){toast('Office import failed: '+String(error.message||error).slice(0,95));}
+    return;
+  }
+  if(file.size>1000000){toast('Text/CSV import limit is 1 MB');return;}
   if(!['csv','txt','md','html','htm'].includes(ext)){toast('Unsupported file format');return;}
   const source=await file.text();
-  const name=file.name.replace(/\.[^.]+$/,'');
   if(ext==='csv'){
-    const f=newFile('sheets',name);f.cells=parseCSV(source);touch(f);render();
+    const f=newFile('sheets',title);f.cells=parseCSV(source);touch(f);render();
   }else if(ext==='html'||ext==='htm'){
-    const f=newFile('docs',name);f.body=sanitize(source);touch(f);render();
+    const f=newFile('docs',title);f.body=sanitize(source);touch(f);render();
   }else{
-    const f=newFile('notes',name);f.body=esc(source).replace(/\n/g,'<br>');touch(f);render();
+    const f=newFile('notes',title);f.body=esc(source).replace(/\n/g,'<br>');touch(f);render();
   }
   toast('File imported');
 }
