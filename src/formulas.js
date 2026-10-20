@@ -1,6 +1,6 @@
 // Small, safe, dependency-free formula evaluator. Never evaluates JavaScript.
-export const COLUMNS = 'ABCDEFGHIJKL'.split('');
-export const ROW_COUNT = 30;
+export const COLUMNS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+export const ROW_COUNT = 1000;
 
 export function columnIndex(name) {
   let value = 0;
