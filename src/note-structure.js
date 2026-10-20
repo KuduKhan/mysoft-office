@@ -31,3 +31,23 @@ export function organizeNotes(files){
       ({title,notes:sortedNotes(notes)}))
   }));
 }
+
+export function renameNoteCollection(files,{notebook,section=null,newName}={}){
+  const name=String(newName??'').trim();
+  if(!name||name.length>40||/[<>]/.test(name))throw Error('Collection name must be 1–40 characters without angle brackets.');
+  const sourceBook=safeCollectionName(notebook,DEFAULT_NOTEBOOK);
+  const sourceSection=section===null?null:safeCollectionName(section,DEFAULT_SECTION);
+  const target=safeCollectionName(name,sourceSection===null?DEFAULT_NOTEBOOK:DEFAULT_SECTION);
+  const matched=files.filter(note=>{
+    if(note?.type!=='notes')return false;
+    const location=noteLocation(note);
+    return location.notebook===sourceBook&&(sourceSection===null||location.section===sourceSection);
+  });
+  if(!matched.length)throw Error('No matching notes in this collection.');
+  if(matched.length>500)throw Error('Too many notes for a single collection rename.');
+  for(const note of matched){
+    if(sourceSection===null)note.notebook=target;
+    else note.section=target;
+  }
+  return matched.length;
+}

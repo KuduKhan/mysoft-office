@@ -111,3 +111,8 @@ The app is not yet equivalent to WPS or Microsoft Office. We must extend the v0.
 - Unit and browser regression tests cover these flows.
 
 This UI enhancement builds on the v0.5.8 IndexedDB/recovery branch. It does not claim new cloud capabilities or full Office format fidelity.
+
+## v0.6.2 new blockers
+- **Verified**: cross-tab stale transaction must reject and leave committed data intact, with explicit backup warning.
+- **Verified**: read-only access must not expose internal project files through local HTTP and production security headers must be enabled.
+- **Not complete**: multi-tab merges, shared/cloud conflicts, end-to-end encryption, third-party security audit, WCAG audit and complete independent Office interoperability matrix.

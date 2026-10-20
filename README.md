@@ -2,7 +2,7 @@
 
 **Your work. Your space.**
 
-MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.6.1 Fixed Shell & Search Preview** retains native DOCX/XLSX/PPTX support and adds a redesigned, responsive workspace with orangered/color theme options, denser editing ribbons and new functional commands. This remains a local-first prototype, not full Microsoft Office parity. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
+MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.6.2 Editor Depth & Reliability Preview** retains native DOCX/XLSX/PPTX support and adds a redesigned, responsive workspace with orangered/color theme options, denser editing ribbons and new functional commands. This remains a local-first prototype, not full Microsoft Office parity. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
 
 ## Editor Productivity Preview — v0.6.0
 
@@ -21,6 +21,18 @@ MySoft Office is an independent, local-first productivity suite with four browse
 - Arrow Up/Down, Home and End keyboard navigation in the sidebar; skip-to-main link.
 - Local file search by title, tag, document body, note body, sheet content and slides/notes, with bounded scanning. No cloud index.
 - Existing Office import/export, backup and IndexedDB recovery remain unchanged.
+
+## v0.6.2 — editor depth and conflict/security release
+
+- Docs/Notes: paragraph-level Heading 1, Heading 2, Body and Quote formatting controls (existing contenteditable model, not a structured collaborative editor).
+- Sheets: bounded numeric comparison operators and IF / AND / OR / NOT formulas; existing XLSX import/export support remains a subset.
+- Slides: editable rounded rectangles and triangles with PPTX preset geometry round-trip.
+- Notes: rename notebooks or sections across matching local notes, without moving other notebooks.
+- Local workspace: IndexedDB transactional revision check blocks stale tab writes and preserves unsaved in-memory work for JSON export. It does not merge tab edits automatically.
+- Local server: only publicly deployed files are served and it binds to loopback; production Vercel config adds CSP, frame blocking, referrer, MIME sniffing and permissions headers.
+- Compatibility limitations are tracked in OFFICE_COMPATIBILITY.md; features unsupported by DOCX/XLSX/PPTX must not be promised as fully faithful.
+
+**Important:** Cloud endpoints are not pinned for CSP \`connect-src\` until a production project is configured. Multi-tab conflicts require exporting the unsaved copy and reloading. No unreviewed conflict merges are performed.
 
 ## Quick start
 

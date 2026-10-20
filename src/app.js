@@ -15,7 +15,7 @@ import { createXLSX, importXLSX } from './ooxml-xlsx.js';
 import { createPPTX, importPPTX } from './ooxml-pptx.js';
 import { SLIDE_PRESETS } from './studio-tools.js';
 import {renderedSlideObjects,getSlideObject,updateSlideObject,moveSlideObject} from './slide-objects.js';
-import {organizeNotes,noteLocation,moveNote} from './note-structure.js';
+import {organizeNotes,noteLocation,moveNote,renameNoteCollection} from './note-structure.js';
 import {docComments,toggleDocComment,deleteDocComment,commentSummary} from './doc-review.js';
 import {documentGeometry,normalizedPageSettings} from './doc-layout.js';
 import {noteSearchText} from './note-search.js';
@@ -1130,6 +1130,7 @@ initializeOfficeTools({
   getSelectedCell:()=>selectedCell,getSlideIndex:()=>slideIndex,
   getSlideObjectId:()=>activeObjectId,setSlideObjectId:id=>{activeObjectId=id;},
   getReviewQuote:()=>selectedReviewQuote,
+  getNoteLocation:noteLocation,renameNotes:options=>renameNoteCollection(files,options),
   setSlideIndex:i=>{slideIndex=i;activeObjectId=null;}
 });
 window.addEventListener('pagehide',()=>{clearTimeout(savedTimer);void persist();});
