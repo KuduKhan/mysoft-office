@@ -1,6 +1,11 @@
 import { COLUMNS, ROW_COUNT, displayCell } from './formulas.js';
+import { addRevision, restoreRevision } from './revisions.js';
+import { parseCSV, makeCSV } from './file-formats.js';
+import { cloudConfigured, cloudCurrentUser, cloudSignIn, cloudSignOut, cloudPush, cloudPull } from './cloud.js';
 
 const STORAGE_KEY='mysoft-office-v1';
+const TRASH_KEY='mysoft-office-trash-v2';
+const HISTORY_KEY='mysoft-office-revisions-v2';
 const typeNames={docs:'Document',sheets:'Spreadsheet',slides:'Presentation',notes:'Note'};
 const typeIcons={docs:'file-text',sheets:'table',slides:'presentation',notes:'notebook'};
 const labels={docs:'MySoft Docs',sheets:'MySoft Sheets',slides:'MySoft Slides',notes:'MySoft Notes'};
@@ -93,18 +98,38 @@ function load(){
   }catch{}
   return starter();
 }
+function readStored(key,fallback){
+  try{const value=JSON.parse(localStorage.getItem(key)||'null');return value??fallback;}catch{return fallback;}
+}
 let files=load();
+let trashFiles=readStored(TRASH_KEY,[]);
+if(!Array.isArray(trashFiles))trashFiles=[];
+let revisions=readStored(HISTORY_KEY,{});
+if(!revisions||typeof revisions!=='object'||Array.isArray(revisions))revisions={};
+let cloudUser=null;
 let view='home',activeId=null,query='',fileFilter='all',selectedCell='A1',slideIndex=0,mobileOpen=false;
 let savedTimer=0,toastTimer=0;
 const app=document.getElementById('app');
 const modalRoot=document.getElementById('modal-root');
 function persist(){
-  try{localStorage.setItem(STORAGE_KEY,JSON.stringify({version:1,files}));}
-  catch{toast('Browser storage is full. Export a backup before continuing.');}
+  let saved=true;
+  try{
+    localStorage.setItem(STORAGE_KEY,JSON.stringify({version:2,files}));
+    localStorage.setItem(TRASH_KEY,JSON.stringify(trashFiles));
+    localStorage.setItem(HISTORY_KEY,JSON.stringify(revisions));
+  }catch{saved=false;toast('Browser save failed: storage full. Export your work.');}
   const mark=document.getElementById('save-status');
-  if(mark) mark.innerHTML=icon('check',13)+' Saved locally';
+  if(mark)mark.innerHTML=saved?icon('check',13)+' Saved locally':'Save failed';
+  return saved;
 }
-function touch(file){file.updatedAt=Date.now();clearTimeout(savedTimer);savedTimer=setTimeout(persist,350);}
+function snapshot(file,force=false){if(file)revisions=addRevision(revisions,file,Date.now(),force);}
+function touch(file){
+  file.updatedAt=Date.now();snapshot(file);
+  const mark=document.getElementById('save-status');
+  if(mark)mark.textContent='Saving…';
+  clearTimeout(savedTimer);savedTimer=setTimeout(persist,350);
+}
+function workspaceSnapshot(){return {version:2,exportedAt:new Date().toISOString(),files,trash:trashFiles,versions:revisions};}
 function toast(message){
   const el=document.getElementById('toast');
   el.textContent=message;el.classList.add('show');
@@ -222,10 +247,15 @@ function editor(){
 function render(){
   app.innerHTML='<div class="shell">'+sidebar()+'<main class="main">'+header()+(view==='editor'?editor():view==='home'?home():view==='templates'?templatesPage():filesPage())+'</main></div>';
 }
-function navigate(destination){view=destination;activeId=null;query='';fileFilter='all';mobileOpen=false;render();window.scrollTo(0,0);}
+function navigate(destination){
+  if(view==='editor'&&getActive())snapshot(getActive(),true);
+  persist();view=destination;activeId=null;query='';fileFilter='all';mobileOpen=false;render();window.scrollTo(0,0);
+}
 function openFile(id){
-  if(!files.some(f=>f.id===id)) return;
-  activeId=id;view='editor';slideIndex=0;selectedCell='A1';mobileOpen=false;render();
+  if(!files.some(f=>f.id===id))return;
+  if(view==='editor'&&getActive())snapshot(getActive(),true);
+  activeId=id;view='editor';slideIndex=0;selectedCell='A1';mobileOpen=false;
+  snapshot(getActive(),true);persist();render();
 }
 function newFile(type,title){
   const f=makeFile(type,title);
@@ -284,7 +314,7 @@ function exportFile(){
   }
   toast('Exported '+typeNames[f.type].toLowerCase());
 }
-function backup(){download(JSON.stringify({version:1,exportedAt:new Date().toISOString(),files},null,2),'mysoft-office-backup.json','application/json');toast('Workspace backup exported');}
+function backup(){download(JSON.stringify(workspaceSnapshot(),null,2),'mysoft-office-backup.json','application/json');toast('Workspace backup exported');}
 function validImport(payload){
   if(!payload||!Array.isArray(payload.files)||payload.files.length>500) return null;
   const output=[];
