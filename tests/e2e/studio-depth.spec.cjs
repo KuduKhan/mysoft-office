@@ -1,0 +1,47 @@
+const {test,expect}=require('@playwright/test');
+test.beforeEach(async({page})=>{
+  await page.goto('/');
+  await page.evaluate(()=>localStorage.clear());
+  await page.reload();
+});
+test('Sheets updates dependent formula results live and survives reload',async({page})=>{
+  await page.locator('[data-create="sheets"]').first().click();
+  await page.locator('[data-cell="A1"]').fill('2');
+  await page.locator('[data-cell="A1"]').press('Enter');
+  await page.locator('[data-cell="B1"]').fill('=A1*3');
+  await page.locator('[data-cell="B1"]').press('Enter');
+  await page.locator('[data-cell="C1"]').fill('=B1+1');
+  await page.locator('[data-cell="C1"]').press('Enter');
+  await expect(page.locator('[data-cell="C1"]')).toHaveValue('7');
+  await page.locator('[data-cell="A1"]').fill('4');
+  await expect(page.locator('[data-cell="B1"]')).toHaveValue('12');
+  await expect(page.locator('[data-cell="C1"]')).toHaveValue('13');
+  await page.reload();
+  await expect(page.locator('[data-cell="C1"]')).toHaveValue('13');
+  await page.locator('[data-ot-tab="Data"]').click();
+  await page.locator('[data-ot-action="sheet-recalculate"]').click();
+  await expect(page.locator('[data-cell="C1"]')).toHaveValue('13');
+});
+test('Slides can reorder object layers, toggle grid and nudge selected shape via keyboard',async({page})=>{
+  await page.locator('[data-create="slides"]').first().click();
+  await page.locator('[data-ot-tab="Shapes"]').click();
+  await page.locator('[data-ot-action="shape-rect"]').click();
+  await page.locator('[data-ot-action="shape-ellipse"]').click();
+  const before=await page.locator('[data-slide-object]').evaluateAll(els=>els.map(el=>el.dataset.slideObject));
+  expect(before).toHaveLength(2);
+  await page.locator('[data-ot-action="layer-back"]').click();
+  const after=await page.locator('[data-slide-object]').evaluateAll(els=>els.map(el=>el.dataset.slideObject));
+  expect(after).toEqual(before.slice().reverse());
+  await page.locator('[data-ot-action="slide-snap-toggle"]').click();
+  await expect(page.locator('[data-ot-action="slide-snap-toggle"]')).toContainText('ON');
+  const shape=page.locator('[data-slide-object]').first();
+  const styleBefore=await shape.getAttribute('style');
+  await shape.focus();
+  await shape.press('ArrowRight');
+  const styleAfter=await page.locator('[data-slide-object]').first().getAttribute('style');
+  expect(styleAfter).not.toBe(styleBefore);
+  await page.reload();
+  await expect(page.locator('[data-ot-action="slide-snap-toggle"]')).toContainText('ON');
+  const afterReload=await page.locator('[data-slide-object]').evaluateAll(els=>els.map(el=>el.dataset.slideObject));
+  expect(afterReload).toEqual(after);
+});
