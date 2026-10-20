@@ -225,15 +225,18 @@ function download(content,name,type){
 function slug(name){return String(name).replace(/[^a-z0-9 -]/gi,'').trim().replace(/\s+/g,'-').slice(0,70)||'mysoft-file';}
 function sidebar(){
   const nav=(id,title,ic,extra='')=>'<button type="button" class="nav-link '+(view===id?'active':'')+'" data-nav="'+id+'" title="'+esc(title)+'" aria-label="'+esc(title)+'"'+(view===id?' aria-current="page"':'')+'>'+icon(ic,18)+'<span class="nav-label">'+esc(title)+'</span>'+extra+'</button>';
-  return '<aside class="sidebar '+(mobileOpen?'open':'')+'" id="studio-sidebar" aria-label="Workspace navigation"><div class="brand"><span class="brand-symbol" aria-hidden="true"><b></b><b></b><b></b><b></b></span><div class="studio-brand-copy"><strong>MySoft Office</strong><small>Your work. Your space.</small></div></div>'+
-    '<div class="studio-sidebar-control"><button class="studio-nav-collapse" data-action="nav-collapse" title="'+(navCollapsed?'Expand':'Collapse')+' sidebar" aria-label="'+(navCollapsed?'Expand':'Collapse')+' sidebar" aria-pressed="'+navCollapsed+'">'+icon('menu',17)+'<span>'+(navCollapsed?'Expand sidebar':'Collapse sidebar')+'</span></button></div>'+
-    '<div class="nav-caption">Workspace</div>'+nav('home','Overview','home')+nav('files','My files','folder','<span class="count">'+files.length+'</span>')+nav('starred','Starred','star')+nav('templates','Templates','grid')+nav('trash','Recycle bin','trash','<span class="count">'+trashFiles.length+'</span>')+
-    '<div class="nav-caption">Applications</div>'+['docs','sheets','slides','notes'].map(t=>nav(t,labels[t],typeIcons[t])).join('')+
-    '<div class="sidebar-spacer"></div><div class="side-foot"><div class="storage-label"><span>Local workspace</span><strong>'+files.length+' files</strong></div><div class="storage-help">Files are saved on this device. Export backups regularly.</div><button class="nav-link" data-action="cloud">'+icon('upload',17)+'<span class="nav-label">Cloud snapshots</span></button><button class="nav-link" data-action="import-file">'+icon('plus',17)+'<span class="nav-label">Import file</span></button><button class="nav-link" data-action="backup">'+icon('download',17)+'<span class="nav-label">Export backup</span></button><button class="nav-link" data-action="import">'+icon('upload',17)+'<span class="nav-label">Import backup</span></button></div></aside>';
+  const action=(id,title,ic)=>'<button type="button" class="nav-link" data-action="'+id+'" title="'+esc(title)+'" aria-label="'+esc(title)+'">'+icon(ic,17)+'<span class="nav-label">'+esc(title)+'</span></button>';
+  return '<aside class="sidebar '+(mobileOpen?'open':'')+'" id="studio-sidebar" aria-label="Workspace navigation">'+
+    '<div class="studio-sidebar-top"><div class="brand"><span class="brand-symbol" aria-hidden="true"><b></b><b></b><b></b><b></b></span><div class="studio-brand-copy"><strong>MySoft Office</strong><small>Your work. Your space.</small></div><button type="button" class="studio-sidebar-dismiss" data-action="mobile-close" aria-label="Close navigation" title="Close navigation">'+icon('x',17)+'</button></div>'+
+    '<div class="studio-sidebar-control"><button type="button" class="studio-nav-collapse" data-action="nav-collapse" title="'+(navCollapsed?'Expand':'Collapse')+' sidebar" aria-label="'+(navCollapsed?'Expand':'Collapse')+' sidebar" aria-pressed="'+navCollapsed+'">'+icon('menu',17)+'<span>'+(navCollapsed?'Expand sidebar':'Collapse sidebar')+'</span></button></div></div>'+
+    '<nav class="sidebar-nav" aria-label="Primary navigation"><div class="nav-caption">Workspace</div>'+nav('home','Overview','home')+nav('files','My files','folder','<span class="count">'+files.length+'</span>')+nav('starred','Starred','star')+nav('templates','Templates','grid')+nav('trash','Recycle bin','trash','<span class="count">'+trashFiles.length+'</span>')+
+    '<div class="nav-caption">Applications</div>'+['docs','sheets','slides','notes'].map(t=>nav(t,labels[t],typeIcons[t])).join('')+'</nav>'+
+    '<footer class="side-foot"><div class="storage-label"><span>Local workspace</span><strong>'+files.length+' files</strong></div><div class="storage-help">Files stay on this device. Export backups regularly.</div>'+
+    action('cloud','Cloud snapshots','upload')+action('import-file','Import file','plus')+action('backup','Export backup','download')+action('import','Import backup','upload')+'</footer></aside>';
 }
 function header(){
   const current=view==='editor'?labels[getActive()?.type]||'Editor':({home:'Overview',files:'My files',starred:'Starred',templates:'Templates',trash:'Recycle bin'})[view]||labels[view]||'Workspace';
-  return '<header class="topbar"><div class="topbar-left"><button class="icon-btn mobile-menu" data-action="mobile" aria-label="Open navigation" aria-expanded="'+mobileOpen+'" aria-controls="studio-sidebar">'+icon('menu')+'</button><div class="studio-breadcrumb"><button data-nav="home">Workspace</button><span aria-hidden="true">/</span><strong>'+esc(current)+'</strong></div><div class="searchbox">'+icon('search',17)+'<input id="global-search" aria-label="Search files" placeholder="Search files  /" value="'+esc(query)+'"></div></div><div class="top-actions"><button class="btn btn-light studio-command-trigger" data-action="commands" title="Search commands (Ctrl+K)" aria-label="Search commands">⌕ <span>Commands</span></button><button class="btn btn-light studio-customize" data-ot-action="preferences">⚙ <span>Customize</span></button><button class="btn btn-primary" data-action="new">'+icon('plus',16)+'<span>New file</span></button><div class="avatar" title="Local workspace">MS</div></div></header>';
+  return '<header class="topbar"><div class="topbar-left"><button class="icon-btn mobile-menu" data-action="mobile" aria-label="Open navigation" aria-expanded="'+mobileOpen+'" aria-controls="studio-sidebar">'+icon('menu')+'</button><div class="studio-breadcrumb"><button data-nav="home">Workspace</button><span aria-hidden="true">/</span><strong>'+esc(current)+'</strong></div><div class="searchbox">'+icon('search',17)+'<input id="global-search" aria-label="Search filenames and content" placeholder="Search files and content  /" value="'+esc(query)+'"></div></div><div class="top-actions"><button class="btn btn-light studio-command-trigger" data-action="commands" title="Search commands (Ctrl+K)" aria-label="Search commands">⌕ <span>Commands</span></button><button class="btn btn-light studio-customize" data-ot-action="preferences">⚙ <span>Customize</span></button><button class="btn btn-primary" data-action="new">'+icon('plus',16)+'<span>New file</span></button><div class="avatar" title="Local workspace">MS</div></div></header>';
 }
 function appTiles(){
   const descriptions={docs:'Write and format',sheets:'Calculate and analyze',slides:'Present your ideas',notes:'Capture your thoughts'};
@@ -363,7 +366,8 @@ function editor(){
   return '<div class="editor-shell">'+editorHead(f)+'<nav class="studio-file-tabs" aria-label="Recent files">'+tabs+'</nav>'+powerRibbon(f,selectedCell,slideIndex)+(f.type==='docs'?docsEditor(f):f.type==='sheets'?sheetsEditor(f):f.type==='slides'?slidesEditor(f):notesEditor(f))+status+'</div>';
 }
 function render(){
-  app.innerHTML='<div class="shell '+(navCollapsed?'nav-collapsed ':'')+(focusMode&&view==='editor'?'focus-mode':'')+'">'+sidebar()+(mobileOpen?'<button type="button" class="studio-mobile-scrim" data-action="mobile-close" aria-label="Close navigation"></button>':'')+'<main class="main">'+header()+(view==='editor'?editor():view==='home'?home():view==='templates'?templatesPage():filesPage())+'</main></div>';
+  app.innerHTML='<div class="shell '+(navCollapsed?'nav-collapsed ':'')+(focusMode&&view==='editor'?'focus-mode':'')+'">'+'<a class="studio-skip-link" href="#studio-main">Skip to main content</a>'+sidebar()+'<button type="button" class="studio-mobile-scrim" data-action="mobile-close" aria-label="Close navigation" hidden></button><main class="main" id="studio-main" tabindex="-1">'+header()+(view==='editor'?editor():view==='home'?home():view==='templates'?templatesPage():filesPage())+'</main></div>';
+  syncSidebarAccess();
   updateSaveStatus(saveState);
   if(!storageReady&&saveState==='failed'){
     const main=app.querySelector('.main');
@@ -376,6 +380,46 @@ function render(){
     repaintGrid(sc,getActive(),selectedCell,true);
   }
 }
+
+function isMobileLayout(){return window.matchMedia('(max-width: 860px)').matches;}
+function syncSidebarAccess(){
+  const sidebar=document.getElementById('studio-sidebar');
+  if(!sidebar)return;
+  const mobile=isMobileLayout();
+  if(!mobile)mobileOpen=false;
+  const open=mobile&&mobileOpen;
+  sidebar.classList.toggle('open',open);
+  sidebar.inert=mobile&&!open;
+  sidebar.setAttribute('aria-hidden',String(mobile&&!open));
+  const scrim=document.querySelector('.studio-mobile-scrim');
+  if(scrim)scrim.hidden=!open;
+  const menu=document.querySelector('[data-action="mobile"]');
+  if(menu){
+    menu.setAttribute('aria-expanded',String(open));
+    menu.setAttribute('aria-label',open?'Close navigation':'Open navigation');
+  }
+  document.documentElement.classList.toggle('studio-mobile-open',open);
+}
+function setMobileNavigation(open,restoreFocus=false){
+  mobileOpen=isMobileLayout()&&open;
+  syncSidebarAccess();
+  if(mobileOpen)document.querySelector('.studio-sidebar-dismiss')?.focus({preventScroll:true});
+  else if(restoreFocus)document.querySelector('[data-action="mobile"]')?.focus({preventScroll:true});
+}
+function setCollapsedSidebar(next){
+  navCollapsed=Boolean(next);
+  document.querySelector('.shell')?.classList.toggle('nav-collapsed',navCollapsed);
+  try{localStorage.setItem(STUDIO_SHELL_KEY,JSON.stringify({collapsed:navCollapsed}));}catch{}
+  const label=navCollapsed?'Expand sidebar':'Collapse sidebar';
+  for(const button of document.querySelectorAll('.studio-nav-collapse')){
+    button.title=label;button.setAttribute('aria-label',label);button.setAttribute('aria-pressed',String(navCollapsed));
+    const span=button.querySelector('span');if(span)span.textContent=label;
+  }
+  const modalButton=modalRoot.querySelector('[data-action="nav-collapse"]');
+  if(modalButton){modalButton.textContent=label;modalButton.setAttribute('aria-pressed',String(navCollapsed));}
+}
+window.addEventListener('resize',syncSidebarAccess);
+
 function navigate(destination){
   if(view==='editor'&&getActive())snapshot(getActive(),true);
   focusMode=false;
@@ -782,15 +826,9 @@ document.addEventListener('click',event=>{
     return;
   }
   const action=el.dataset.action;
-  if(action==='mobile'){mobileOpen=!mobileOpen;render();}
-  if(action==='mobile-close'){mobileOpen=false;render();}
-  if(action==='nav-collapse'){
-    navCollapsed=!navCollapsed;
-    try{localStorage.setItem(STUDIO_SHELL_KEY,JSON.stringify({collapsed:navCollapsed}));}catch{}
-    render();
-    const modalButton=modalRoot.querySelector('[data-action="nav-collapse"]');
-    if(modalButton){modalButton.textContent=navCollapsed?'Expand sidebar':'Collapse sidebar';modalButton.setAttribute('aria-pressed',String(navCollapsed));}
-  }
+  if(action==='mobile'){setMobileNavigation(!mobileOpen);return;}
+  if(action==='mobile-close'){setMobileNavigation(false,true);return;}
+  if(action==='nav-collapse'){setCollapsedSidebar(!navCollapsed);return;}
   if(action==='focus-mode'){focusMode=!focusMode;mobileOpen=false;render();document.querySelector('[data-action="focus-mode"]')?.focus();}
   if(action==='new')modal('new');
   if(action==='commands')modal('commands');
@@ -966,6 +1004,29 @@ document.addEventListener('keydown',event=>{
     const search=document.getElementById('global-search');
     if(search){event.preventDefault();search.focus();search.select();return;}
   }
+  if(mobileOpen){
+    if(event.key==='Escape'){event.preventDefault();setMobileNavigation(false,true);return;}
+    if(event.key==='Tab'){
+      const buttons=[...document.querySelectorAll('#studio-sidebar button:not([disabled])')].filter(el=>el.getClientRects().length);
+      if(buttons.length){
+        const first=buttons[0],last=buttons.at(-1),current=document.activeElement;
+        if(!buttons.includes(current)||(event.shiftKey&&current===first)){
+          event.preventDefault();(event.shiftKey?last:first).focus();return;
+        }
+        if(!event.shiftKey&&current===last){event.preventDefault();first.focus();return;}
+      }
+    }
+  }
+  if(event.target.closest('.sidebar-nav')&&['ArrowUp','ArrowDown','Home','End'].includes(event.key)){
+    const items=[...document.querySelectorAll('.sidebar-nav .nav-link')].filter(el=>el.getClientRects().length);
+    const position=items.indexOf(document.activeElement);
+    if(position>=0){
+      event.preventDefault();
+      const index=event.key==='Home'?0:event.key==='End'?items.length-1:
+        (position+(event.key==='ArrowUp'?-1:1)+items.length)%items.length;
+      items[index]?.focus();return;
+    }
+  }
   const shortcut=studioShortcut(event);
   if(shortcut){
     event.preventDefault();
@@ -1002,7 +1063,7 @@ document.addEventListener('keydown',event=>{
   }
   if(event.target.id==='global-search'&&event.key==='Enter'){event.preventDefault();view='files';fileFilter='all';render();return;}
   if(event.key==='Escape'){
-    if(mobileOpen){mobileOpen=false;render();return;}
+    if(mobileOpen){setMobileNavigation(false,true);return;}
     if(focusMode){focusMode=false;render();return;}
     closeModal();return;
   }
