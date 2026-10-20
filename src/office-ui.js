@@ -162,7 +162,7 @@ function replaceAllText(ctx,needle,replacement){
   return count;
 }
 function presentationHTML(slide){
-  return '<div class="ot-present-page ot-present-'+(slide.layout||'title')+' ot-effect-'+(['fade','slide'].includes(slide.transition)?slide.transition:'none')+'"' style="--present-color:'+({violet:'#7161e8',ocean:'#2895d9',forest:'#22a88e',midnight:'#a58bff'}[slide.theme]||'#7161e8')+'"><h1>'+escapeHTML(slide.title)+'</h1><p>'+escapeHTML(slide.body)+'</p></div>';
+  return '<div class="ot-present-page ot-present-'+(slide.layout||'title')+' ot-effect-'+(['fade','slide'].includes(slide.transition)?slide.transition:'none')+'" style="--present-color:'+({violet:'#7161e8',ocean:'#2895d9',forest:'#22a88e',midnight:'#a58bff'}[slide.theme]||'#7161e8')+'"><h1>'+escapeHTML(slide.title)+'</h1><p>'+escapeHTML(slide.body)+'</p></div>';
 }
 function showPresentation(ctx,index=0){
   const file=ctx.getFile();if(!file?.slides)return;
