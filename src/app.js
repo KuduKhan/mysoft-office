@@ -1,4 +1,5 @@
 import {studioShortcut} from './studio-shortcuts.js';
+import { BrowserWorkspaceStore, readLegacyWorkspace, LEGACY_KEYS } from './workspace-storage.js';
 import { COLUMNS, ROW_COUNT, displayCell } from './formulas.js';
 import { addRevision, restoreRevision } from './revisions.js';
 import { parseCSV, makeCSV } from './file-formats.js';
@@ -21,9 +22,6 @@ import {SheetRecalculator} from './sheet-recalc.js';
 import {snapSlideCoordinate} from './slide-layers.js';
 import { parseAddress, moveAddress, pasteGrid, populatedBounds, ROW_HEIGHT, HEADER_HEIGHT } from './sheet-window.js';
 
-const STORAGE_KEY='mysoft-office-v1';
-const TRASH_KEY='mysoft-office-trash-v2';
-const HISTORY_KEY='mysoft-office-revisions-v2';
 const typeNames={docs:'Document',sheets:'Spreadsheet',slides:'Presentation',notes:'Note'};
 const typeIcons={docs:'file-text',sheets:'table',slides:'presentation',notes:'notebook'};
 const labels={docs:'MySoft Docs',sheets:'MySoft Sheets',slides:'MySoft Slides',notes:'MySoft Notes'};
@@ -145,21 +143,17 @@ function starter(){
   note.body='<h2>Brainstorm</h2><p>Write down your thoughts and develop your next great idea.</p>';
   return [doc,sheet,slides,note];
 }
-function load(){
-  try {
-    const parsed=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');
-    if(parsed && Array.isArray(parsed.files)) return parsed.files.filter(f=>f && typeNames[f.type] && typeof f.id==='string').slice(0,500);
-  }catch{}
-  return starter();
+let files=[],trashFiles=[],revisions={};
+let workspaceStore=null,storageReady=false,saveState='loading',saveRevision=0;
+const SAVE_LABELS={loading:'Opening workspace…',saving:'Saving…',saved:'Saved on device',failed:'Save failed — export backup'};
+function saveLabel(){return SAVE_LABELS[saveState]||SAVE_LABELS.failed;}
+function updateSaveStatus(state){
+  saveState=state;
+  for(const id of ['save-status','studio-storage-status']){
+    const node=document.getElementById(id);
+    if(node)node.textContent=saveLabel();
+  }
 }
-function readStored(key,fallback){
-  try{const value=JSON.parse(localStorage.getItem(key)||'null');return value??fallback;}catch{return fallback;}
-}
-let files=load();
-let trashFiles=readStored(TRASH_KEY,[]);
-if(!Array.isArray(trashFiles))trashFiles=[];
-let revisions=readStored(HISTORY_KEY,{});
-if(!revisions||typeof revisions!=='object'||Array.isArray(revisions))revisions={};
 let cloudUser=null;
 let pendingOfficeImport=null;
 let activeObjectId=null,selectedReviewQuote='',slideDrag=null;
@@ -175,24 +169,35 @@ let view='home',activeId=null,query='',fileFilter='all',selectedCell='A1',slideI
 let savedTimer=0,toastTimer=0;
 const app=document.getElementById('app');
 const modalRoot=document.getElementById('modal-root');
-function persist(){
-  let saved=true;
+async function persist(workspace=workspaceSnapshot()){
+  clearTimeout(savedTimer);
+  const revision=++saveRevision;
+  updateSaveStatus('saving');
+  if(!storageReady){
+    updateSaveStatus('failed');
+    toast('Local storage unavailable. Export a JSON backup.');
+    return false;
+  }
   try{
-    localStorage.setItem(STORAGE_KEY,JSON.stringify({version:2,files}));
-    localStorage.setItem(TRASH_KEY,JSON.stringify(trashFiles));
-    localStorage.setItem(HISTORY_KEY,JSON.stringify(revisions));
-  }catch{saved=false;toast('Browser save failed: storage full. Export your work.');}
-  const mark=document.getElementById('save-status');
-  if(mark)mark.innerHTML=saved?icon('check',13)+' Saved locally':'Save failed';
-  return saved;
+    await workspaceStore.save(workspace);
+    if(revision===saveRevision)updateSaveStatus('saved');
+    return true;
+  }catch(error){
+    if(revision===saveRevision)updateSaveStatus('failed');
+    toast('Save failed. Export a JSON backup before leaving.');
+    return false;
+  }
+}
+async function saveCommand(){
+  if(await persist())toast('Saved on this device');
 }
 function snapshot(file,force=false){if(file)revisions=addRevision(revisions,file,Date.now(),force);}
 function touch(file,trackHistory=true){
   if(trackHistory&&['docs','notes'].includes(file.type))documentHistory.record(file.id,file.body||'');
   file.updatedAt=Date.now();snapshot(file);
   const mark=document.getElementById('save-status');
-  if(mark)mark.textContent='Saving…';
-  clearTimeout(savedTimer);savedTimer=setTimeout(persist,350);
+  updateSaveStatus('saving');
+  clearTimeout(savedTimer);savedTimer=setTimeout(()=>{void persist();},350);
 }
 function workspaceSnapshot(){return {version:2,exportedAt:new Date().toISOString(),files,trash:trashFiles,versions:revisions};}
 function toast(message){
@@ -269,7 +274,7 @@ function templatesPage(){
   return '<div class="content"><div class="eyebrow">START WITH A HEAD START</div><h1 style="margin:8px 0">Templates</h1><p class="subtitle">Useful starting points for your next project.</p><div class="templates-grid" style="margin-top:27px">'+templates.map((t,i)=>'<button class="template-card" data-template="'+i+'"><span class="app-icon '+t.type+'">'+icon(typeIcons[t.type],22)+'</span><h3>'+t.title+'</h3><p>'+t.description+'</p></button>').join('')+'</div></div>';
 }
 function editorHead(f){
-  return '<div class="editor-head"><button class="icon-btn" data-action="close-editor" title="Back to files">'+icon('back',19)+'</button><span class="file-icon '+f.type+'">'+icon(typeIcons[f.type],18)+'</span><input class="doc-title" id="document-title" aria-label="File title" value="'+esc(f.title)+'" maxlength="120"><div class="save-mark" id="save-status">'+icon('check',13)+' Saved locally</div>'+(f.type==='notes'?'':'<button class="btn btn-soft btn-sm" data-action="office-export">'+icon('download',15)+' '+({docs:'DOCX',sheets:'XLSX',slides:'PPTX'}[f.type])+'</button>')+'<button class="btn btn-light btn-sm" data-action="revisions">'+icon('clock',15)+' History</button><button class="btn btn-light btn-sm" data-action="export">'+icon('download',15)+' Export</button></div>';
+  return '<div class="editor-head"><button class="icon-btn" data-action="close-editor" title="Back to files">'+icon('back',19)+'</button><span class="file-icon '+f.type+'">'+icon(typeIcons[f.type],18)+'</span><input class="doc-title" id="document-title" aria-label="File title" value="'+esc(f.title)+'" maxlength="120"><div class="save-mark" id="save-status" role="status">'+esc(saveLabel())+'</div>'+(f.type==='notes'?'':'<button class="btn btn-soft btn-sm" data-action="office-export">'+icon('download',15)+' '+({docs:'DOCX',sheets:'XLSX',slides:'PPTX'}[f.type])+'</button>')+'<button class="btn btn-light btn-sm" data-action="revisions">'+icon('clock',15)+' History</button><button class="btn btn-light btn-sm" data-action="export">'+icon('download',15)+' Export</button></div>';
 }
 function docToolbar(){
   return '<div class="toolbar">'+
@@ -341,12 +346,17 @@ function editor(){
   if(!f){view='files';return filesPage();}
   if(['docs','notes'].includes(f.type))documentHistory.seed(f.id,f.body||'');
   const zoom=Math.round(parseFloat(document.documentElement.style.getPropertyValue('--studio-zoom'))||100);
-  const status='<div class="studio-statusbar" role="status"><div class="studio-status-left"><span class="studio-status-dot"></span><span>MySoft '+typeNames[f.type]+'</span><span class="studio-status-divider">·</span><span>Saved in this browser</span></div>'+
+  const status='<div class="studio-statusbar" role="status"><div class="studio-status-left"><span class="studio-status-dot"></span><span>MySoft '+typeNames[f.type]+'</span><span class="studio-status-divider">·</span><span id="studio-storage-status">'+esc(saveLabel())+'</span></div>'+
     '<div class="studio-status-right"><span class="studio-shortcut">Ctrl+S · Save</span><button data-ot-action="zoom-out" class="studio-zoom-btn" aria-label="Zoom out">−</button><span id="studio-zoom-value">'+zoom+'%</span><button data-ot-action="zoom-in" class="studio-zoom-btn" aria-label="Zoom in">+</button></div></div>';
   return '<div class="editor-shell">'+editorHead(f)+powerRibbon(f,selectedCell,slideIndex)+(f.type==='docs'?docsEditor(f):f.type==='sheets'?sheetsEditor(f):f.type==='slides'?slidesEditor(f):notesEditor(f))+status+'</div>';
 }
 function render(){
   app.innerHTML='<div class="shell">'+sidebar()+'<main class="main">'+header()+(view==='editor'?editor():view==='home'?home():view==='templates'?templatesPage():filesPage())+'</main></div>';
+  updateSaveStatus(saveState);
+  if(!storageReady&&saveState==='failed'){
+    const main=app.querySelector('.main');
+    main?.insertAdjacentHTML('afterbegin','<p role="alert" style="margin:10px 18px;padding:12px;border:2px solid #bb4734;border-radius:8px">Local saving is unavailable. Changes will not survive a reload. Use Export backup to save your work.</p>');
+  }
   const sc=document.getElementById('sheet-scroll');
   if(sc&&getActive()?.type==='sheets'){
     sheetRecalculator(getActive())?.rebuild();
@@ -536,14 +546,19 @@ function validImport(payload){
   }
   return output;
 }
-function applyWorkspace(payload){
+async function applyWorkspace(payload){
   const imported=validImport(payload);
   const trash=payload?.trash?validImport({files:payload.trash}):[];
   if(!imported||!trash)return false;
-  files=imported.map(f=>({...f,updatedAt:Number(f.updatedAt)||Date.now()}));
-  trashFiles=trash.slice(0,100);
-  revisions=payload.versions&&typeof payload.versions==='object'&&!Array.isArray(payload.versions)?payload.versions:{};
-  persist();navigate('home');return true;
+  const next={
+    files:imported.map(f=>({...f,updatedAt:Number(f.updatedAt)||Date.now()})),
+    trash:trash.slice(0,100),
+    versions:payload.versions&&typeof payload.versions==='object'&&!Array.isArray(payload.versions)?payload.versions:{}
+  };
+  // Persist the replacement atomically before changing the visible workspace.
+  if(!await persist(next))return false;
+  files=next.files;trashFiles=next.trash;revisions=next.versions;
+  navigate('home');return true;
 }
 async function importBackup(file){
   try{
@@ -551,7 +566,8 @@ async function importBackup(file){
     const parsed=JSON.parse(await file.text());
     if(!validImport(parsed)){toast('Invalid MySoft backup');return;}
     if(!confirm('Replace local files with this backup? Export your current workspace first.'))return;
-    if(applyWorkspace(parsed))toast('Workspace restored');
+    if(await applyWorkspace(parsed))toast('Workspace restored');
+    else toast('Backup was not restored. Current files are unchanged.');
     else toast('Backup failed validation');
   }catch{toast('Could not read this backup');}
 }
@@ -583,7 +599,7 @@ async function runCloudAction(action){
   try{
     if(action==='cloud-signout'){await cloudSignOut();cloudUser=null;modal('cloud');toast('Signed out');return;}
     if(action==='cloud-upload'){
-      if(!persist())return;
+      if(!await persist())return;
       await cloudPush(workspaceSnapshot());toast('Cloud snapshot uploaded');modal('cloud');return;
     }
     if(action==='cloud-download'){
@@ -591,7 +607,7 @@ async function runCloudAction(action){
       if(!row){toast('No cloud snapshot found');return;}
       if(!validImport(row.payload)){toast('Cloud snapshot failed validation');return;}
       if(!confirm('Replace ALL local files with cloud snapshot from '+new Date(row.updated_at).toLocaleString()+'? Download a local backup first.'))return;
-      if(applyWorkspace(row.payload)){closeModal();toast('Cloud snapshot downloaded');}
+      if(await applyWorkspace(row.payload)){closeModal();toast('Cloud snapshot downloaded');}
     }
   }catch(error){toast('Cloud: '+String(error.message||error).slice(0,95));}
 }
@@ -681,7 +697,7 @@ document.addEventListener('click',event=>{
     }else if(id.startsWith('file:')){
       const target=id.slice(5);if(files.some(f=>f.id===target))openFile(target);
     }else if(id==='action:preferences')document.querySelector('[data-ot-action="preferences"]')?.click();
-    else if(id==='action:save'){persist();toast('Saved locally');}
+    else if(id==='action:save'){void saveCommand();}
     else if(id==='action:history'&&getActive())modal('revisions',activeId);
     else if(id==='action:export')exportFile();
     return;
@@ -927,7 +943,7 @@ document.addEventListener('keydown',event=>{
   if(shortcut){
     event.preventDefault();
     if(shortcut==='command-search')modal('commands');
-    if(shortcut==='save'){persist();toast('Saved to this browser');}
+    if(shortcut==='save'){void saveCommand();}
     if(shortcut==='export'){if(getActive())exportFile();else toast('Open a file to export');}
     if(shortcut==='new-file')modal('new');
     return;
@@ -960,7 +976,7 @@ document.addEventListener('keydown',event=>{
   if(event.target.id==='global-search'&&event.key==='Enter'){event.preventDefault();view='files';fileFilter='all';render();return;}
   if(event.key==='Escape'){closeModal();return;}
   if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='s'){
-    event.preventDefault();persist();toast('Saved locally');
+    event.preventDefault();void saveCommand();
   }
   if(event.target.id==='formula-input'&&event.key==='Enter'){event.preventDefault();event.target.blur();refreshCells();}
   if(event.target.id==='cell-address'&&event.key==='Enter'){
@@ -1021,8 +1037,38 @@ initializeOfficeTools({
   getReviewQuote:()=>selectedReviewQuote,
   setSlideIndex:i=>{slideIndex=i;activeObjectId=null;}
 });
-window.addEventListener('pagehide',()=>{clearTimeout(savedTimer);persist();});
+window.addEventListener('pagehide',()=>{clearTimeout(savedTimer);void persist();});
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden'&&storageReady){clearTimeout(savedTimer);void persist();}
+});
 window.addEventListener('popstate',()=>{restoreRoute();render();});
-restoreRoute();
-persist();
-render();
+async function bootWorkspace(){
+  try{
+    workspaceStore=new BrowserWorkspaceStore();
+    const result=await workspaceStore.initialize(localStorage,starter);
+    files=result.workspace.files;
+    trashFiles=result.workspace.trash;
+    revisions=result.workspace.versions;
+    storageReady=true;
+    restoreRoute();render();updateSaveStatus('saved');
+    if(result.source==='legacy-migrated')toast('Existing workspace migrated. Original browser data kept for recovery.');
+  }catch(error){
+    storageReady=false;
+    let legacy;
+    try{legacy=readLegacyWorkspace(localStorage);}
+    catch{
+      app.innerHTML='<main style="max-width:720px;padding:40px;margin:auto"><h1>Workspace recovery required</h1><p>Existing browser data may be damaged. MySoft did not overwrite or delete it. Export the raw recovery data before troubleshooting.</p><button class="btn btn-primary" id="export-legacy-recovery">Export recovery data</button></main>';
+      document.getElementById('export-legacy-recovery').addEventListener('click',()=>{
+        const data=Object.fromEntries(Object.entries(LEGACY_KEYS).map(([key,id])=>[key,localStorage.getItem(id)]));
+        download(JSON.stringify(data,null,2),'mysoft-legacy-recovery.json','application/json');
+      });
+      return;
+    }
+    files=legacy?.files||starter();
+    trashFiles=legacy?.trash||[];
+    revisions=legacy?.versions||{};
+    restoreRoute();render();updateSaveStatus('failed');
+    toast('Browser database unavailable. Export backup; editing is not durable.');
+  }
+}
+void bootWorkspace();
