@@ -7,3 +7,7 @@ dist/
 *.log
 .vercel/
 coverage/
+
+.artifacts/
+playwright-report/
+test-results/
