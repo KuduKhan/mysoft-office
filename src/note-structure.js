@@ -1,4 +1,5 @@
 // Local notebook/section organization, compatible with older Notes files.
+import {sortedNotes} from './note-pin.js';
 const bad=/[<>]/g;
 export const DEFAULT_NOTEBOOK='Personal';
 export const DEFAULT_SECTION='General';
@@ -27,6 +28,6 @@ export function organizeNotes(files){
   return [...groups.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([name,sections])=>({
     name,
     sections:[...sections.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([title,notes])=>
-      ({title,notes:notes.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))}))
+      ({title,notes:sortedNotes(notes)}))
   }));
 }

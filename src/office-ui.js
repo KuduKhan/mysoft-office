@@ -12,6 +12,9 @@ import {auditSheet,traceCell} from './sheet-audit.js';
 import {alignSlideObject,resizeSlideObject} from './slide-align.js';
 import {applyDocumentBlockAction,blockIndexFromSelection,editableBlocks} from './doc-blocks.js';
 import {reorderSlideObject} from './slide-layers.js';
+import {applySheetRule,removeSheetRules,matchingRule,sheetRulesSummary} from './sheet-rules.js';
+import {findTextPositions,nextMatchIndex} from './doc-find.js';
+import {rotateSlideObject} from './slide-transform.js';
 
 const escapeHTML = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const COLORS=['#212d48','#6555e8','#176db3','#b04472','#e05d4a','#16957d'];
@@ -23,13 +26,14 @@ try{prefs={...defaultPrefs,...JSON.parse(localStorage.getItem(PREFS_KEY)||'{}')}
 let selectedTab={docs:'Home',sheets:'Home',slides:'Design',notes:'Write'};
 let savedRange=null;
 let lastTableLocation=null;
+let docFindState={fileId:'',query:'',index:-1};
 let lastDocumentBlock={fileId:null,index:0};
 let slideshowIndex=0;
 let ribbonCollapsed=localStorage.getItem('mysoft-office-ribbon-collapsed')==='yes';
 const STUDIO_ACTIONS={
   docs:['Home','Insert','Structure','Table','Layout','Review'],
   notes:['Write','Organize'],
-  sheets:['Home','Format','Range','Data','Insert'],
+  sheets:['Home','Format','Range','Data','Rules','Insert'],
   slides:['Design','Shapes','Arrange','Present']
 };
 
@@ -93,6 +97,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         '<span class="ot-metric">'+stats.words+' words · '+stats.characters+' chars · ~'+stats.readMinutes+' min read</span>'+
         '<label class="ot-select-label">Find <input class="ot-text" data-ot-input="find-text" id="ot-find" placeholder="Find text"></label>'+
         '<label class="ot-select-label">Replace <input class="ot-text" data-ot-input="replace-text" id="ot-replace" placeholder="New text"></label>'+
+        button('Find next','find-next')+button('Previous','find-previous')+
         button('Replace all','replace-all')+button('Print / PDF','print');
     } else if(active==='Organize'){
       body='<label class="ot-select-label">Tags <input class="ot-text" data-ot-input="tags" maxlength="180" value="'+escapeHTML((file.tags||[]).join(', '))+'" placeholder="ideas, meetings, work"></label>'+
@@ -117,6 +122,14 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         button('Clear range','range-clear')+button('Copy range','range-copy')+
         button('Fill number series','range-series')+button('Range statistics','range-summary')+
         '<span class="ot-metric">Choose a range such as A1:C10 (up to 2,600 cells).</span>';
+    } else if(active==='Rules'){
+      const count=sheetRulesSummary(file).length;
+      body=button('Highlight greater','rule-greater')+
+        button('Highlight less','rule-less')+
+        button('Highlight equal','rule-equal')+
+        button('Highlight text','rule-contains')+
+        button('Clear rules','rule-clear')+
+        '<span class="ot-metric">'+count+' conditional rules on this worksheet. Maximum 25.</span>';
     } else if(active==='Data'){
       body=button('Find / Replace','sheet-find-replace')+
         button('Fill down 5','sheet-fill-down')+button('Clear cell','sheet-clear-cell')+
@@ -145,6 +158,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         button('Align right','shape-align-right')+button('Top','shape-align-top')+
         button('Middle','shape-align-middle')+button('Bottom','shape-align-bottom')+
         button('Resize…','shape-resize')+
+        button('↶ Rotate','shape-rotate-left')+button('↷ Rotate','shape-rotate-right')+
         button('←','shape-left','Move selected object left')+button('→','shape-right')+
         button('↑','shape-up')+button('↓','shape-down')+
         button('Duplicate','shape-duplicate')+button('Delete','shape-delete')+
@@ -175,6 +189,8 @@ export function sheetCellAppearance(file,ref,value){
   if(['left','center','right'].includes(st.align))rules.push('text-align:'+st.align);
   if(/^#[0-9a-fA-F]{6}$/.test(st.color||''))rules.push('color:'+st.color);
   if(/^#[0-9a-fA-F]{6}$/.test(st.background||''))rules.push('background-color:'+st.background);
+  const matched=file?.type==='sheets'&&file.worksheets?.length?matchingRule(file,ref,value):null;
+  if(matched)rules.push('background-color:'+matched.color);
   let formatted=String(value);
   const num=Number(formatted);
   if(formatted.trim()!=='' && Number.isFinite(num) && !String(value).startsWith('#')){
@@ -461,6 +477,31 @@ export function initializeOfficeTools(ctx){
         ctx.touch(f);ctx.persist();ctx.render();return;
       }
       if(action==='print'){printDoc(f);return;}
+
+      if(action==='find-next'||action==='find-previous'){
+        const editor=document.getElementById('rich-content');
+        const needle=document.getElementById('ot-find')?.value?.trim()||'';
+        if(!editor||!needle){ctx.toast('Enter a word or phrase to find.');return;}
+        if(docFindState.fileId!==f.id||docFindState.query!==needle)
+          docFindState={fileId:f.id,query:needle,index:action==='find-previous'?0:-1};
+        const nodes=[],walker=document.createTreeWalker(editor,NodeFilter.SHOW_TEXT);
+        while(walker.nextNode())nodes.push(walker.currentNode);
+        const matches=[];
+        for(const node of nodes){
+          for(const position of findTextPositions(node.textContent,needle,{limit:120})){
+            matches.push({node,...position});
+            if(matches.length>=500)break;
+          }
+          if(matches.length>=500)break;
+        }
+        if(!matches.length){ctx.toast('No matching text in this document.');return;}
+        docFindState.index=nextMatchIndex(matches,docFindState.index,action==='find-previous'?-1:1);
+        const match=matches[docFindState.index],range=document.createRange();
+        range.setStart(match.node,match.start);range.setEnd(match.node,match.end);
+        const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);
+        match.node.parentElement?.scrollIntoView({block:'nearest',behavior:'auto'});
+        ctx.toast('Match '+(docFindState.index+1)+' of '+matches.length);return;
+      }
       if(action==='replace-all'){
         const find=document.getElementById('ot-find')?.value||'';
         const replacement=document.getElementById('ot-replace')?.value||'';
@@ -518,6 +559,22 @@ export function initializeOfficeTools(ctx){
           '<div class="modal-actions"><button data-ot-action="settings-close" class="btn btn-light">Close</button></div>');
         return;
       }
+      if(action==='rule-clear'){
+        if(!confirm('Remove conditional formatting rules from this worksheet?'))return;
+        const count=removeSheetRules(f);
+        ctx.toast(count+' formatting rules removed');syncSheet(ctx,f);return;
+      }
+      if(['rule-greater','rule-less','rule-equal','rule-contains'].includes(action)){
+        const range=prompt('Apply rule to cells (e.g. A1:C20):',ctx.getSelectedCell());
+        if(range===null)return;
+        parseRange(range);
+        const operand=prompt(action==='rule-contains'?'Text to highlight when contained:':'Number to compare against:','');
+        if(operand===null)return;
+        const color=prompt('Choose highlight: #ffe2c7 orange, #dff6e9 green, #ddecff blue, #fce2e6 rose, #f9edba gold, #efe8ff violet','#ffe2c7');
+        if(color===null)return;
+        applySheetRule(f,range,action.slice(5),operand,color);
+        syncSheet(ctx,f);ctx.toast('Conditional rule added');return;
+      }
       if(action==='sheet-find-replace'){
         const needle=prompt('Find in current worksheet (text only):','');
         if(needle===null)return;
@@ -561,6 +618,12 @@ export function initializeOfficeTools(ctx){
         if(!data.length){ctx.toast('Add labels in column A and numeric values in B, rows 2–30.');return;}
         modal('<h2>'+ (action==='chart-bar'?'Bar':'Line') +' chart preview</h2><p>Uses current worksheet A:B data (up to 20 points). Preview only—editable embedded charts come later.</p>'+svgChart(data,action==='chart-bar'?'bar':'line')+'<div class="modal-actions"><button class="btn btn-light" data-ot-action="settings-close">Close</button></div>');
         return;
+      } else if(['shape-rotate-left','shape-rotate-right'].includes(action)){
+        if(f.type!=='slides')return;
+        const slide=f.slides[ctx.getSlideIndex()],id=ctx.getSlideObjectId();
+        if(!id)throw Error('Select a shape first.');
+        rotateSlideObject(slide,id,action.endsWith('left')?'left':'right');
+        ctx.touch(f);ctx.persist();ctx.render();return;
       } else if(action==='slide-snap-toggle'){
         const slide=f.slides[ctx.getSlideIndex()];
         slide.snapToGrid=!slide.snapToGrid;

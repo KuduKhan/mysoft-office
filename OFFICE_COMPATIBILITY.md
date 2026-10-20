@@ -44,3 +44,10 @@ Browser tests create and re-import native packages, and open compressed files ge
 ## Open work for professional equivalence
 
 Replace the contenteditable editor with a structured editing model, expand workbook data and formulas, add precise shape-based slide layouts, support native images/objects/charts/notes, add deep format-roundtrip regression fixtures, and move storage to a durable secured backend. Do not label MySoft fully compatible with Microsoft Office until those tests and features exist.
+
+## v0.5.6 conversion notice
+
+- **PPTX:** MySoft simple rectangles, ellipses and text boxes export and import their positions and quarter-turn rotations through DrawingML. Complex native PowerPoint rotations, images, animations and unsupported shapes are still lossy.
+- **XLSX:** MySoft worksheet conditional-formatting rules are stored in MySoft local files/JSON backups, **not** in XLSX output. Review original conditional styles after export.
+- **DOCX:** local find navigation, review annotations, advanced pagination and section metadata do not have complete DOCX round-trip fidelity.
+- **Notes:** pinned-note metadata is kept in MySoft local workspace and JSON backup, not in Office document formats.

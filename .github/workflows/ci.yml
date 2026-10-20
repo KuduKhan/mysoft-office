@@ -1,7 +1,7 @@
 name: Verify MySoft Office
 on:
   push:
-    branches: [main, feat/v0.5.5-editor-ux]
+    branches: [main, feat/v0.5.6-editor-productivity]
   pull_request:
 permissions:
   contents: read

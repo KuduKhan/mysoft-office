@@ -42,7 +42,7 @@ function customObjectShape(object,index){
     '<a:p><a:r><a:rPr lang="en-US" sz="'+size+'"><a:solidFill><a:srgbClr val="'+color+'"/></a:solidFill></a:rPr>'+
     '<a:t>'+xmlEscape(line)+'</a:t></a:r></a:p>').join('');
   return '<p:sp><p:nvSpPr><p:cNvPr id="'+(index+4)+'" name="MySoft object '+index+'"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>'+
-    '<p:spPr><a:xfrm><a:off x="'+x+'" y="'+y+'"/><a:ext cx="'+w+'" cy="'+h+'"/></a:xfrm>'+
+    '<p:spPr><a:xfrm rot="'+(Number.isInteger(object.rotation)&&object.rotation%90===0?((object.rotation%360+360)%360)*60000:0)+'"><a:off x="'+x+'" y="'+y+'"/><a:ext cx="'+w+'" cy="'+h+'"/></a:xfrm>'+
     '<a:prstGeom prst="'+kind+'"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="'+fill+'"/></a:solidFill>'+
     '<a:ln><a:noFill/></a:ln></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/>'+(paras||'<a:p/>')+'</p:txBody></p:sp>';
 }
@@ -172,7 +172,8 @@ export async function importPPTX(buffer){
             x,y,w:Math.max(5,Math.min(100-x,pct(ext.getAttribute('cx'),12192000))),
             h:Math.max(5,Math.min(100-y,pct(ext.getAttribute('cy'),6858000))),
             fill:'#'+color.toLowerCase(),color:'#'+textColor.toLowerCase(),
-            text:text.slice(0,600),fontSize:22});
+            text:text.slice(0,600),fontSize:22,
+            rotation:(Math.round(Number(xf.getAttribute('rot')||0)/60000/90)*90%360+360)%360});
         }
         continue;
       }

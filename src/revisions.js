@@ -10,6 +10,7 @@ export function versionContent(file) {
     version.notebook=String(file.notebook||'Personal');
     version.section=String(file.section||'General');
     version.tags=structuredClone(file.tags||[]);
+    version.pinned=Boolean(file.pinned);
   }
   if (file.type==='sheets') {
     version.cells=structuredClone(file.cells||{});
@@ -45,6 +46,7 @@ export function restoreRevision(file,revision) {
     copy.notebook=data.notebook||'Personal';
     copy.section=data.section||'General';
     copy.tags=data.tags||[];
+    copy.pinned=Boolean(data.pinned);
   }
   if(file.type==='sheets'){
     copy.cells=data.cells;
