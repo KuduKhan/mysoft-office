@@ -1,0 +1,46 @@
+/* PDF identity and a fully local, bounded reader workspace. */
+:root{--pdf-color:#c42b36;--pdf-soft:#fff0f1;--pdf-ink:#b8202d}
+html[data-mode="dark"]{--pdf-soft:#472c38;--pdf-ink:#ffadb6}
+:is([data-app="pdf"],[data-nav="pdf"],[data-create="pdf"],.app-icon.pdf,.file-icon.pdf,.studio-file-tab-icon.pdf){--app-color:var(--pdf-color);--app-soft:var(--pdf-soft);--app-ink:var(--pdf-ink)}
+.main[data-app="pdf"]{--studio-accent:var(--pdf-color);--ot-accent:var(--pdf-color);--studio-accent-soft:var(--pdf-soft);--ui-soft:var(--pdf-soft);--ui-accent-ink:var(--pdf-ink)}
+html[data-mode] .app-card .app-icon.pdf,html[data-mode] .file-icon.pdf{background:var(--pdf-soft);color:var(--pdf-ink);border:1px solid color-mix(in srgb,var(--pdf-color) 16%,transparent)}
+.studio-file-tab-icon.pdf{color:var(--pdf-ink)}
+.sidebar .nav-link[data-nav="pdf"] .ui-icon{color:color-mix(in srgb,var(--pdf-color) 38%,white);opacity:1}
+.sidebar .nav-link.active[data-nav="pdf"]{background:color-mix(in srgb,var(--pdf-color) 32%,#202c4b);box-shadow:inset 3px 0 color-mix(in srgb,var(--pdf-color) 40%,white)}
+.main[data-app="pdf"] .studio-status-right :is(.studio-shortcut,.studio-zoom-btn,#studio-zoom-value){display:none}
+.pdf-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:15px;padding:24px;text-align:center;overflow:auto;min-height:0;flex:1}
+.pdf-empty-icon{width:76px;height:76px;display:grid;place-items:center;background:var(--pdf-soft);color:var(--pdf-ink);border-radius:21px}
+.pdf-empty h2{font-size:25px;letter-spacing:-.6px;font-weight:650}
+.pdf-empty p{max-width:34ch;color:var(--studio-muted);font-size:13px}
+.pdf-empty small{color:var(--studio-muted);font-size:11px}
+.pdf-empty{justify-content:safe center}
+.pdf-layout{display:flex;flex-direction:column;flex:1;min-width:0;min-height:0;overflow:hidden}
+.pdf-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:10px 14px;background:var(--studio-surface);border-bottom:1px solid var(--studio-line);flex:none;max-height:150px;overflow:auto}
+.pdf-tool-group{display:flex;gap:5px;align-items:center;min-width:0}
+.pdf-page-label,.pdf-zoom-label{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--studio-muted)}
+.pdf-page-label input{width:54px;text-align:center;padding:7px 4px}
+.pdf-toolbar :is(input,select){background:var(--ui-field);color:var(--studio-text);border:1px solid var(--studio-line);border-radius:8px;font-size:12px;min-height:31px}
+.pdf-toolbar select{padding:6px 8px}
+.pdf-page-total{font-size:11px;color:var(--studio-muted);white-space:nowrap}
+.pdf-status{font-size:11px;line-height:1.5;padding:8px 14px;color:var(--studio-muted);background:var(--ui-canvas);flex:none;overflow-wrap:anywhere}
+.pdf-viewport{flex:1;min-height:0;min-width:0;overflow:auto;background:var(--ui-canvas);padding:16px;overscroll-behavior:contain}
+.pdf-viewport canvas{display:block;margin:0 auto;background:white;box-shadow:0 3px 18px #14243b18;max-width:none;border-radius:2px}
+.pdf-viewport canvas:not([width]){display:none}
+.pdf-text-panel{flex:0 0 auto;max-height:min(32dvh,260px);overflow:auto;background:var(--studio-surface);border-top:1px solid var(--studio-line);color:var(--studio-text);padding:9px 14px;font-size:12px}
+.pdf-text-panel summary{font-weight:600;cursor:pointer;line-height:1.5;color:var(--pdf-ink)}
+.pdf-text-panel pre{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7;font:inherit;margin:12px 0 4px}
+@media(min-width:1300px){.app-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media(max-width:590px){
+  .app-card[data-create="pdf"]{grid-column:1 / -1}
+  .pdf-toolbar{padding:8px 10px;gap:8px;max-height:clamp(80px,23dvh,145px)}
+  .pdf-toolbar .btn{padding:7px 8px;font-size:10px}
+  .pdf-viewport{padding:12px}
+  .pdf-status{font-size:10px;padding:7px 10px}
+  .pdf-empty{gap:12px;padding:20px}
+  .pdf-empty-icon{width:60px;height:60px;border-radius:17px}
+  .pdf-text-panel{padding:8px 10px}
+}
+@media(max-height:620px){
+  .sidebar .sidebar-nav .nav-caption{margin-top:7px;margin-bottom:3px}
+  .shell .sidebar .sidebar-nav .nav-link{min-height:29px;padding-block:4px}
+}

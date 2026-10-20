@@ -1,3 +1,4 @@
+import {capabilityToolbar,initializeCapabilityTools} from './capability-ui.js';
 import {icon,actionIcons} from './icons.js';
 import {
   ensureWorkbook,addSheet,switchSheet,renameSheet,duplicateSheet,deleteSheet,
@@ -21,10 +22,16 @@ import {rotateSlideObject} from './slide-transform.js';
 const escapeHTML = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const COLORS=['#212d48','#6555e8','#176db3','#b04472','#e05d4a','#16957d'];
 const VALID_COLORS=new Set([...COLORS,...ACCENT_COLORS,'#ffffff','#f8f2ad','#eef0f5','#ffe4e6','#e0f2fe','#dcfce7']);
-const PREFS_KEY='mysoft-office-preferences-v3';
-const defaultPrefs={mode:'light',accent:'#ea4c24',density:'comfortable',fontScale:100,zoom:100};
+const PREFS_KEY='mysoft-office-preferences-v4';
+const defaultPrefs={mode:'light',accent:'#4f46e5',density:'comfortable',fontScale:100,zoom:100};
 let prefs=defaultPrefs;
-try{prefs={...defaultPrefs,...JSON.parse(localStorage.getItem(PREFS_KEY)||'{}')};}catch{}
+try{
+  const current=localStorage.getItem(PREFS_KEY);
+  const previous=JSON.parse(current||localStorage.getItem('mysoft-office-preferences-v3')||'{}');
+  if(!current&&previous.accent==='#ea4c24')previous.accent=defaultPrefs.accent;
+  prefs={...defaultPrefs,...previous};
+  localStorage.setItem(PREFS_KEY,JSON.stringify(prefs));
+}catch{}
 let selectedTab={docs:'Home',sheets:'Home',slides:'Design',notes:'Write'};
 let savedRange=null;
 let lastTableLocation=null;
@@ -35,10 +42,10 @@ function safeGet(key){try{return localStorage.getItem(key);}catch{return null;}}
 function safeSet(key,value){try{localStorage.setItem(key,value);}catch{}}
 let ribbonCollapsed=safeGet('mysoft-office-ribbon-collapsed')==='yes';
 const STUDIO_ACTIONS={
-  docs:['Home','Insert','Structure','Table','Layout','Review'],
-  notes:['Write','Organize'],
-  sheets:['Home','Format','Range','Data','Rules','Insert'],
-  slides:['Design','Shapes','Arrange','Present']
+  docs:['Home','Insert','Structure','Table','Layout','Review','Tools'],
+  notes:['Write','Organize','Tools'],
+  sheets:['Home','Format','Range','Data','Rules','Insert','Tools'],
+  slides:['Design','Shapes','Arrange','Present','Tools']
 };
 
 export function applyPreferences(){
@@ -46,7 +53,7 @@ export function applyPreferences(){
   root.dataset.mode=prefs.mode==='dark'?'dark':'light';
   root.dataset.density=prefs.density==='compact'?'compact':'comfortable';
   const shade=STUDIO_ACCENTS.find(c=>c.value===prefs.accent)||STUDIO_ACCENTS[0];
-  root.style.setProperty('--ot-accent',ACCENT_COLORS.includes(prefs.accent)?prefs.accent:defaultPrefs.accent);
+  root.style.setProperty('--ot-accent',shade.value);
   root.style.setProperty('--studio-accent-soft',shade.soft);
   root.style.setProperty('--studio-accent',shade.value);
   root.style.setProperty('--studio-zoom',String(Math.max(75,Math.min(150,Number(prefs.zoom)||100)))+'%');
@@ -70,7 +77,8 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
   const active=selectedTab[file.type]||tabsFor(file.type)[0];
   const tabs=tabsFor(file.type).map(tab=>'<button class="ot-tab '+(tab===active?'active':'')+'" data-ot-tab="'+tab+'">'+tab+'</button>').join('');
   let body='';
-  if(file.type==='docs'||file.type==='notes'){
+  if(active==='Tools')body=capabilityToolbar(file);
+  else if(file.type==='docs'||file.type==='notes'){
     if(active==='Home'||active==='Write'){
       body=choice('Font',FONT_FAMILIES.map(x=>[x,x]),'Arial')+
         choice('Font size',[['2','Small'],['3','Normal'],['4','Large'],['5','Heading'],['6','Display']], '3')+
@@ -354,6 +362,7 @@ function syncSheet(ctx,f){
   ctx.touch(f);ctx.persist();ctx.render();
 }
 export function initializeOfficeTools(ctx){
+  initializeCapabilityTools(ctx);
   applyPreferences();
   document.addEventListener('selectionchange',editorSelection);
   document.addEventListener('selectionchange',()=>{

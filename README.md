@@ -4,7 +4,36 @@
 
 Interface icons use locally bundled [Lucide](https://lucide.dev) SVGs (v0.468.0), with consistent strokes, accessible control labels, and no runtime icon service. The license is retained in `assets/lucide-license.txt`.
 
-MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.6.2 Editor Depth & Reliability Preview** retains native DOCX/XLSX/PPTX support and adds a redesigned, responsive workspace with orangered/color theme options, denser editing ribbons and new functional commands. This remains a local-first prototype, not full Microsoft Office parity. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
+The default Indigo appearance coordinates workspace navigation, editor controls, cards and dialogs with cool slate surfaces in light and dark modes. Customize offers nine accent palettes. Existing appearance settings migrate automatically, with the former default orange updated to Indigo; authored document and slide colors are preserved.
+
+Each app retains its native identity: Docs blue, Sheets green, Slides orange, Notes purple, PDF red and Media teal. App cards, file icons, navigation and recent tabs keep these colors across all workspace themes; opening an editor also applies its native accent to its editing controls and header.
+
+App cards use neutral borders, with native colors reserved for their icons. The MySoft Office mark and favicon use the original tilted four-tile silhouette in Docs blue, Sheets green, Slides orange and Notes purple, without internal symbols.
+
+Navigation uses compact app names and a two-column backup/import area. The header provides the single New file action, and Docs avoids duplicate formatting toolbars. Responsive layouts reserve room for the editor canvas, wrap and scroll tools within their own panels, and provide a collapsible document outline on smaller screens.
+
+Interface finishing includes softer surface depth, consistent system typography, quieter desktop row actions, keyboard-accessible file titles, and labeled dialogs with contained focus and focus restoration.
+
+MySoft Office is an independent, local-first productivity suite with Docs, Sheets, Slides, Notes, PDF and Media. Version **0.6.2 Editor Depth & Reliability Preview** retains native DOCX/XLSX/PPTX support and adds a redesigned, responsive workspace, denser editing ribbons and functional commands. Consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for the capability inventory and compatibility limits.
+
+## Expanded editor tools
+
+See [CAPABILITIES_RESEARCH.md](CAPABILITIES_RESEARCH.md) for the dated research, primary references, supported workflows, bounds and future requirements across all six apps.
+
+- **Docs → Tools:** paragraph spacing/indentation, uppercase/lowercase block conversion, and empty-paragraph cleanup.
+- **Sheets → Tools:** trim text whitespace, extract unique rows, and split text into columns. Extraction/splitting create a new worksheet and preserve the source.
+- **Slides → Tools:** create slides from an outline, reverse slide order, copy the current design across a deck, and export an outline with speaker notes.
+- **Notes → Tools:** local page links and backlinks, project/research templates, and a task dashboard with reversible completion.
+- **PDF:** search throughout the current page sequence, reorder/duplicate/omit source pages, extract ranges to a real PDF, and restore original order. Page edits are included in history and backups.
+- **Media:** center-cropped output presets, sepia/hue finishing, caption typography, drawing layer management, DC correction/balance, loop preview, outer-silence trimming, and six-frame video storyboard PNG export.
+
+## MySoft PDF
+
+- Import PDFs from the PDF app or the workspace Import file action. Files stay on-device in IndexedDB and are included in JSON backups, favorites, duplication, search and recoverable Trash.
+- View one page at a time with page navigation, fit-to-width, zoom and an accessible Page text disclosure. Workspace content search indexes the first page's extractable text.
+- Rotate pages left/right, reset rotations, restore rotation history, and download a valid PDF copy. Original source bytes remain unchanged; rotation history stores metadata rather than repeated copies of the PDF.
+- Limits: 8 MB per PDF, 500 pages. Encrypted PDFs, OCR, PDF text editing, forms, signatures and annotations are not supported. Rotation export can invalidate existing signatures; retain the original signed file. Some uncommon image encodings may not render because WASM decoding is disabled. The normal PDF export returns the original file when both order and rotations are unchanged. Page organization exports copy selected pages and may omit document-level features such as forms or bookmarks.
+- Viewer dependencies are bundled locally: [PDF.js](https://mozilla.github.io/pdf.js/) 6.4.299 and [pdf-lib](https://pdf-lib.js.org/) 1.17.1, with licenses in `vendor/`. Local and deployed policies allow only same-origin workers; PDF evaluation and embedded content are not enabled. JSON backup restore accepts up to 128 MB; existing cloud snapshot limits still apply.
 
 ## Editor Productivity Preview — v0.6.0
 
@@ -179,6 +208,18 @@ This UI enhancement builds on the v0.5.8 IndexedDB/recovery branch. It does not 
 
 **MySoft Notes**
 - Rich text, tags, checklists, formatting and text export.
+
+## MySoft Media
+
+The Media app brings images, drawing, audio and video into the same local workspace. Open a media file or start a blank drawing from its launch screen. Media projects support title search, caption/source-name search, favorites, duplication, recycle bin, revision history and JSON backups. Original source bytes stay separate from the edits; **Original** downloads the untouched source, and **Reset edits** restores the editing defaults. Undo and redo cover the current editing session.
+
+- **Images and drawings:** proportional resizing, percentage crop, rotation, horizontal flip, brightness, contrast, saturation, softness, five finishing looks, captions, background colors and transparency. Draw with a pen, eraser, line, rectangle or ellipse, with optional filled shapes. Export PNG, JPEG or WebP; JPEG uses a white background for transparent areas.
+- **Audio:** waveform and processed playback preview, trimming, volume, speed, fades, normalization, reversal and stereo-to-mono mixing. Export actual edited 16-bit PCM WAV. Speed resamples the audio and also changes pitch.
+- **Video:** preview and seek, trimming, speed, volume/mute, visual adjustments, captions and drawing overlays. Save an image of the current frame or export an edited WebM in real time, including supported source audio. Keep the tab visible during export; Cancel stops recording without downloading a partial file.
+
+Media imports are limited to **16 MB per source**. Images support PNG, JPEG, WebP and GIF (first frame), up to 32 megapixels; edited output is limited to 4096 pixels per side and 12 megapixels. Audio supports browser-decodable mono/stereo clips up to 3 minutes, with output limited to 3 minutes. Video sources can be up to 10 minutes; exported segments are limited to 120 seconds and 1080p. MP4/WebM/MOV playback depends on the browser's installed codecs. Video export requires WebM MediaRecorder support; MP4 encoding, multitrack timelines, animated GIF export and AI generation are not included. A workspace JSON restore accepts up to 128 MB; browser storage capacity still applies.
+
+All processing runs locally using browser canvas, Web Audio and MediaRecorder. Media is not uploaded by these editing tools. The existing optional cloud snapshot configuration is unchanged.
 
 ## Data protection and limitations
 

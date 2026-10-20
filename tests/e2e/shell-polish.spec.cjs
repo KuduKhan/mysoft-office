@@ -92,7 +92,7 @@ test('desktop keyboard navigation moves between sidebar routes without activatin
   await page.keyboard.press('ArrowDown');
   await expect(page.locator('.sidebar-nav [data-nav="files"]')).toBeFocused();
   await page.keyboard.press('End');
-  await expect(page.locator('.sidebar-nav [data-nav="notes"]')).toBeFocused();
+  await expect(page.locator('.sidebar-nav [data-nav="media"]')).toBeFocused();
   await page.keyboard.press('Home');
   await expect(page.locator('.sidebar-nav [data-nav="home"]')).toBeFocused();
   await expect(page.locator('.page-heading')).toHaveCount(0);

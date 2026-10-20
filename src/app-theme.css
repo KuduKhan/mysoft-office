@@ -1,0 +1,154 @@
+/* One palette for the workspace, editors, menus and dialogs.
+   Document pages and authored slide/content colors retain their own styling. */
+:root{
+  color-scheme:light;
+  --studio-accent:#4f46e5;--studio-accent-soft:#eef2ff;--ot-accent:#4f46e5;
+  --studio-bg:#f5f7fc;--studio-shell:#f5f7fc;--studio-surface:#fff;
+  --studio-line:#e1e6f0;--studio-outline:#e1e6f0;
+  --studio-text:#24304a;--studio-title:#1e2943;--studio-muted:#64748b;
+  --ink:var(--studio-text);--muted:var(--studio-muted);--line:var(--studio-line);
+  --blue:var(--studio-accent);--purple:var(--studio-accent);--navy:#17213b;
+  --ui-accent-ink:var(--studio-accent);--ui-soft:var(--studio-accent-soft);
+  --ui-canvas:#edf1f8;--ui-hover:#f2f5fb;--ui-field:#f8faff;
+  --ui-nav-active:color-mix(in srgb,var(--studio-accent) 35%,#202c4b);
+  --ui-on-nav:color-mix(in srgb,var(--studio-accent) 25%,#fff);
+}
+body,.main{background:var(--studio-bg);color:var(--studio-text)}
+.shell>.sidebar{background:linear-gradient(165deg,#17213b,#202d4b 70%,#17213b)}
+.sidebar .side-foot{background:#17213b;border-color:#34415b}
+.brand .brand-symbol{display:block;width:42px;height:42px;flex:0 0 42px;transform:none;filter:drop-shadow(0 3px 5px #0002)}
+.brand .studio-brand-copy strong{font-weight:750;letter-spacing:-.45px}
+.brand .studio-brand-copy small{letter-spacing:.15px;color:#a5b4cd}
+.sidebar .nav-link.active{background:var(--ui-nav-active);box-shadow:inset 3px 0 var(--ui-on-nav)}
+.sidebar .nav-link.active .ui-icon{color:var(--ui-on-nav)}
+.sidebar .nav-link:focus-visible,.studio-nav-collapse:focus-visible,
+.studio-sidebar-dismiss:focus-visible{outline-color:var(--ui-on-nav)}
+.studio-skip-link:focus{outline-color:var(--ui-on-nav)}
+.topbar,.editor-head,.toolbar,.ot-ribbon,.ot-ribbon-top,.ot-ribbon-tools,
+.app-card,.template-card,.panel,.file-card,.modal,.studio-statusbar,
+.note-list,.note-editor,.slide-list,.slide-controls,.sheet-formula,.sheet-scroll{
+  background:var(--studio-surface);color:var(--studio-text);border-color:var(--studio-line);
+}
+.searchbox,.ot-btn,.toolbar select,.studio-customize-nav,.studio-swatch,
+.ot-select-label select,.ot-select-label .ot-text,.ot-select-label textarea{
+  background:var(--ui-field);border-color:var(--studio-line);color:var(--studio-text);
+}
+.searchbox input,.doc-title,.note-title{color:var(--studio-text)}
+.content>h1,.page-heading h1,.section-head h2{color:var(--studio-title)}
+.subtitle,.content>.subtitle,.section-head p,.app-card>span:last-child,
+.template-card p,.ot-metric,.save-mark,.studio-statusbar,.note-meta,
+.studio-settings-tip,.studio-customize-nav p{color:var(--studio-muted)}
+.hero{background:linear-gradient(115deg,color-mix(in srgb,var(--studio-accent) 38%,#15213d),var(--studio-accent) 75%,color-mix(in srgb,var(--studio-accent) 80%,#a5b4fc));border-color:#ffffff20}
+.hero h1,.hero p{color:#fff}
+.hero p{opacity:.87}
+.hero .btn{background:#fff;color:var(--studio-accent)}
+.hero-art .art-page{background:#f8faff}
+.hero-art .art-page.second{background:color-mix(in srgb,var(--studio-accent) 12%,white)}
+.art-line{background:color-mix(in srgb,var(--studio-accent) 38%,white)}
+.btn-primary{background:var(--studio-accent);color:white}
+.btn-light{background:var(--studio-surface);border-color:var(--studio-line);color:var(--studio-text)}
+.btn-soft,.avatar,.studio-zoom-btn,.badge{background:var(--ui-soft);color:var(--ui-accent-ink)}
+.eyebrow,.link-button,.welcome-spark,.ot-tab.active,.ot-sheet-tab.active,
+#studio-zoom-value,.studio-review-section>strong{color:var(--ui-accent-ink)}
+.ot-tab.active,.ot-sheet-tab.active{background:var(--ui-soft);border-bottom-color:var(--studio-accent)}
+.btn-light:hover,.ot-btn:hover,.tool:hover,.icon-btn:hover,.ot-tab:hover,
+.doc-outline-link:hover,.studio-command-item:hover{background:var(--ui-soft);color:var(--ui-accent-ink);border-color:var(--studio-accent)}
+.editor-body,.slide-stage-wrap{background:var(--ui-canvas)}
+.studio-file-tabs,.ot-sheet-tabs{background:var(--ui-canvas);border-color:var(--studio-line)}
+.studio-file-tab{color:var(--studio-muted)}
+.studio-file-tab.active{background:var(--studio-surface);color:var(--ui-accent-ink);border-color:var(--studio-line);border-bottom-color:var(--studio-surface)}
+.studio-file-tab:hover,.data-table tbody tr:hover td{background:var(--ui-hover)}
+.data-table th{background:var(--ui-field);color:var(--studio-muted)}
+.data-table td,.data-table th{border-color:var(--studio-line)}
+.studio-swatch.active{background:var(--ui-soft);border-color:var(--studio-accent)}
+.studio-command-modal,.studio-command-item{background:var(--studio-surface);color:var(--studio-text);border-color:var(--studio-line)}
+#studio-command-search{background:var(--ui-field);color:var(--studio-text)}
+html[data-mode="dark"]{
+  color-scheme:dark;
+  --studio-bg:#11182b;--studio-shell:#11182b;--studio-surface:#1a2540;
+  --studio-line:#303e5b;--studio-outline:#303e5b;--studio-text:#e3eafb;
+  --studio-title:#f0f4ff;--studio-muted:#afbdd5;--ui-canvas:#141d32;
+  --ui-field:#212f4b;--ui-hover:#263553;
+  --ui-accent-ink:color-mix(in srgb,var(--studio-accent) 32%,white);
+  --ui-soft:color-mix(in srgb,var(--studio-accent) 23%,#1a2540);
+}
+/* Override earlier dark-mode component rules with the same shared tokens. */
+html[data-mode] :is(.topbar,.editor-head,.toolbar,.ot-ribbon,.ot-ribbon-top,.ot-ribbon-tools,
+.ot-ribbon-tabs,.app-card,.template-card,.panel,.file-card,.modal,.studio-statusbar,
+.note-list,.note-editor,.slide-list,.slide-controls,.sheet-formula,.sheet-scroll){
+  background:var(--studio-surface);color:var(--studio-text);border-color:var(--studio-line);
+}
+html[data-mode] :is(.main,body){background:var(--studio-bg);color:var(--studio-text)}
+html[data-mode] :is(.editor-body,.slide-stage-wrap,.studio-file-tabs){background:var(--ui-canvas)}
+html[data-mode] :is(.searchbox,.ot-btn,.ot-select-label select,.ot-select-label .ot-text,
+.studio-customize-nav,.studio-swatch,#studio-command-search){background:var(--ui-field);color:var(--studio-text);border-color:var(--studio-line)}
+html[data-mode] .top-actions .btn-light{background:var(--studio-surface);color:var(--studio-text);border-color:var(--studio-line)}
+html[data-mode] .top-actions .avatar{background:var(--ui-soft);color:var(--ui-accent-ink)}
+html[data-mode] .studio-file-tab.active{background:var(--studio-surface);color:var(--ui-accent-ink);border-color:var(--studio-line)}
+html[data-mode] .ot-tab.active,html[data-mode] .ot-btn:hover{background:var(--ui-soft);color:var(--ui-accent-ink);border-color:var(--studio-accent)}
+html[data-mode] .data-table th{background:var(--ui-field);color:var(--studio-muted)}
+html[data-mode] .data-table tbody tr:hover td{background:var(--ui-hover)}
+html[data-mode] .studio-command-modal,html[data-mode] .studio-command-item{background:var(--studio-surface);color:var(--studio-text)}
+html[data-mode] .app-card>span:last-child{color:var(--studio-muted)}
+html[data-mode] :is(.doc-outline,.studio-review-comment,.studio-note-organizer){background:var(--studio-surface);color:var(--studio-text);border-color:var(--studio-line)}
+html[data-mode] :is(.studio-note-organizer input,.studio-note-search){background:var(--ui-field);color:var(--studio-text);border-color:var(--studio-line)}
+html[data-mode] .studio-review-comment :is(p,blockquote){color:var(--studio-text)}
+html[data-mode] .studio-notebook-title{color:var(--studio-text)}
+html[data-mode] .studio-swatch.active{background:var(--ui-soft);border-color:var(--studio-accent)}
+
+/* Native app identities remain stable across workspace accents and modes. */
+:root{
+  --docs-color:#185abd;--docs-soft:#eaf2ff;--docs-ink:#185abd;
+  --sheets-color:#107c41;--sheets-soft:#e7f5ec;--sheets-ink:#107c41;
+  --slides-color:#c43e1c;--slides-soft:#fff0e9;--slides-ink:#c43e1c;
+  --notes-color:#8030a7;--notes-soft:#f5ecfc;--notes-ink:#8030a7;
+}
+html[data-mode="dark"]{
+  --docs-soft:#203b62;--docs-ink:#a5caff;
+  --sheets-soft:#1b4032;--sheets-ink:#8ddbb1;
+  --slides-soft:#4b302b;--slides-ink:#ffb49d;
+  --notes-soft:#3b2c50;--notes-ink:#ddb4f4;
+}
+:is([data-app="docs"],[data-nav="docs"],[data-create="docs"],.app-icon.docs,.file-icon.docs,.studio-file-tab-icon.docs){--app-color:var(--docs-color);--app-soft:var(--docs-soft);--app-ink:var(--docs-ink)}
+:is([data-app="sheets"],[data-nav="sheets"],[data-create="sheets"],.app-icon.sheets,.file-icon.sheets,.studio-file-tab-icon.sheets){--app-color:var(--sheets-color);--app-soft:var(--sheets-soft);--app-ink:var(--sheets-ink)}
+:is([data-app="slides"],[data-nav="slides"],[data-create="slides"],.app-icon.slides,.file-icon.slides,.studio-file-tab-icon.slides){--app-color:var(--slides-color);--app-soft:var(--slides-soft);--app-ink:var(--slides-ink)}
+:is([data-app="notes"],[data-nav="notes"],[data-create="notes"],.app-icon.notes,.file-icon.notes,.studio-file-tab-icon.notes){--app-color:var(--notes-color);--app-soft:var(--notes-soft);--app-ink:var(--notes-ink)}
+.main:is([data-app="docs"],[data-app="sheets"],[data-app="slides"],[data-app="notes"]){
+  --studio-accent:var(--app-color);--ot-accent:var(--app-color);
+  --studio-accent-soft:var(--app-soft);--ui-soft:var(--app-soft);--ui-accent-ink:var(--app-ink);
+}
+html[data-mode] :is(.app-card,.template-card) .app-icon:is(.docs,.sheets,.slides,.notes),
+html[data-mode] .file-icon:is(.docs,.sheets,.slides,.notes){
+  color:var(--app-ink);background:var(--app-soft);
+  border:1px solid color-mix(in srgb,var(--app-color) 16%,transparent);
+}
+.studio-file-tab-icon:is(.docs,.sheets,.slides,.notes){color:var(--app-ink)}
+.sidebar .nav-link:is([data-nav="docs"],[data-nav="sheets"],[data-nav="slides"],[data-nav="notes"]) .ui-icon{color:color-mix(in srgb,var(--app-color) 38%,white);opacity:1}
+.sidebar .nav-link.active:is([data-nav="docs"],[data-nav="sheets"],[data-nav="slides"],[data-nav="notes"]){background:color-mix(in srgb,var(--app-color) 32%,#202c4b);box-shadow:inset 3px 0 color-mix(in srgb,var(--app-color) 40%,white)}
+.app-card[data-create]{border-color:var(--studio-line);box-shadow:0 2px 5px #1c2b3f06}
+.app-card[data-create]:hover{border-color:color-mix(in srgb,var(--studio-line) 70%,#8190a8);box-shadow:0 10px 25px #1c2b3f12}
+.app-card[data-create]:focus-visible{outline-color:var(--studio-accent)}
+html[data-mode] .studio-file-tab.active[data-app]{color:var(--app-ink);box-shadow:inset 0 2px 0 var(--app-color)}
+.studio-file-tab[data-app]:hover{color:var(--app-ink)}
+.main[data-app]:not([data-app="workspace"]) .editor-head{border-top:3px solid var(--app-color)}
+html[data-mode] .main[data-app]:not([data-app="workspace"]) .studio-pin-btn{background:var(--app-soft);color:var(--app-ink);border-color:color-mix(in srgb,var(--app-color) 25%,var(--studio-line))}
+.main[data-app]:not([data-app="workspace"]) .btn-soft{background:var(--app-soft);color:var(--app-ink)}
+html[data-mode] .slide-item.active{background:var(--app-soft);color:var(--app-ink)}
+html[data-mode] .slide-item.active .slide-thumb{border-color:var(--app-color)}
+html[data-mode] .slide-thumb strong{color:#24304a}
+html[data-mode] .slide-thumb small{color:#64748b}
+html[data-mode] .theme-choice{background:var(--studio-surface);color:var(--studio-text);border-color:var(--studio-line)}
+html[data-mode] .theme-choice.active{outline-color:var(--app-ink);background:var(--app-soft)}
+html[data-mode] .note-title{background:transparent;color:var(--studio-text)}
+html[data-mode] .note-list-item strong{color:var(--studio-text)}
+html[data-mode] .note-list-item span{color:var(--studio-muted)}
+html[data-mode] .note-list-item.active{background:var(--app-soft);box-shadow:inset 3px 0 var(--app-color)}
+html[data-mode] .note-list-item.active strong,
+html[data-mode] .studio-notebook-section{color:var(--app-ink)}
+.note-list-item:hover{background:var(--ui-hover)}
+html[data-mode] .tool{color:var(--studio-muted)}
+html[data-mode] .tool:hover{color:var(--app-ink);background:var(--app-soft)}
+html[data-mode] .ot-tab:not(.active){color:var(--studio-muted)}
+html[data-mode] .sheet-formula input{background:var(--ui-field);color:var(--studio-text);border-color:var(--studio-line)}
+html[data-mode] .doc-outline>strong{color:var(--studio-muted)}
+html[data-mode] .doc-outline-link{color:var(--studio-text)}

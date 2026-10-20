@@ -1,4 +1,10 @@
 import {icon} from './icons.js';
+import {initializeDialogFocus} from './dialog-focus.js';
+import {createMediaStudio} from './media-studio.js';
+import {createMediaFields,validateMediaRecord,MEDIA_MIMES} from './media-model.js';
+import {inspectMedia} from './media-io.js';
+import {createPDFStudio} from './pdf-studio.js';
+import {inspectPDF,exportPDF,validatePDFRecord,PDF_MAX_BYTES} from './pdf-model.js';
 import {studioShortcut} from './studio-shortcuts.js';
 import {recentWorkspaceFiles,editorMetric} from './studio-workspace.js';
 import {searchWorkspaceFiles,workspaceMatchSource} from './workspace-search.js';
@@ -25,9 +31,9 @@ import {SheetRecalculator} from './sheet-recalc.js';
 import {snapSlideCoordinate} from './slide-layers.js';
 import { parseAddress, moveAddress, pasteGrid, populatedBounds, ROW_HEIGHT, HEADER_HEIGHT } from './sheet-window.js';
 
-const typeNames={docs:'Document',sheets:'Spreadsheet',slides:'Presentation',notes:'Note'};
-const typeIcons={docs:'file-text',sheets:'table',slides:'presentation',notes:'notebook'};
-const labels={docs:'MySoft Docs',sheets:'MySoft Sheets',slides:'MySoft Slides',notes:'MySoft Notes'};
+const typeNames={docs:'Document',sheets:'Spreadsheet',slides:'Presentation',notes:'Note',pdf:'PDF',media:'Media project'};
+const typeIcons={docs:'file-text',sheets:'table',slides:'presentation',notes:'notebook',pdf:'file-text',media:'image'};
+const labels={docs:'MySoft Docs',sheets:'MySoft Sheets',slides:'MySoft Slides',notes:'MySoft Notes',pdf:'MySoft PDF',media:'MySoft Media'};
 const themes={
   violet:{label:'Violet',color:'#7161e8',dark:false},
   ocean:{label:'Ocean',color:'#2895d9',dark:false},
@@ -67,7 +73,7 @@ function sanitize(html){
       wrapper.setAttribute('data-mysoft-page-break','true');
     if(node.tagName==='A'){
       const url=node.getAttribute('href')||'';
-      if(/^https?:\/\//i.test(url)){
+      if(/^https?:\/\//i.test(url)||/^#\/file\/[a-zA-Z0-9_-]{1,200}$/.test(url)){
         wrapper.setAttribute('href',url);
         wrapper.setAttribute('rel','noopener noreferrer');
       }
@@ -88,6 +94,10 @@ function sanitize(html){
         if(Number.isInteger(n)&&n>=1&&n<=7)wrapper.style.fontSize=({1:10,2:13,3:16,4:18,5:24,6:32,7:48})[n]+'px';
       }
     }
+    if(['P','DIV','H1','H2','H3','BLOCKQUOTE','LI','TD','TH'].includes(node.tagName)){
+      for(const prop of ['marginTop','marginBottom','textIndent']){const v=node.style?.[prop]||'';if(/^(?:\d|[1-8]\d|9[0-6])(?:\.\d+)?px$/.test(v))wrapper.style[prop]=v;}
+      if(['1','1.2','1.5','1.6','2','2.5','3'].includes(node.style?.lineHeight))wrapper.style.lineHeight=node.style.lineHeight;
+    }
     if(['TD','TH'].includes(node.tagName)){
       for(const attr of ['colspan','rowspan']){
         const n=Number(node.getAttribute(attr)||1);
@@ -103,7 +113,7 @@ function sanitize(html){
 }
 function uuid(){return globalThis.crypto?.randomUUID?.()||'f'+Date.now()+Math.random().toString(36).slice(2);}
 function makeFile(type,title){
-  const defaults={docs:{body:''},sheets:{cells:{}},slides:{slides:[{title:'Untitled presentation',body:'Add your ideas here',theme:'violet'}]},notes:{body:''}};
+  const defaults={docs:{body:''},sheets:{cells:{}},slides:{slides:[{title:'Untitled presentation',body:'Add your ideas here',theme:'violet'}]},notes:{body:''},pdf:{pdfData:'',pdfPageCount:0,pdfRotations:{},pdfText:''},media:createMediaFields()};
   return {id:uuid(),type,title:title||'Untitled '+typeNames[type],starred:false,createdAt:Date.now(),updatedAt:Date.now(),...structuredClone(defaults[type])};
 }
 function starter(){
@@ -146,6 +156,7 @@ try{navCollapsed=JSON.parse(localStorage.getItem(STUDIO_SHELL_KEY)||'{}').collap
 let savedTimer=0,toastTimer=0;
 const app=document.getElementById('app');
 const modalRoot=document.getElementById('modal-root');
+initializeDialogFocus(modalRoot,app,()=>closeModal());
 async function persist(workspace=workspaceSnapshot(),options={}){
   clearTimeout(savedTimer);
   const revision=++saveRevision;
@@ -198,29 +209,32 @@ function download(content,name,type){
   setTimeout(()=>URL.revokeObjectURL(href),1500);
 }
 function slug(name){return String(name).replace(/[^a-z0-9 -]/gi,'').trim().replace(/\s+/g,'-').slice(0,70)||'mysoft-file';}
+const mediaStudio=createMediaStudio({importMedia:kind=>{mediaInput.accept=kind==='all'?mediaAccept:MEDIA_MIMES[kind].join(',');mediaInput.click();},newDrawing:()=>{const active=getActive(),reuse=active?.type==='media'&&active.mediaKind==='empty';const f=reuse?active:makeFile('media','Untitled drawing');f.title='Untitled drawing';f.mediaKind='drawing';f.mediaEdits.background='#ffffff';if(!reuse)files.unshift(f);snapshot(f,true);void persist();openFile(f.id);},changed:f=>{touch(f);void persist();updateEditorMetrics();},toast,download});
+const pdfStudio=createPDFStudio({download,toast,importPDF:()=>pdfInput.click(),changed:file=>{touch(file);void persist();updateEditorMetrics();}});
 function sidebar(){
-  const nav=(id,title,ic,extra='')=>'<button type="button" class="nav-link '+(view===id?'active':'')+'" data-nav="'+id+'" title="'+esc(title)+'" aria-label="'+esc(title)+'"'+(view===id?' aria-current="page"':'')+'>'+icon(ic,18)+'<span class="nav-label">'+esc(title)+'</span>'+extra+'</button>';
-  const action=(id,title,ic)=>'<button type="button" class="nav-link" data-action="'+id+'" title="'+esc(title)+'" aria-label="'+esc(title)+'">'+icon(ic,17)+'<span class="nav-label">'+esc(title)+'</span></button>';
+  const currentNav=view==='editor'?getActive()?.type:view;
+  const nav=(id,title,ic,extra='',text=title)=>'<button type="button" class="nav-link '+(currentNav===id?'active':'')+'" data-nav="'+id+'" title="'+esc(title)+'" aria-label="'+esc(title)+'"'+(currentNav===id?' aria-current="page"':'')+'>'+icon(ic,18)+'<span class="nav-label">'+esc(text)+'</span>'+extra+'</button>';
+  const action=(id,title,ic,text=title)=>'<button type="button" class="nav-link" data-action="'+id+'" title="'+esc(title)+'" aria-label="'+esc(title)+'">'+icon(ic,17)+'<span class="nav-label">'+esc(text)+'</span></button>';
   return '<aside class="sidebar '+(mobileOpen?'open':'')+'" id="studio-sidebar" aria-label="Workspace navigation">'+
-    '<div class="studio-sidebar-top"><div class="brand"><span class="brand-symbol" aria-hidden="true"><b></b><b></b><b></b><b></b></span><div class="studio-brand-copy"><strong>MySoft Office</strong><small>Your work. Your space.</small></div><button type="button" class="studio-sidebar-dismiss" data-action="mobile-dismiss" aria-label="Close navigation" title="Close navigation">'+icon('x',17)+'</button></div>'+
-    '<div class="studio-sidebar-control"><button type="button" class="studio-nav-collapse" data-action="nav-collapse" title="'+(navCollapsed?'Expand':'Collapse')+' sidebar" aria-label="'+(navCollapsed?'Expand':'Collapse')+' sidebar" aria-pressed="'+navCollapsed+'">'+icon('menu',17)+'<span>'+(navCollapsed?'Expand sidebar':'Collapse sidebar')+'</span></button></div></div>'+
+    '<div class="studio-sidebar-top"><div class="brand"><img class="brand-symbol" src="assets/mysoft-mark.svg" width="42" height="42" alt="" aria-hidden="true"><div class="studio-brand-copy"><strong>MySoft Office</strong></div><button type="button" class="studio-nav-collapse" data-action="nav-collapse" title="'+(navCollapsed?'Expand':'Collapse')+' sidebar" aria-label="'+(navCollapsed?'Expand':'Collapse')+' sidebar" aria-pressed="'+navCollapsed+'">'+icon('menu',16)+'</button><button type="button" class="studio-sidebar-dismiss" data-action="mobile-dismiss" aria-label="Close navigation" title="Close navigation">'+icon('x',17)+'</button></div></div>'+
     '<nav class="sidebar-nav" aria-label="Primary navigation"><div class="nav-caption">Workspace</div>'+nav('home','Overview','home')+nav('files','My files','folder','<span class="count">'+files.length+'</span>')+nav('starred','Starred','star')+nav('templates','Templates','grid')+nav('trash','Recycle bin','trash','<span class="count">'+trashFiles.length+'</span>')+
-    '<div class="nav-caption">Applications</div>'+['docs','sheets','slides','notes'].map(t=>nav(t,labels[t],typeIcons[t])).join('')+'</nav>'+
-    '<footer class="side-foot"><div class="storage-label"><span>Local workspace</span><strong>'+files.length+' files</strong></div><div class="storage-help">Files stay on this device. Export backups regularly.</div>'+
-    action('cloud','Cloud snapshots','cloud')+action('import-file','Import file','import')+action('backup','Export backup','download')+action('import','Import backup','upload')+'</footer></aside>';
+    '<div class="nav-caption">Applications</div>'+Object.keys(labels).map(t=>nav(t,labels[t],typeIcons[t],'',labels[t].replace('MySoft ',''))).join('')+'</nav>'+
+    '<footer class="side-foot"><div class="storage-help">Files stay on this device.</div><div class="sidebar-utilities">'+
+    action('cloud','Cloud snapshots','cloud','Cloud')+action('import-file','Import file','import')+action('backup','Export backup','download','Backup')+action('import','Import backup','upload','Restore')+'</div></footer></aside>';
 }
 function header(){
   const current=view==='editor'?labels[getActive()?.type]||'Editor':({home:'Overview',files:'My files',starred:'Starred',templates:'Templates',trash:'Recycle bin'})[view]||labels[view]||'Workspace';
   return '<header class="topbar"><div class="topbar-left"><button class="icon-btn mobile-menu" data-action="mobile" aria-label="Open navigation" aria-expanded="'+mobileOpen+'" aria-controls="studio-sidebar">'+icon('menu')+'</button><div class="studio-breadcrumb"><button data-nav="home">Workspace</button><span aria-hidden="true">/</span><strong>'+esc(current)+'</strong></div><div class="searchbox">'+icon('search',17)+'<input id="global-search" aria-label="Search filenames and content" placeholder="Search files and content  /" value="'+esc(query)+'"></div></div><div class="top-actions"><button class="btn btn-light studio-command-trigger" data-action="commands" title="Search commands (Ctrl+K)" aria-label="Search commands">'+icon('command',16)+'<span>Commands</span></button><button class="btn btn-light studio-customize" data-ot-action="preferences" title="Customize workspace" aria-label="Customize workspace">'+icon('settings',16)+'<span>Customize</span></button><button class="btn btn-primary" data-action="new">'+icon('plus',16)+'<span>New file</span></button><div class="avatar" title="Local workspace">MS</div></div></header>';
 }
 function appTiles(){
-  const descriptions={docs:'Write and format',sheets:'Calculate and analyze',slides:'Present your ideas',notes:'Capture your thoughts'};
-  return '<div class="app-grid">'+Object.keys(labels).map(t=>'<button class="app-card" data-create="'+t+'"><span class="app-icon '+t+'">'+icon(typeIcons[t],23)+'</span><strong>'+labels[t]+'</strong><span>'+descriptions[t]+'</span></button>').join('')+'</div>';
+  const descriptions={docs:'Shape your words.',sheets:'Make sense of numbers.',slides:'Bring your story to life.',notes:'Keep every idea close.',pdf:'Read, arrange and extract.',media:'Edit, draw and create.'};
+  return '<div class="app-grid">'+Object.keys(labels).map(t=>'<button class="app-card" data-create="'+t+'" aria-label="Open '+labels[t]+'"><span class="home-app-card-top"><span class="app-icon '+t+'">'+icon(typeIcons[t],22)+'</span><span class="home-app-arrow">'+icon('arrow-right',15)+'</span></span><strong>'+labels[t]+'</strong><span>'+descriptions[t]+'</span></button>').join('')+'</div>';
 }
+function homeDate(value){const date=new Date(value);return Number.isFinite(date.getTime())?new Intl.DateTimeFormat('en',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}).format(date):'Recently edited';}
 function sectionHead(title,desc,action,actionLabel){
   return '<div class="section-head"><div><h2>'+esc(title)+'</h2><p>'+esc(desc)+'</p></div>'+(action?'<button class="link-button" data-nav="'+action+'">'+esc(actionLabel)+' '+icon('chevron',15)+'</button>':'')+'</div>';
 }
-function renderRows(list){
+function renderRows(list,{recent=false}={}){
   if(view==='trash'){
     if(!list.length)return '<div class="empty-state">'+icon('trash',36)+'<h3>Recycle bin is empty</h3><p>Deleted files remain here until permanently removed.</p></div>';
     return '<div class="panel"><table class="data-table"><thead><tr><th>Deleted file</th><th>Type</th><th>Deleted</th><th>Recovery</th></tr></thead><tbody>'+
@@ -228,7 +242,7 @@ function renderRows(list){
   }
   if(!list.length) return '<div class="empty-state">'+icon('folder',36)+'<h3>No matching files yet</h3><p>Create a new file to get started.</p><button class="btn btn-primary" data-action="new">'+icon('plus',15)+' Create file</button></div>';
   return '<div class="panel"><table class="data-table"><thead><tr><th>Name</th><th>Type</th><th>Modified</th><th>Actions</th></tr></thead><tbody>'+
-    list.map(f=>'<tr data-open="'+esc(f.id)+'" style="cursor:pointer"><td><div class="row"><span class="file-icon '+f.type+'">'+icon(typeIcons[f.type],17)+'</span><div><div class="file-name">'+esc(f.title)+'</div><div class="file-type">'+labels[f.type]+'</div>'+(query.trim()&&workspaceMatchSource(f,query)!=='name'?'<div class="workspace-search-origin">Found in '+esc(workspaceMatchSource(f,query))+'</div>':'')+'</div></div></td><td><span class="badge">'+typeNames[f.type]+'</span></td><td class="muted">'+dateText(f.updatedAt)+'</td><td><div class="row"><button class="icon-btn '+(f.starred?'starred':'')+'" data-star="'+esc(f.id)+'" title="Toggle favorite" aria-label="Toggle favorite">'+icon('star',16)+'</button><button class="icon-btn" data-duplicate="'+esc(f.id)+'" title="Duplicate" aria-label="Duplicate">'+icon('copy',16)+'</button><button class="icon-btn" data-delete="'+esc(f.id)+'" title="Delete" aria-label="Delete">'+icon('trash',16)+'</button></div></td></tr>').join('')+'</tbody></table></div>';
+    list.map(f=>'<tr data-open="'+esc(f.id)+'" style="cursor:pointer"><td><div class="row"><span class="file-icon '+f.type+'">'+icon(typeIcons[f.type],17)+'</span><div><button type="button" class="file-name file-open" data-open="'+esc(f.id)+'" title="'+esc(f.title)+'">'+esc(f.title)+'</button><div class="file-type">'+labels[f.type]+(recent?'<span class="home-modified-mobile">'+esc(homeDate(f.updatedAt))+'</span>':'')+'</div>'+(query.trim()&&workspaceMatchSource(f,query)!=='name'?'<div class="workspace-search-origin">Found in '+esc(workspaceMatchSource(f,query))+'</div>':'')+'</div></div></td><td><span class="badge">'+typeNames[f.type]+'</span></td><td class="muted">'+(recent?esc(homeDate(f.updatedAt)):dateText(f.updatedAt))+'</td><td><div class="row"><button class="icon-btn '+(f.starred?'starred':'')+'" data-star="'+esc(f.id)+'" title="Toggle favorite" aria-label="Toggle favorite" aria-pressed="'+Boolean(f.starred)+'">'+icon('star',16)+'</button><button class="icon-btn" data-duplicate="'+esc(f.id)+'" title="Duplicate" aria-label="Duplicate">'+icon('copy',16)+'</button><button class="icon-btn" data-delete="'+esc(f.id)+'" title="Delete" aria-label="Delete">'+icon('trash',16)+'</button></div></td></tr>').join('')+'</tbody></table></div>';
 }
 function filtered(list){return searchWorkspaceFiles(list,query);}
 function updateEditorMetrics(){
@@ -236,11 +250,11 @@ function updateEditorMetrics(){
   if(node&&f)node.textContent=editorMetric(f,['docs','notes'].includes(f.type)?plain(f.body):'');
 }
 function home(){
-  const sorted=filtered(files);
-  return '<div class="content"><div class="eyebrow">YOUR PERSONAL WORKSPACE</div><h1 style="margin-top:8px">Welcome to MySoft Office <span class="welcome-spark">'+icon('sparkles',25)+'</span></h1><p class="subtitle">Everything you need to create, organize and get things done.</p>'+
-    '<div class="hero"><div><div class="eyebrow" style="color:#d7d0ff">THE WORKSPACE THAT WORKS FOR YOU</div><h1>Your ideas deserve a better space.</h1><p>Bring your documents, numbers, stories and thoughts together — in one beautiful place.</p><button class="btn" data-action="new">'+icon('plus',16)+' Create something</button></div><div class="hero-art"><div class="art-page"><div class="art-dot"></div><div class="art-line"></div><div class="art-line short"></div><div class="art-line"></div></div><div class="art-page second"><div class="art-dot"></div><div class="art-line"></div><div class="art-line"></div><div class="art-line short"></div></div></div></div>'+
-    sectionHead('Create with MySoft','Choose an app and start making something great.')+appTiles()+
-    sectionHead('Recent files','Pick up where you left off.','files','View all files')+renderRows(sorted.slice(0,7))+'</div>';
+  const sorted=filtered(files),recent=sorted.slice(0,7);
+  const empty='<div class="home-empty">'+icon('folder',28)+'<h3>A fresh space for your next idea.</h3><p>Choose an app above, or bring an existing file into your workspace.</p><button class="btn btn-light" data-action="import-file">'+icon('upload',15)+' Import a file</button></div>';
+  return '<div class="content home-content"><section class="home-intro" aria-labelledby="home-title"><div class="home-intro-copy"><div class="eyebrow">YOUR PERSONAL WORKSPACE</div><h1 id="home-title">Welcome to MySoft Office.</h1><p>Create something new, or pick up where you left off. Your work has a place here.</p><div class="home-intro-footer"><button class="btn btn-primary" data-nav="templates">'+icon('grid',16)+' Explore templates</button><span class="home-local-note">'+icon(storageReady&&saveState!=='failed'?'check':'info',14)+(storageReady&&saveState!=='failed'?'Stored on this device':'Local saving unavailable')+'</span></div></div><div class="home-intro-art" aria-hidden="true"><div class="home-art-halo"></div><div class="home-art-sheet home-art-back"></div><div class="home-art-sheet home-art-middle"></div><div class="home-art-sheet home-art-front"><img src="assets/mysoft-mark.svg" width="74" height="74" alt=""><span></span><span></span><span></span></div></div></section>'+
+    '<section class="home-apps" aria-labelledby="home-apps-title"><div class="section-head"><div><h2 id="home-apps-title">Create with MySoft</h2><p>The right tool for your next idea.</p></div><span class="home-section-label">6 apps, one workspace</span></div>'+appTiles()+'</section>'+
+    '<section class="home-recents" aria-label="Recent files">'+sectionHead('Recent files','Your latest work, ready to continue.','files','View all files')+(recent.length?renderRows(recent,{recent:true}):empty)+'</section></div>';
 }
 function filesPage(){
   let list=view==='trash'?trashFiles:files;
@@ -249,8 +263,8 @@ function filesPage(){
   if(fileFilter!=='all') list=list.filter(f=>f.type===fileFilter);
   list=filtered(list);
   const title=view==='trash'?'Recycle bin':view==='starred'?'Starred files':typeNames[view]?labels[view]:'All files';
-  return '<div class="content"><div class="spread page-heading"><div><div class="eyebrow">WORKSPACE / LIBRARY</div><h1 style="margin-top:8px">'+esc(title)+'</h1><p class="subtitle">'+(query.trim()?list.length+' results for “'+esc(query.trim().slice(0,128))+'”':list.length+' files · Saved in this browser')+'</p></div><button class="btn btn-primary" data-action="new">'+icon('plus',16)+' New file</button></div>'+
-    '<div class="spread" style="margin-bottom:18px"><div class="row"><span class="muted" style="font-size:12px">Filter by type</span><select id="file-filter" style="padding:9px;border-radius:9px;border:1px solid var(--line)"><option value="all">All types</option>'+Object.keys(labels).map(t=>'<option value="'+t+'" '+(fileFilter===t?'selected':'')+'>'+labels[t]+'</option>').join('')+'</select></div><span class="muted" style="font-size:11px">Most recently edited first</span></div>'+
+  return '<div class="content"><div class="spread page-heading"><div><h1>'+esc(title)+'</h1><p class="subtitle">'+(query.trim()?list.length+' results for “'+esc(query.trim().slice(0,128))+'”':list.length+' files · Saved in this browser')+'</p></div></div>'+
+    '<div class="spread file-filters"><label class="row"><span class="muted">File type</span><select id="file-filter" aria-label="Filter by file type"><option value="all">All types</option>'+Object.keys(labels).map(t=>'<option value="'+t+'" '+(fileFilter===t?'selected':'')+'>'+labels[t]+'</option>').join('')+'</select></label><span class="muted">Recently edited first</span></div>'+
     renderRows(list)+'</div>';
 }
 function templatesPage(){
@@ -263,15 +277,12 @@ function templatesPage(){
   return '<div class="content"><div class="eyebrow">START WITH A HEAD START</div><h1 style="margin:8px 0">Templates</h1><p class="subtitle">Useful starting points for your next project.</p><div class="templates-grid" style="margin-top:27px">'+templates.map((t,i)=>'<button class="template-card" data-template="'+i+'"><span class="app-icon '+t.type+'">'+icon(typeIcons[t.type],22)+'</span><h3>'+t.title+'</h3><p>'+t.description+'</p></button>').join('')+'</div></div>';
 }
 function editorHead(f){
-  return '<div class="editor-head"><button class="icon-btn" data-action="close-editor" title="Back to files">'+icon('back',19)+'</button><span class="file-icon '+f.type+'">'+icon(typeIcons[f.type],18)+'</span><input class="doc-title" id="document-title" aria-label="File title" value="'+esc(f.title)+'" maxlength="120"><div class="save-mark" id="save-status" role="status">'+esc(saveLabel())+'</div>'+(f.type==='notes'?'':'<button class="btn btn-soft btn-sm" data-action="office-export">'+icon('download',15)+' '+({docs:'DOCX',sheets:'XLSX',slides:'PPTX'}[f.type])+'</button>')+'<button class="btn btn-light btn-sm" data-action="revisions">'+icon('clock',15)+' History</button><button class="btn btn-light btn-sm" data-action="export">'+icon('download',15)+' Export</button><button type="button" class="btn btn-light btn-sm studio-focus-toggle" data-action="focus-mode" aria-pressed="'+focusMode+'" title="'+(focusMode?'Exit':'Enter')+' focus mode">'+icon('focus',14)+'<span class="studio-focus-label">'+(focusMode?'Exit focus':'Focus')+'</span></button></div>';
+  return '<div class="editor-head"><button class="icon-btn" data-action="close-editor" title="Back to files">'+icon('back',19)+'</button><span class="file-icon '+f.type+'">'+icon(typeIcons[f.type],18)+'</span><input class="doc-title" id="document-title" aria-label="File title" value="'+esc(f.title)+'" maxlength="120"><div class="save-mark" id="save-status" role="status">'+esc(saveLabel())+'</div>'+(['notes','pdf','media'].includes(f.type)?'':'<button class="btn btn-soft btn-sm" data-action="office-export">'+icon('download',15)+' '+({docs:'DOCX',sheets:'XLSX',slides:'PPTX'}[f.type])+'</button>')+'<button class="btn btn-light btn-sm" data-action="revisions">'+icon('clock',15)+' History</button><button class="btn btn-light btn-sm" data-action="export">'+icon('download',15)+' Export</button><button type="button" class="btn btn-light btn-sm studio-focus-toggle" data-action="focus-mode" aria-pressed="'+focusMode+'" title="'+(focusMode?'Exit':'Enter')+' focus mode">'+icon('focus',14)+'<span class="studio-focus-label">'+(focusMode?'Exit focus':'Focus')+'</span></button></div>';
 }
 function docToolbar(){
   return '<div class="toolbar">'+
     '<select id="doc-block" aria-label="Paragraph style"><option value="P">Normal text</option><option value="H1">Heading 1</option><option value="H2">Heading 2</option><option value="H3">Heading 3</option><option value="BLOCKQUOTE">Quote</option></select><span class="toolbar-divider"></span>'+
-    ['bold','italic','underline'].map(cmd=>'<button class="tool" data-cmd="'+cmd+'" title="'+cmd+'" aria-label="'+cmd+'">'+icon(cmd,16)+'</button>').join('')+
-    '<span class="toolbar-divider"></span><button class="tool" data-cmd="insertUnorderedList" title="Bulleted list">'+icon('list',16)+'</button><button class="tool" data-cmd="insertOrderedList" title="Numbered list">'+icon('list-ordered',16)+'</button>'+
-    '<span class="toolbar-divider"></span><button class="tool" data-cmd="justifyLeft" title="Align left">'+icon('align-left',16)+'</button><button class="tool" data-cmd="justifyCenter" title="Align center">'+icon('align-center',16)+'</button><button class="tool" data-cmd="justifyRight" title="Align right">'+icon('align-right',16)+'</button>'+
-    '<span class="toolbar-divider"></span><button class="tool" data-cmd="undo" title="Undo">'+icon('undo-2',16)+'</button><button class="tool" data-cmd="redo" title="Redo">'+icon('redo-2',16)+'</button><span class="sheet-hint">Select text to format</span></div>';
+    '<button class="tool" data-cmd="undo" title="Undo">'+icon('undo-2',16)+'</button><button class="tool" data-cmd="redo" title="Redo">'+icon('redo-2',16)+'</button><span class="sheet-hint">Select text to format</span></div>';
 }
 function outlineItems(f){
   const headings=headingsFromHTML(sanitize(f.body));
@@ -293,7 +304,7 @@ function docsEditor(f){
   const paperLabels='<div class="doc-page-metadata" aria-label="Document page setup">'+p.paper+' · '+p.orientation+' · '+Math.round(p.margin)+'mm margins</div>';
   const header='<div class="doc-paper-header" aria-label="Document header">'+esc(prefs.header)+'</div>';
   const footer='<div class="doc-paper-footer" aria-label="Document footer">'+esc(prefs.footer)+'</div>';
-  return docToolbar()+'<div class="editor-body"><div class="doc-edit-layout"><aside class="doc-outline"><strong>Document outline</strong><div id="doc-outline-list">'+outlineItems(f)+'</div>'+reviewPanel(f)+'</aside><div class="doc-canvas"><div class="doc-page-frame">'+paperLabels+header+'<article id="rich-content" class="document-paper" style="'+style+'" contenteditable="true" spellcheck="true" role="textbox" aria-label="Document content" data-placeholder="Start writing your document...">'+sanitize(f.body)+'</article>'+footer+'</div></div></div></div>';
+  return docToolbar()+'<div class="editor-body"><div class="doc-edit-layout"><aside class="doc-outline"><details class="doc-outline-disclosure"'+(isMobileLayout()?'':' open')+'><summary>Document outline</summary><div id="doc-outline-list">'+outlineItems(f)+'</div>'+reviewPanel(f)+'</details></aside><div class="doc-canvas"><div class="doc-page-frame">'+paperLabels+header+'<article id="rich-content" data-file-id="'+esc(f.id)+'" class="document-paper" style="'+style+'" contenteditable="true" spellcheck="true" role="textbox" aria-label="Document content" data-placeholder="Start writing your document...">'+sanitize(f.body)+'</article>'+footer+'</div></div></div></div>';
 }
 function sheetsEditor(f){
   ensureWorkbook(f);
@@ -328,7 +339,7 @@ function notesEditor(f){
     '<button class="btn btn-soft btn-sm" data-note-move="true">Move note</button></div>'+
     '<input class="note-title" id="note-title" aria-label="Note title" value="'+esc(f.title)+'" maxlength="120">'+
     '<div class="note-meta">Private to this browser · Autosaved · Tags: '+esc((f.tags||[]).join(', ')||'none')+'</div>'+
-    '<div id="rich-content" class="note-content" contenteditable="true" spellcheck="true" role="textbox" aria-label="Note content" data-placeholder="Capture your thoughts...">'+sanitize(f.body)+'</div></div></div>';
+    '<div id="rich-content" data-file-id="'+esc(f.id)+'" class="note-content" contenteditable="true" spellcheck="true" role="textbox" aria-label="Note content" data-placeholder="Capture your thoughts...">'+sanitize(f.body)+'</div></div></div>';
 }
 function editor(){
   const f=getActive();
@@ -337,13 +348,17 @@ function editor(){
   const zoom=Math.round(parseFloat(document.documentElement.style.getPropertyValue('--studio-zoom'))||100);
   const status='<div class="studio-statusbar" role="status"><div class="studio-status-left"><span class="studio-status-dot"></span><span>MySoft '+typeNames[f.type]+'</span><span class="studio-status-divider">·</span><span id="studio-storage-status">'+esc(saveLabel())+'</span></div>'+
     '<div class="studio-status-right"><span id="studio-editor-metric">'+esc(editorMetric(f,['docs','notes'].includes(f.type)?plain(f.body):''))+'</span><span class="studio-shortcut">Ctrl+S · Save</span><button data-ot-action="zoom-out" class="studio-zoom-btn" aria-label="Zoom out">'+icon('minus',13)+'</button><span id="studio-zoom-value">'+zoom+'%</span><button data-ot-action="zoom-in" class="studio-zoom-btn" aria-label="Zoom in">'+icon('plus',13)+'</button></div></div>';
-  const tabs=recentWorkspaceFiles(files,f.id,recentFileIds).map(file=>'<button type="button" class="studio-file-tab '+(file.id===f.id?'active':'')+'" data-workspace-tab="'+esc(file.id)+'" title="'+esc(file.title)+'" aria-label="Open '+esc(file.title)+'"'+(file.id===f.id?' aria-current="page"':'')+'><span class="studio-file-tab-icon '+file.type+'">'+icon(typeIcons[file.type],14)+'</span><span class="studio-file-tab-name">'+esc(file.title)+'</span></button>').join('');
-  return '<div class="editor-shell">'+editorHead(f)+'<nav class="studio-file-tabs" aria-label="Recent files">'+tabs+'</nav>'+powerRibbon(f,selectedCell,slideIndex)+(f.type==='docs'?docsEditor(f):f.type==='sheets'?sheetsEditor(f):f.type==='slides'?slidesEditor(f):notesEditor(f))+status+'</div>';
+  const tabs=recentWorkspaceFiles(files,f.id,recentFileIds).map(file=>'<button type="button" class="studio-file-tab '+(file.id===f.id?'active':'')+'" data-app="'+file.type+'" data-workspace-tab="'+esc(file.id)+'" title="'+esc(file.title)+'" aria-label="Open '+esc(file.title)+'"'+(file.id===f.id?' aria-current="page"':'')+'><span class="studio-file-tab-icon '+file.type+'">'+icon(typeIcons[file.type],14)+'</span><span class="studio-file-tab-name">'+esc(file.title)+'</span></button>').join('');
+  return '<div class="editor-shell">'+editorHead(f)+'<nav class="studio-file-tabs" aria-label="Recent files">'+tabs+'</nav>'+(['pdf','media'].includes(f.type)?'':powerRibbon(f,selectedCell,slideIndex))+(f.type==='docs'?docsEditor(f):f.type==='sheets'?sheetsEditor(f):f.type==='slides'?slidesEditor(f):f.type==='pdf'?pdfStudio.markup(f):f.type==='media'?mediaStudio.markup(f):notesEditor(f))+status+'</div>';
 }
 function render(){
-  app.innerHTML='<div class="shell '+(navCollapsed?'nav-collapsed ':'')+(focusMode&&view==='editor'?'focus-mode':'')+'">'+'<a class="studio-skip-link" href="#studio-main">Skip to main content</a>'+sidebar()+'<button type="button" class="studio-mobile-scrim" data-action="mobile-close" aria-label="Close navigation" hidden></button><main class="main" id="studio-main" tabindex="-1">'+header()+(view==='editor'?editor():view==='home'?home():view==='templates'?templatesPage():filesPage())+'</main></div>';
+  pdfStudio.unmount();mediaStudio.unmount();
+  const nativeApp=view==='editor'?getActive()?.type:typeNames[view]?view:'workspace';
+  app.innerHTML='<div class="shell '+(navCollapsed?'nav-collapsed ':'')+(focusMode&&view==='editor'?'focus-mode':'')+'">'+'<a class="studio-skip-link" href="#studio-main">Skip to main content</a>'+sidebar()+'<button type="button" class="studio-mobile-scrim" data-action="mobile-close" aria-label="Close navigation" hidden></button><main class="main" id="studio-main" data-app="'+(nativeApp||'workspace')+'" tabindex="-1">'+header()+(view==='editor'?editor():view==='home'?home():view==='templates'?templatesPage():filesPage())+'</main></div>';
   syncSidebarAccess();
   updateSaveStatus(saveState);
+  if(view==='editor'&&getActive()?.type==='pdf')void pdfStudio.mount(getActive());
+  if(view==='editor'&&getActive()?.type==='media')void mediaStudio.mount(getActive());
   if(!storageReady&&saveState==='failed'){
     const main=app.querySelector('.main');
     main?.insertAdjacentHTML('afterbegin','<p role="alert" style="margin:10px 18px;padding:12px;border:2px solid #bb4734;border-radius:8px">Local saving is unavailable. Changes will not survive a reload. Use Export backup to save your work.</p>');
@@ -441,7 +456,8 @@ function createTemplate(index){
 function modal(kind,id){
   const f=files.find(x=>x.id===id);
   if(kind==='new'){
-    modalRoot.innerHTML='<div class="modal-backdrop"><form class="modal" id="new-form"><h2>Create a new file</h2><p>Choose an app and give your file a name.</p><label for="new-type">Application</label><select id="new-type" name="type">'+Object.keys(labels).map(t=>'<option value="'+t+'">'+labels[t]+'</option>').join('')+'</select><label for="new-title">File name</label><input id="new-title" name="title" placeholder="Untitled file" maxlength="120" autofocus><div class="modal-actions"><button type="button" class="btn btn-light" data-action="modal-close">Cancel</button><button class="btn btn-primary" type="submit">Create file</button></div></form></div>';
+    const preferredType=view==='editor'?getActive()?.type:view;
+    modalRoot.innerHTML='<div class="modal-backdrop"><form class="modal" id="new-form"><h2>Create a new file</h2><p>Choose an app and give your file a name.</p><label for="new-type">Application</label><select id="new-type" name="type">'+Object.keys(labels).map(t=>'<option value="'+t+'"'+(t===preferredType?' selected':'')+'>'+labels[t]+'</option>').join('')+'</select><label for="new-title">File name</label><input id="new-title" name="title" placeholder="Untitled file" maxlength="120" autofocus><div class="modal-actions"><button type="button" class="btn btn-light" data-action="modal-close">Cancel</button><button class="btn btn-primary" type="submit">Create file</button></div></form></div>';
   } else if(kind==='delete'&&f){
     modalRoot.innerHTML='<div class="modal-backdrop"><div class="modal"><h2>Move to recycle bin?</h2><p><strong>'+esc(f.title)+'</strong> can be restored from your recycle bin.</p><div class="modal-actions"><button class="btn btn-light" data-action="modal-close">Cancel</button><button class="btn btn-dark" data-action="confirm-delete" data-id="'+esc(f.id)+'">Move to bin</button></div></div></div>';
   } else if(kind==='revisions'&&f){
@@ -460,6 +476,7 @@ function modal(kind,id){
     const commands=[
       ['create:docs','New document','Docs'],['create:sheets','New spreadsheet','Sheets'],
       ['create:slides','New presentation','Slides'],['create:notes','New note','Notes'],
+      ['create:pdf','Open PDF workspace','PDF'],['create:media','Open Media workspace','Media'],
       ['nav:home','Home dashboard','Workspace'],['nav:files','All files','Workspace'],
       ['nav:starred','Starred files','Workspace'],['action:preferences','Appearance and colors','Settings'],
       ['action:save','Save locally','File']
@@ -515,6 +532,11 @@ function purgeTrash(id){
 function exportFile(){
   const f=getActive();if(!f)return;
   const name=slug(f.title);
+  if(f.type==='media'){void mediaStudio.exportCurrent();return;}
+  if(f.type==='pdf'){
+    void exportPDF(f).then(bytes=>{download(bytes,name+'.pdf','application/pdf');toast('PDF exported');}).catch(error=>toast(String(error.message||error).slice(0,130)));
+    return;
+  }
   if(f.type==='docs'){
     const content='<!doctype html><html><head><meta charset="utf-8"><title>'+esc(f.title)+'</title></head><body>'+sanitize(f.body)+'</body></html>';
     download(content,name+'.html','text/html;charset=utf-8');
@@ -575,6 +597,8 @@ function validImport(payload){
     }
     if(f.type==='sheets'&&(!f.cells||typeof f.cells!=='object'||Array.isArray(f.cells)||Object.keys(f.cells).length>26000)) return null;
     if(f.type==='slides'&&(!Array.isArray(f.slides)||f.slides.length<1||f.slides.length>200||f.slides.some(s=>!s||typeof s.title!=='string'||typeof s.body!=='string'||s.title.length>500||s.body.length>20000))) return null;
+    if(f.type==='pdf'&&!validatePDFRecord(f))return null;
+    if(f.type==='media'&&!validateMediaRecord(f))return null;
     output.push(f);
   }
   return output;
@@ -595,7 +619,7 @@ async function applyWorkspace(payload){
 }
 async function importBackup(file){
   try{
-    if(file.size>10000000){toast('Backup is too large');return;}
+    if(file.size>128000000){toast('Backup exceeds the 128 MB restore limit');return;}
     const parsed=JSON.parse(await file.text());
     if(!validImport(parsed)){toast('Invalid MySoft backup');return;}
     if(!confirm('Replace local files with this backup? Export your current workspace first.'))return;
@@ -604,6 +628,8 @@ async function importBackup(file){
   }catch{toast('Could not read this backup');}
 }
 async function importExternalFile(file){
+  if(/\.(png|jpe?g|webp|gif|wav|mp3|m4a|aac|flac|ogg|oga|mp4|webm|mov|ogv)$/i.test(file.name)){await importMediaFile(file);return;}
+  if(file.name.toLowerCase().endsWith('.pdf')){await importPDFFile(file);return;}
   if(file.size>18000000){toast('File exceeds the 18 MB import limit');return;}
   const ext=file.name.toLowerCase().split('.').pop();
   const title=file.name.replace(/\.[^.]+$/,'').slice(0,120);
@@ -626,6 +652,29 @@ async function importExternalFile(file){
     const f=newFile('notes',title);f.body=esc(source).replace(/\n/g,'<br>');touch(f);render();
   }
   toast('File imported');
+}
+async function importMediaFile(source){
+  toast('Opening media…');
+  try{
+    const fields=await inspectMedia(source);
+    const active=getActive(),reuse=active?.type==='media'&&active.mediaKind==='empty';
+    const f=reuse?active:makeFile('media',source.name.replace(/\.[^.]+$/,'').slice(0,120));
+    Object.assign(f,fields,{title:source.name.replace(/\.[^.]+$/,'').slice(0,120),updatedAt:Date.now()});if(!reuse)files.unshift(f);snapshot(f,true);
+    const saved=await persist();openFile(f.id);toast(saved?'Media imported. Your original is preserved.':'Media opened; local saving failed. Export a backup.');
+  }catch(error){toast(String(error.message||error).slice(0,180));}
+}
+async function importPDFFile(source){
+  if(source.size>PDF_MAX_BYTES){toast('PDF import limit is 8 MB');return;}
+  toast('Opening PDF…');
+  try{
+    const data=await inspectPDF(new Uint8Array(await source.arrayBuffer()));
+    const existing=getActive();
+    const file=existing?.type==='pdf'&&!existing.pdfData?existing:makeFile('pdf',source.name.replace(/\.pdf$/i,'').slice(0,120));
+    Object.assign(file,data,{title:source.name.replace(/\.pdf$/i,'').slice(0,120),updatedAt:Date.now()});
+    if(file!==existing)files.unshift(file);
+    snapshot(file,true);const saved=await persist();openFile(file.id);
+    toast(saved?'PDF imported · '+data.pdfPageCount+' pages':'PDF opened. Saving failed; export a backup before leaving.');
+  }catch(error){toast('PDF import: '+String(error.message||error).slice(0,150));}
 }
 async function runCloudAction(action){
   try{
@@ -952,9 +1001,9 @@ document.addEventListener('focusin',event=>{
   if(formula)formula.value=cell.value;
 });
 document.addEventListener('focusout',event=>{
-  const t=event.target,f=getActive();
+  const t=event.target,f=t.id==='rich-content'?files.find(file=>file.id===t.dataset.fileId):getActive();
   if(!f)return;
-  if(t.id==='rich-content'){t.innerHTML=sanitize(t.innerHTML);f.body=t.innerHTML;touch(f);updateDocumentOutline(f);}
+  if(t.id==='rich-content'){f.body=sanitize(t.innerHTML);touch(f);if(getActive()?.id===f.id)updateDocumentOutline(f);}
   if(t.matches('[data-cell]'))setTimeout(refreshCells,0);
   if(t.id==='formula-input')setTimeout(refreshCells,0);
 });
@@ -1093,12 +1142,19 @@ document.addEventListener('drop',event=>{
 const backupInput=document.createElement('input');
 backupInput.type='file';backupInput.accept='.json,application/json';backupInput.id='backup-upload';backupInput.hidden=true;
 document.body.appendChild(backupInput);
+const pdfInput=document.createElement('input');
+pdfInput.type='file';pdfInput.accept='.pdf,application/pdf';pdfInput.id='pdf-upload';pdfInput.hidden=true;
+pdfInput.addEventListener('change',()=>{const file=pdfInput.files?.[0];if(file)void importPDFFile(file);pdfInput.value='';});
+document.body.appendChild(pdfInput);
+const mediaAccept=Object.values(MEDIA_MIMES).flat().join(',');
+const mediaInput=document.createElement('input');mediaInput.type='file';mediaInput.accept=mediaAccept;mediaInput.id='media-upload';mediaInput.hidden=true;
+mediaInput.addEventListener('change',()=>{const source=mediaInput.files?.[0];if(source)void importMediaFile(source);mediaInput.value='';});document.body.appendChild(mediaInput);
 const externalInput=document.createElement('input');
-externalInput.type='file';externalInput.accept='.txt,.md,.csv,.html,.htm,.docx,.xlsx,.pptx';
+externalInput.type='file';externalInput.accept='.txt,.md,.csv,.html,.htm,.docx,.xlsx,.pptx,.pdf,.png,.jpg,.jpeg,.webp,.gif,.wav,.mp3,.m4a,.aac,.flac,.ogg,.mp4,.webm,.mov';
 externalInput.id='external-file-upload';externalInput.hidden=true;
 document.body.appendChild(externalInput);
 initializeOfficeTools({
-  getFile:getActive,touch,persist,render,sanitize,toast,
+  getFile:getActive,getFiles:()=>files,openFile,download,touch,persist,render,sanitize,toast,
   getSelectedCell:()=>selectedCell,getSlideIndex:()=>slideIndex,
   getSlideObjectId:()=>activeObjectId,setSlideObjectId:id=>{activeObjectId=id;},
   getReviewQuote:()=>selectedReviewQuote,
