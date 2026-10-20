@@ -185,7 +185,8 @@ function preferencesModal(){
     '<div class="modal-actions"><button class="btn btn-light" data-ot-action="settings-close">Done</button></div>');
 }
 function syncSheet(ctx,f){
-  ensureWorkbook(f);ctx.touch(f);ctx.render();
+  if(f.type==='sheets')ensureWorkbook(f);
+  ctx.touch(f);ctx.render();
 }
 export function initializeOfficeTools(ctx){
   applyPreferences();
