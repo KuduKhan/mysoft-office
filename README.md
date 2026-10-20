@@ -2,7 +2,7 @@
 
 **Your work. Your space.**
 
-MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.5.6 Editing Productivity Studio** retains native DOCX/XLSX/PPTX support and adds a redesigned, responsive workspace with orangered/color theme options, denser editing ribbons and new functional commands. This remains a local-first prototype, not full Microsoft Office parity. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
+MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.5.7 Studio Workflow Refinement** retains native DOCX/XLSX/PPTX support and adds a redesigned, responsive workspace with orangered/color theme options, denser editing ribbons and new functional commands. This remains a local-first prototype, not full Microsoft Office parity. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
 
 ## Quick start
 
@@ -15,6 +15,13 @@ npm run dev
 ```
 
 Open http://localhost:4173. No installation step or external npm dependencies are required for the local editor prototype. This repository includes static output configuration for Vercel, but the Vercel project is not connected yet.
+
+## New in v0.5.7 — Keyboard workflow refinement
+
+- Consistent Ctrl/Cmd+K command search, Ctrl/Cmd+S local save, Ctrl/Cmd+Shift+E export and Ctrl/Cmd+Shift+N new-file dialog.
+- Centralized shortcut mapping with unit tests and prevention of browser default Save Page for the local-first app.
+- This is a limited productivity improvement, **not** full Microsoft Office or WPS parity. Advanced document editing, full XLSX calculation, vector slide editing and fidelity remain on the roadmap.
+- v0.6 cloud infrastructure remains deferred.
 
 ## New in v0.5.6 — Editing Productivity Studio
 
