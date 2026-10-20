@@ -23,6 +23,7 @@ test('recent tabs switch Docs and Sheets; live words metric updates',async({page
   await page.locator('#rich-content').fill('One two three');
   await expect(page.locator('#studio-editor-metric')).toContainText('3 words');
   await page.locator('[data-action="close-editor"]').click();
+  await page.locator('[data-nav="home"]').click();
   await page.locator('[data-create="sheets"]').first().click();
   await expect(page.locator('.studio-file-tabs [data-workspace-tab]')).toHaveCount(5);
   await page.locator('.studio-file-tabs .studio-file-tab').filter({hasText:'Session draft'}).click();
