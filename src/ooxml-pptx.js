@@ -23,7 +23,7 @@ function slideShape(id,name,text,x,y,w,h,isTitle,accent){
     '<a:latin typeface="Aptos"/></a:rPr><a:t>'+xmlEscape(line)+'</a:t></a:r></a:p>').join('');
   return '<p:sp><p:nvSpPr><p:cNvPr id="'+id+'" name="'+name+'"/><p:cNvSpPr/>'+
     '<p:nvPr><p:ph type="'+(isTitle?'title':'body')+'"'+(isTitle?'':' idx="1"')+'/></p:nvPr></p:nvSpPr>'+
-    '<p:spPr><a:xfrm><a:off x="'+x+'" y="'+y+'"/><a:ext cx="'+w+'" cy="'+h+'"/></a:xfrm>'+
+    '<p:spPr><a:xfrm rot="'+(Number.isInteger(object.rotation)&&object.rotation%90===0?((object.rotation%360+360)%360)*60000:0)+'"><a:off x="'+x+'" y="'+y+'"/><a:ext cx="'+w+'" cy="'+h+'"/></a:xfrm>'+
     '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></p:spPr>'+
     '<p:txBody><a:bodyPr wrap="square"/><a:lstStyle/>'+paragraphs+'</p:txBody></p:sp>';
 }
@@ -172,7 +172,8 @@ export async function importPPTX(buffer){
             x,y,w:Math.max(5,Math.min(100-x,pct(ext.getAttribute('cx'),12192000))),
             h:Math.max(5,Math.min(100-y,pct(ext.getAttribute('cy'),6858000))),
             fill:'#'+color.toLowerCase(),color:'#'+textColor.toLowerCase(),
-            text:text.slice(0,600),fontSize:22});
+            text:text.slice(0,600),fontSize:22,
+            rotation:(Math.round(Number(xf.getAttribute('rot')||0)/60000/90)*90%360+360)%360});
         }
         continue;
       }
