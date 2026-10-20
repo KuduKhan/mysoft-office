@@ -15,6 +15,8 @@ import {organizeNotes,noteLocation,moveNote} from './note-structure.js';
 import {docComments,toggleDocComment,deleteDocComment,commentSummary} from './doc-review.js';
 import {documentGeometry,normalizedPageSettings} from './doc-layout.js';
 import {noteSearchText} from './note-search.js';
+import {SheetRecalculator} from './sheet-recalc.js';
+import {snapSlideCoordinate} from './slide-layers.js';
 import { parseAddress, moveAddress, pasteGrid, populatedBounds, ROW_HEIGHT, HEADER_HEIGHT } from './sheet-window.js';
 
 const STORAGE_KEY='mysoft-office-v1';
@@ -87,6 +89,8 @@ function sanitize(html){
     }
     const tag=allowed.has(node.tagName)?node.tagName.toLowerCase():'span';
     const wrapper=doc.createElement(tag==='font'?'span':tag);
+    if(node.tagName==='HR'&&node.getAttribute('data-mysoft-page-break')==='true')
+      wrapper.setAttribute('data-mysoft-page-break','true');
     if(node.tagName==='A'){
       const url=node.getAttribute('href')||'';
       if(/^https?:\/\//i.test(url)){
@@ -157,6 +161,13 @@ if(!revisions||typeof revisions!=='object'||Array.isArray(revisions))revisions={
 let cloudUser=null;
 let pendingOfficeImport=null;
 let activeObjectId=null,selectedReviewQuote='',slideDrag=null;
+const recalcGraphs=new WeakMap();
+function sheetRecalculator(file){
+  if(!file?.cells)return null;
+  let graph=recalcGraphs.get(file.cells);
+  if(!graph){graph=new SheetRecalculator(file.cells);recalcGraphs.set(file.cells,graph);}
+  return graph;
+}
 const documentHistory=new DocumentHistory();
 let view='home',activeId=null,query='',fileFilter='all',selectedCell='A1',slideIndex=0,mobileOpen=false,sheetScrollTop=0;
 let savedTimer=0,toastTimer=0;
@@ -335,6 +346,7 @@ function render(){
   app.innerHTML='<div class="shell">'+sidebar()+'<main class="main">'+header()+(view==='editor'?editor():view==='home'?home():view==='templates'?templatesPage():filesPage())+'</main></div>';
   const sc=document.getElementById('sheet-scroll');
   if(sc&&getActive()?.type==='sheets'){
+    sheetRecalculator(getActive())?.rebuild();
     sc.scrollTop=sheetScrollTop;
     repaintGrid(sc,getActive(),selectedCell,true);
   }
@@ -561,9 +573,9 @@ async function runCloudAction(action){
 }
 function updateCell(ref,raw,rerender=false){
   const f=getActive();if(!f||f.type!=='sheets')return;
-  f.cells[ref]=raw;
+  const affected=sheetRecalculator(f).update(ref,raw);
   touch(f);
-  if(rerender) refreshCells();
+  refreshCells(affected);
 }
 function updateDocumentOutline(file){
   const list=document.getElementById('doc-outline-list');
@@ -580,10 +592,14 @@ function undoDocument(direction){
   updateDocumentOutline(file);
   touch(file,false);persist();
 }
-function refreshCells(){
+function refreshCells(affected=null){
   const f=getActive();if(!f||f.type!=='sheets')return;
+  const graph=sheetRecalculator(f);
   document.querySelectorAll('[data-cell]').forEach(el=>{
-    if(document.activeElement!==el)el.value=sheetCellAppearance(f,el.dataset.cell,displayCell(el.dataset.cell,f.cells)).value;
+    if(document.activeElement===el||affected&&!affected.has(el.dataset.cell))return;
+    const ref=el.dataset.cell;
+    const computed=String(f.cells[ref]||'').startsWith('=')?graph.display(ref):displayCell(ref,f.cells);
+    el.value=sheetCellAppearance(f,ref,computed).value;
   });
 }
 function goToCell(address,focus=true){
@@ -798,8 +814,8 @@ document.addEventListener('pointermove',event=>{
   const rect=slideDrag.stage.getBoundingClientRect();
   if(!rect.width||!rect.height)return;
   const slide=getActive().slides[slideIndex];
-  const x=slideDrag.x+(event.clientX-slideDrag.startX)/rect.width*100;
-  const y=slideDrag.y+(event.clientY-slideDrag.startY)/rect.height*100;
+  const x=snapSlideCoordinate(slide,slideDrag.x+(event.clientX-slideDrag.startX)/rect.width*100);
+  const y=snapSlideCoordinate(slide,slideDrag.y+(event.clientY-slideDrag.startY)/rect.height*100);
   updateSlideObject(slide,slideDrag.id,{x,y});
   const object=getSlideObject(slide,slideDrag.id);
   shape.style.left=object.x+'%';shape.style.top=object.y+'%';
