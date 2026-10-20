@@ -75,7 +75,7 @@ export function renderedSlideObjects(slide,{editable=false,selectedId=''}={}){
     const x=val(o.x,0,95),y=val(o.y,0,95),w=val(o.w,5,100-x),h=val(o.h,5,100-y);
     const fill=safeColor(o.fill)?o.fill:'#ea4c24',color=safeColor(o.color)?o.color:'#202d48';
     const text=String(o.text??'').slice(0,600).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    const style='left:'+x+'%;top:'+y+'%;width:'+w+'%;height:'+h+'%;--shape-fill:'+fill+';--shape-text:'+color+';--shape-font:'+val(o.fontSize,10,56)+'px';
+    const style='position:absolute;left:'+x+'%;top:'+y+'%;width:'+w+'%;height:'+h+'%;background-color:'+fill+';color:'+color+';--shape-fill:'+fill+';--shape-text:'+color+';--shape-font:'+val(o.fontSize,10,56)+'px';
     const safeId=String(o.id||'').replace(/[^a-zA-Z0-9_-]/g,'');
     if(editable)return '<div class="studio-shape studio-shape-'+o.kind+(selectedId===o.id?' selected':'')+'" data-slide-object="'+safeId+'" style="'+style+'">'+
       '<span class="studio-shape-grip" title="Drag object to reposition" aria-hidden="true">⠿</span>'+
