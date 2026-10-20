@@ -328,3 +328,9 @@ html[data-mode="dark"] .doc-outline{background:#202d47;border-color:#394661}
 html[data-mode="dark"] .doc-outline-link,html[data-mode="dark"] .doc-outline-link.indent-1{color:#ced8ef}
 @media(max-width:950px){.doc-edit-layout{grid-template-columns:1fr}.doc-outline{position:static;max-height:100px;overflow:auto}.doc-edit-layout .doc-canvas{justify-content:center}}
 @media print{.doc-outline{display:none}.doc-edit-layout{display:block}}
+
+/* v0.5 explicit native Office import fidelity notices */
+.import-warning-list{padding-left:20px;max-height:245px;overflow:auto;color:#65718d;font-size:12px;line-height:1.7;margin:12px 0 18px}
+.import-warning-list li{margin:6px 0}
+.editor-head [data-action="office-export"]{background:#eceafd;color:#5b4cd0}
+@media(max-width:600px){.editor-head [data-action="office-export"]{padding:8px;font-size:10px}}
