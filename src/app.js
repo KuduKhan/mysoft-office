@@ -10,7 +10,7 @@ import { createDOCX, importDOCX } from './ooxml-docx.js';
 import { createXLSX, importXLSX } from './ooxml-xlsx.js';
 import { createPPTX, importPPTX } from './ooxml-pptx.js';
 import { SLIDE_PRESETS } from './studio-tools.js';
-import {renderedSlideObjects,getSlideObject,updateSlideObject} from './slide-objects.js';
+import {renderedSlideObjects,getSlideObject,updateSlideObject,moveSlideObject} from './slide-objects.js';
 import {organizeNotes,noteLocation,moveNote} from './note-structure.js';
 import {docComments,toggleDocComment,deleteDocComment,commentSummary} from './doc-review.js';
 import {documentGeometry,normalizedPageSettings} from './doc-layout.js';
@@ -826,6 +826,11 @@ document.addEventListener('pointerup',()=>{
   slideDrag=null;
 });
 document.addEventListener('focusin',event=>{
+  const shape=event.target.closest('[data-slide-object]');
+  if(shape&&getActive()?.type==='slides'){
+    activeObjectId=shape.dataset.slideObject;
+    document.querySelectorAll('[data-slide-object]').forEach(el=>el.classList.toggle('selected',el.dataset.slideObject===activeObjectId));
+  }
   const cell=event.target.closest('[data-cell]');if(!cell)return;
   const f=getActive();if(!f||f.type!=='sheets')return;
   document.querySelectorAll('.sheet-table td.selected').forEach(td=>td.classList.remove('selected'));
@@ -859,6 +864,21 @@ document.addEventListener('change',event=>{
   }
 });
 document.addEventListener('keydown',event=>{
+  if(view==='editor'&&getActive()?.type==='slides'){
+    const shape=event.target.closest('[data-slide-object]');
+    if(shape&&!event.target.closest('[contenteditable]')&&['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(event.key)){
+      const id=shape.dataset.slideObject,slide=getActive().slides[slideIndex];
+      if(getSlideObject(slide,id)){
+        event.preventDefault();
+        const amount=event.shiftKey?10:2;
+        const directions={ArrowUp:[0,-amount],ArrowDown:[0,amount],ArrowLeft:[-amount,0],ArrowRight:[amount,0]};
+        moveSlideObject(slide,id,...directions[event.key]);
+        activeObjectId=id;touch(getActive());persist();render();
+        document.querySelector('[data-slide-object="'+id+'"]')?.focus({preventScroll:true});
+        return;
+      }
+    }
+  }
   if(view==='editor'&&['docs','notes'].includes(getActive()?.type)&&
       event.target.closest('#rich-content')&&(event.ctrlKey||event.metaKey)){
     const key=event.key.toLowerCase();
