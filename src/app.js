@@ -425,9 +425,24 @@ document.addEventListener('mousedown',event=>{
   if(event.target.closest('[data-cmd]')) event.preventDefault();
 });
 document.addEventListener('click',event=>{
-  const el=event.target.closest('[data-action],[data-nav],[data-create],[data-open],[data-star],[data-delete],[data-duplicate],[data-slide],[data-theme],[data-template],[data-cmd]');
+  const el=event.target.closest('[data-action],[data-nav],[data-create],[data-open],[data-star],[data-delete],[data-duplicate],[data-slide],[data-theme],[data-template],[data-cmd],[data-restore-trash],[data-purge],[data-revision]');
   if(!el){
     if(event.target.classList.contains('modal-backdrop'))closeModal();
+    return;
+  }
+  if(el.dataset.restoreTrash){restoreTrash(el.dataset.restoreTrash);return;}
+  if(el.dataset.purge){purgeTrash(el.dataset.purge);return;}
+  if(el.dataset.revision!==undefined){
+    const file=getActive(),index=Number(el.dataset.revision);
+    if(file){
+      const history=[...(revisions[file.id]||[])].reverse();
+      const revision=history[index];
+      if(revision&&confirm('Restore this version? The latest version remains in history.')){
+        snapshot(file,true);
+        Object.assign(file,restoreRevision(file,revision));
+        persist();closeModal();render();toast('Version restored');
+      }
+    }
     return;
   }
   if(el.dataset.nav){navigate(el.dataset.nav);return;}
@@ -455,6 +470,10 @@ document.addEventListener('click',event=>{
   if(action==='export')exportFile();
   if(action==='backup')backup();
   if(action==='import')document.getElementById('backup-upload').click();
+  if(action==='import-file')document.getElementById('external-file-upload').click();
+  if(action==='revisions')modal('revisions',activeId);
+  if(action==='cloud')cloudCurrentUser().then(user=>{cloudUser=user;modal('cloud');}).catch(()=>toast('Could not open cloud sign-in'));
+  if(action?.startsWith('cloud-'))runCloudAction(action);
   const f=getActive();
   if(f?.type==='slides'){
     if(action==='slide-add'){f.slides.push({title:'New slide',body:'Add your ideas here',theme:'violet'});slideIndex=f.slides.length-1;touch(f);render();}
@@ -463,6 +482,17 @@ document.addEventListener('click',event=>{
   }
 });
 document.addEventListener('submit',event=>{
+  if(event.target.id==='cloud-form'){
+    event.preventDefault();
+    const mode=event.submitter?.value;
+    const data=new FormData(event.target);
+    const email=String(data.get('email')||''),password=String(data.get('password')||'');
+    cloudSignIn(email,password,mode==='register').then(async()=>{
+      cloudUser=await cloudCurrentUser();modal('cloud');
+      toast(cloudUser?'Signed in successfully':'Account created. Check your email for verification.');
+    }).catch(error=>toast('Cloud login: '+String(error.message||error).slice(0,90)));
+    return;
+  }
   if(event.target.id!=='new-form')return;
   event.preventDefault();
   const data=new FormData(event.target),type=data.get('type'),title=String(data.get('title')||'').trim();
@@ -522,6 +552,9 @@ document.addEventListener('change',event=>{
   if(event.target.id==='backup-upload'&&event.target.files[0]){
     importBackup(event.target.files[0]);event.target.value='';
   }
+  if(event.target.id==='external-file-upload'&&event.target.files[0]){
+    importExternalFile(event.target.files[0]).catch(()=>toast('File import failed'));event.target.value='';
+  }
 });
 document.addEventListener('keydown',event=>{
   if(event.target.id==='global-search'&&event.key==='Enter'){event.preventDefault();view='files';fileFilter='all';render();return;}
@@ -543,5 +576,9 @@ document.addEventListener('drop',event=>{
 const backupInput=document.createElement('input');
 backupInput.type='file';backupInput.accept='.json,application/json';backupInput.id='backup-upload';backupInput.hidden=true;
 document.body.appendChild(backupInput);
+const externalInput=document.createElement('input');
+externalInput.type='file';externalInput.accept='.txt,.md,.csv,.html,.htm';
+externalInput.id='external-file-upload';externalInput.hidden=true;
+document.body.appendChild(externalInput);
 persist();
 render();
