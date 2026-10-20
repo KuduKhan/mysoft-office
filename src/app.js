@@ -151,9 +151,9 @@ function sidebar(){
   const nav=(id,title,ic,extra='')=>'<button class="nav-link '+(view===id?'active':'')+'" data-nav="'+id+'">'+icon(ic,17)+esc(title)+extra+'</button>';
   const usage=Math.min(100,Math.round(JSON.stringify(files).length/45000));
   return '<aside class="sidebar '+(mobileOpen?'open':'')+'"><div class="brand"><span class="brand-symbol"><b></b><b></b><b></b><b></b></span><div><strong>MySoft Office</strong><small>Your work. Your space.</small></div></div>'+
-    '<div class="nav-caption">Workspace</div>'+nav('home','Overview','home')+nav('files','My files','folder','<span class="count">'+files.length+'</span>')+nav('starred','Starred','star')+nav('templates','Templates','grid')+
+    '<div class="nav-caption">Workspace</div>'+nav('home','Overview','home')+nav('files','My files','folder','<span class="count">'+files.length+'</span>')+nav('starred','Starred','star')+nav('templates','Templates','grid')+nav('trash','Recycle bin','trash','<span class="count">'+trashFiles.length+'</span>')+
     '<div class="nav-caption">Applications</div>'+['docs','sheets','slides','notes'].map(t=>nav(t,labels[t],typeIcons[t])).join('')+
-    '<div class="sidebar-spacer"></div><div class="side-foot"><div class="storage-label"><span>Local workspace</span><strong>'+files.length+' files</strong></div><div class="storage-track"><span class="storage-fill" style="width:'+usage+'%"></span></div><div class="storage-help">Stored only in this browser. Export a backup regularly.</div><button class="nav-link" data-action="backup" style="margin-top:13px">'+icon('download',17)+'Export backup</button><button class="nav-link" data-action="import">'+icon('upload',17)+'Import backup</button></div></aside>';
+    '<div class="sidebar-spacer"></div><div class="side-foot"><div class="storage-label"><span>Local workspace</span><strong>'+files.length+' files</strong></div><div class="storage-track"><span class="storage-fill" style="width:'+usage+'%"></span></div><div class="storage-help">Local autosave. Cloud snapshots are optional.</div><button class="nav-link" data-action="cloud" style="margin-top:13px">'+icon('upload',17)+'Cloud snapshots</button><button class="nav-link" data-action="import-file">'+icon('plus',17)+'Import file</button><button class="nav-link" data-action="backup">'+icon('download',17)+'Export backup</button><button class="nav-link" data-action="import">'+icon('upload',17)+'Import backup</button></div></aside>';
 }
 function header(){
   return '<header class="topbar"><div class="topbar-left"><button class="icon-btn mobile-menu" data-action="mobile" aria-label="Open menu">'+icon('menu')+'</button><div class="searchbox">'+icon('search',17)+'<input id="global-search" aria-label="Search files" placeholder="Search your files (Enter)" value="'+esc(query)+'"></div></div><div class="top-actions"><button class="btn btn-primary" data-action="new">'+icon('plus',16)+' New file</button><div class="avatar" title="Local workspace">MS</div></div></header>';
@@ -166,6 +166,11 @@ function sectionHead(title,desc,action,actionLabel){
   return '<div class="section-head"><div><h2>'+esc(title)+'</h2><p>'+esc(desc)+'</p></div>'+(action?'<button class="link-button" data-nav="'+action+'">'+esc(actionLabel)+' '+icon('chevron',15)+'</button>':'')+'</div>';
 }
 function renderRows(list){
+  if(view==='trash'){
+    if(!list.length)return '<div class="empty-state">'+icon('trash',36)+'<h3>Recycle bin is empty</h3><p>Deleted files remain here until permanently removed.</p></div>';
+    return '<div class="panel"><table class="data-table"><thead><tr><th>Deleted file</th><th>Type</th><th>Deleted</th><th>Recovery</th></tr></thead><tbody>'+
+      list.map(f=>'<tr><td><div class="row"><span class="file-icon '+f.type+'">'+icon(typeIcons[f.type],17)+'</span><div class="file-name">'+esc(f.title)+'</div></div></td><td>'+typeNames[f.type]+'</td><td class="muted">'+dateText(f.trashedAt||Date.now())+'</td><td><div class="row"><button class="btn btn-soft btn-sm" data-restore-trash="'+esc(f.id)+'">Restore</button><button class="icon-btn" data-purge="'+esc(f.id)+'" title="Delete permanently">'+icon('trash',16)+'</button></div></td></tr>').join('')+'</tbody></table></div>';
+  }
   if(!list.length) return '<div class="empty-state">'+icon('folder',36)+'<h3>No matching files yet</h3><p>Create a new file to get started.</p><button class="btn btn-primary" data-action="new">'+icon('plus',15)+' Create file</button></div>';
   return '<div class="panel"><table class="data-table"><thead><tr><th>Name</th><th>Type</th><th>Modified</th><th>Actions</th></tr></thead><tbody>'+
     list.map(f=>'<tr data-open="'+esc(f.id)+'" style="cursor:pointer"><td><div class="row"><span class="file-icon '+f.type+'">'+icon(typeIcons[f.type],17)+'</span><div><div class="file-name">'+esc(f.title)+'</div><div class="file-type">'+labels[f.type]+'</div></div></div></td><td><span class="badge">'+typeNames[f.type]+'</span></td><td class="muted">'+dateText(f.updatedAt)+'</td><td><div class="row"><button class="icon-btn '+(f.starred?'starred':'')+'" data-star="'+esc(f.id)+'" title="Toggle favorite" aria-label="Toggle favorite">'+icon('star',16)+'</button><button class="icon-btn" data-duplicate="'+esc(f.id)+'" title="Duplicate" aria-label="Duplicate">'+icon('copy',16)+'</button><button class="icon-btn" data-delete="'+esc(f.id)+'" title="Delete" aria-label="Delete">'+icon('trash',16)+'</button></div></td></tr>').join('')+'</tbody></table></div>';
@@ -179,12 +184,12 @@ function home(){
     sectionHead('Recent files','Pick up where you left off.','files','View all files')+renderRows(sorted.slice(0,7))+'</div>';
 }
 function filesPage(){
-  let list=files;
+  let list=view==='trash'?trashFiles:files;
   if(view==='starred') list=list.filter(f=>f.starred);
   else if(typeNames[view]) list=list.filter(f=>f.type===view);
   if(fileFilter!=='all') list=list.filter(f=>f.type===fileFilter);
   list=filtered(list);
-  const title=view==='starred'?'Starred files':typeNames[view]?labels[view]:'All files';
+  const title=view==='trash'?'Recycle bin':view==='starred'?'Starred files':typeNames[view]?labels[view]:'All files';
   return '<div class="content"><div class="spread page-heading"><div><div class="eyebrow">WORKSPACE / LIBRARY</div><h1 style="margin-top:8px">'+esc(title)+'</h1><p class="subtitle">'+list.length+' files · Saved in this browser</p></div><button class="btn btn-primary" data-action="new">'+icon('plus',16)+' New file</button></div>'+
     '<div class="spread" style="margin-bottom:18px"><div class="row"><span class="muted" style="font-size:12px">Filter by type</span><select id="file-filter" style="padding:9px;border-radius:9px;border:1px solid var(--line)"><option value="all">All types</option>'+Object.keys(labels).map(t=>'<option value="'+t+'" '+(fileFilter===t?'selected':'')+'>'+labels[t]+'</option>').join('')+'</select></div><span class="muted" style="font-size:11px">Most recently edited first</span></div>'+
     renderRows(list)+'</div>';
@@ -199,7 +204,7 @@ function templatesPage(){
   return '<div class="content"><div class="eyebrow">START WITH A HEAD START</div><h1 style="margin:8px 0">Templates</h1><p class="subtitle">Useful starting points for your next project.</p><div class="templates-grid" style="margin-top:27px">'+templates.map((t,i)=>'<button class="template-card" data-template="'+i+'"><span class="app-icon '+t.type+'">'+icon(typeIcons[t.type],22)+'</span><h3>'+t.title+'</h3><p>'+t.description+'</p></button>').join('')+'</div></div>';
 }
 function editorHead(f){
-  return '<div class="editor-head"><button class="icon-btn" data-action="close-editor" title="Back to files">'+icon('back',19)+'</button><span class="file-icon '+f.type+'">'+icon(typeIcons[f.type],18)+'</span><input class="doc-title" id="document-title" aria-label="File title" value="'+esc(f.title)+'" maxlength="120"><div class="save-mark" id="save-status">'+icon('check',13)+' Saved locally</div><button class="btn btn-light btn-sm" data-action="export">'+icon('download',15)+' Export</button></div>';
+  return '<div class="editor-head"><button class="icon-btn" data-action="close-editor" title="Back to files">'+icon('back',19)+'</button><span class="file-icon '+f.type+'">'+icon(typeIcons[f.type],18)+'</span><input class="doc-title" id="document-title" aria-label="File title" value="'+esc(f.title)+'" maxlength="120"><div class="save-mark" id="save-status">'+icon('check',13)+' Saved locally</div><button class="btn btn-light btn-sm" data-action="revisions">'+icon('clock',15)+' History</button><button class="btn btn-light btn-sm" data-action="export">'+icon('download',15)+' Export</button></div>';
 }
 function docToolbar(){
   return '<div class="toolbar">'+
@@ -289,9 +294,24 @@ function duplicate(id){
   files.unshift(copy);persist();render();toast('File duplicated');
 }
 function remove(id){
-  files=files.filter(f=>f.id!==id);closeModal();persist();
-  if(activeId===id) navigate('files');else render();
-  toast('File deleted');
+  const f=files.find(v=>v.id===id);if(!f)return;
+  snapshot(f,true);
+  trashFiles.unshift({...structuredClone(f),trashedAt:Date.now()});
+  trashFiles=trashFiles.slice(0,100);
+  files=files.filter(v=>v.id!==id);closeModal();persist();
+  if(activeId===id)navigate('files');else render();
+  toast('Moved to recycle bin');
+}
+function restoreTrash(id){
+  const found=trashFiles.find(f=>f.id===id);if(!found)return;
+  const f=structuredClone(found);delete f.trashedAt;f.updatedAt=Date.now();
+  if(files.some(v=>v.id===id))f.id=uuid();
+  files.unshift(f);trashFiles=trashFiles.filter(v=>v.id!==id);persist();render();toast('File restored');
+}
+function purgeTrash(id){
+  const found=trashFiles.find(f=>f.id===id);
+  if(!found||!confirm('Permanently delete '+found.title+'?'))return;
+  trashFiles=trashFiles.filter(f=>f.id!==id);delete revisions[id];persist();render();toast('Permanently deleted');
 }
 function exportFile(){
   const f=getActive();if(!f)return;
@@ -304,7 +324,7 @@ function exportFile(){
   if(f.type==='sheets'){
     const values=Array.from({length:ROW_COUNT},(_,i)=>COLUMNS.map(c=>displayCell(c+(i+1),f.cells)));
     const last=values.reduce((a,row,i)=>row.some(v=>v!=='')?i:a,0);
-    const csv=values.slice(0,last+1).map(row=>row.map(value=>'"'+String(value).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+    const csv=makeCSV(values.slice(0,last+1));
     download(csv,name+'.csv','text/csv;charset=utf-8');
   }
   if(f.type==='slides'){
