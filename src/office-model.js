@@ -98,20 +98,23 @@ export function sortSheet(file,column='A',direction='asc'){
     throw new Error('Sorting is disabled when formulas are present, to protect references.');
   const rows=[];
   for(let row=2;row<=30;row++){
-    const values={};
+    const values={},styles={};
     for(const c of 'ABCDEFGHIJKL'){
-      const key=c+row;
-      if(Object.prototype.hasOwnProperty.call(file.cells,key))values[c]=file.cells[key];
+      const ref=c+row;
+      if(Object.prototype.hasOwnProperty.call(file.cells,ref))values[c]=file.cells[ref];
+      if(Object.prototype.hasOwnProperty.call(file.cellStyles,ref))styles[c]=structuredClone(file.cellStyles[ref]);
     }
-    if(Object.keys(values).length)rows.push(values);
+    if(Object.keys(values).length||Object.keys(styles).length)rows.push({values,styles});
   }
   rows.sort((a,b)=>{
-    const va=a[column]??'',vb=b[column]??'';
+    const va=a.values[column]??'',vb=b.values[column]??'';
     return String(va).localeCompare(String(vb),undefined,{numeric:true,sensitivity:'base'})*(direction==='desc'?-1:1);
   });
   for(const key of Object.keys(file.cells))if(Number(key.match(/\d+$/)?.[0])>=2)delete file.cells[key];
-  rows.forEach((values,i)=>{for(const [c,value] of Object.entries(values))file.cells[c+(i+2)]=value;});
-  file.cellStyles={};
-  file.worksheets[file.activeSheetIndex].styles=file.cellStyles;
+  for(const key of Object.keys(file.cellStyles))if(Number(key.match(/\d+$/)?.[0])>=2)delete file.cellStyles[key];
+  rows.forEach(({values,styles},i)=>{
+    for(const [c,value] of Object.entries(values))file.cells[c+(i+2)]=value;
+    for(const [c,value] of Object.entries(styles))file.cellStyles[c+(i+2)]=value;
+  });
   return file;
 }
