@@ -3,7 +3,7 @@ import { displayCell } from './formulas.js';
 
 export const PAGE_SIZES={A4:[210,297],Letter:[216,279],Legal:[216,356]};
 export const FONT_FAMILIES=['Arial','Calibri','Georgia','Garamond','Tahoma','Times New Roman','Verdana'];
-export const ACCENT_COLORS=['#6555e8','#176db3','#129b83','#c2579b','#dc772f','#364a6b'];
+export const ACCENT_COLORS=['#ea4c24','#ef626c','#ce7f10','#1673b8','#15846c','#6555e8','#b84083','#445269','#176db3','#129b83','#c2579b','#dc772f','#364a6b'];
 
 export function wordStatistics(content=''){
   const text=String(content).replace(/<[^>]*>/g,' ').replace(/&nbsp;/gi,' ').trim();
