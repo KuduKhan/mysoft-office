@@ -1,0 +1,443 @@
+import { COLUMNS, ROW_COUNT, displayCell } from './formulas.js';
+
+const STORAGE_KEY='mysoft-office-v1';
+const typeNames={docs:'Document',sheets:'Spreadsheet',slides:'Presentation',notes:'Note'};
+const typeIcons={docs:'file-text',sheets:'table',slides:'presentation',notes:'notebook'};
+const labels={docs:'MySoft Docs',sheets:'MySoft Sheets',slides:'MySoft Slides',notes:'MySoft Notes'};
+const themes={
+  violet:{label:'Violet',color:'#7161e8',dark:false},
+  ocean:{label:'Ocean',color:'#2895d9',dark:false},
+  forest:{label:'Forest',color:'#22a88e',dark:false},
+  midnight:{label:'Midnight',color:'#a58bff',dark:true}
+};
+const icons={
+  home:'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 21v-8h6v8"/>',
+  folder:'<path d="M3 7a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  star:'<path d="m12 2 3 6.5 7 1-5 4.9 1.2 7L12 18l-6.2 3.4 1.2-7-5-4.9 7-1z"/>',
+  grid:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  'file-text':'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/>',
+  table:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/>',
+  presentation:'<rect x="3" y="3" width="18" height="13" rx="2"/><path d="M12 16v5M8 21h8M7 9h10"/>',
+  notebook:'<path d="M6 3h13a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM8 3v18M11 8h6M11 12h5"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/>',
+  upload:'<path d="M12 16V3m-5 5 5-5 5 5M4 17v3h16v-3"/>',
+  download:'<path d="M12 3v13m-5-5 5 5 5-5M4 17v4h16v-4"/>',
+  chevron:'<path d="m9 18 6-6-6-6"/>',
+  back:'<path d="m15 18-6-6 6-6M9 12h12"/>',
+  check:'<path d="m4 12 5 5L20 6"/>',
+  trash:'<path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 10v7M14 10v7"/>',
+  copy:'<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
+  menu:'<path d="M3 6h18M3 12h18M3 18h18"/>',
+  'more':'<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+  sparkles:'<path d="m12 3 2 6 6 2-6 2-2 6-2-6-6-2 6-2zM19 17l1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/>',
+  x:'<path d="M5 5l14 14M19 5 5 19"/>',
+  info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
+  'arrow-right':'<path d="M4 12h16m-6-6 6 6-6 6"/>'
+};
+function icon(name,size=18){
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(icons[name]||icons.grid)+'</svg>';
+}
+function esc(value){
+  return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+}
+function plain(html){
+  const dom=new DOMParser().parseFromString(String(html||''),'text/html');
+  return dom.body.textContent||'';
+}
+function sanitize(html){
+  const parsed=new DOMParser().parseFromString(String(html||''),'text/html');
+  const allowed=new Set(['P','DIV','BR','H1','H2','H3','STRONG','B','EM','I','U','S','UL','OL','LI','BLOCKQUOTE','SPAN','A']);
+  const blocked=new Set(['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','SVG','MATH','FORM','INPUT','BUTTON','META','LINK','BASE']);
+  function clean(node,doc){
+    if(node.nodeType===Node.TEXT_NODE) return doc.createTextNode(node.nodeValue||'');
+    if(node.nodeType!==Node.ELEMENT_NODE) return doc.createTextNode('');
+    if(blocked.has(node.tagName)) return doc.createTextNode('');
+    const wrapper=doc.createElement(allowed.has(node.tagName)?node.tagName.toLowerCase():'span');
+    if(node.tagName==='A'){
+      const url=node.getAttribute('href')||'';
+      if(/^https?:\/\//i.test(url)){wrapper.setAttribute('href',url);wrapper.setAttribute('rel','noopener noreferrer');}
+    }
+    if(node.tagName==='SPAN'||node.tagName==='P'||node.tagName==='DIV'){
+      const align=node.style?.textAlign;
+      if(['left','center','right','justify'].includes(align)) wrapper.style.textAlign=align;
+    }
+    for(const child of node.childNodes) wrapper.appendChild(clean(child,doc));
+    return wrapper;
+  }
+  const output=document.implementation.createHTMLDocument('');
+  for(const child of parsed.body.childNodes) output.body.appendChild(clean(child,output));
+  return output.body.innerHTML;
+}
+function uuid(){return globalThis.crypto?.randomUUID?.()||'f'+Date.now()+Math.random().toString(36).slice(2);}
+function makeFile(type,title){
+  const defaults={docs:{body:''},sheets:{cells:{}},slides:{slides:[{title:'Untitled presentation',body:'Add your ideas here',theme:'violet'}]},notes:{body:''}};
+  return {id:uuid(),type,title:title||'Untitled '+typeNames[type],starred:false,createdAt:Date.now(),updatedAt:Date.now(),...structuredClone(defaults[type])};
+}
+function starter(){
+  const doc=makeFile('docs','Welcome to MySoft Office');
+  doc.body='<h1>Welcome to MySoft Office</h1><p>Your work. Your space.</p><p>Create professional documents, work with spreadsheets, build presentations and capture notes in one place.</p><h2>Getting started</h2><ul><li>Choose an app on the dashboard.</li><li>Your edits are saved automatically in this browser.</li><li>Use Export backup to keep a copy of your workspace.</li></ul>';
+  const sheet=makeFile('sheets','Project budget');
+  sheet.cells={A1:'Item',B1:'Units',C1:'Unit cost',D1:'Total',A2:'Design',B2:'3',C2:'150',D2:'=B2*C2',A3:'Development',B3:'6',C3:'300',D3:'=B3*C3',A4:'Testing',B4:'2',C4:'100',D4:'=B4*C4',C6:'Grand total',D6:'=SUM(D2:D4)'};
+  const slides=makeFile('slides','MySoft product vision');
+  slides.slides=[{title:'MySoft Office',body:'Your work. Your space.',theme:'violet'},{title:'One connected workspace',body:'Documents • Spreadsheets • Presentations • Notes',theme:'ocean'},{title:'Build with confidence',body:'Work simply. Save locally. Export whenever you need.',theme:'midnight'}];
+  const note=makeFile('notes','Ideas and notes');
+  note.body='<h2>Brainstorm</h2><p>Write down your thoughts and develop your next great idea.</p>';
+  return [doc,sheet,slides,note];
+}
+function load(){
+  try {
+    const parsed=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');
+    if(parsed && Array.isArray(parsed.files)) return parsed.files.filter(f=>f && typeNames[f.type] && typeof f.id==='string').slice(0,500);
+  }catch{}
+  return starter();
+}
+let files=load();
+let view='home',activeId=null,query='',fileFilter='all',selectedCell='A1',slideIndex=0,mobileOpen=false;
+let savedTimer=0,toastTimer=0;
+const app=document.getElementById('app');
+const modalRoot=document.getElementById('modal-root');
+function persist(){
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify({version:1,files}));}
+  catch{toast('Browser storage is full. Export a backup before continuing.');}
+  const mark=document.getElementById('save-status');
+  if(mark) mark.innerHTML=icon('check',13)+' Saved locally';
+}
+function touch(file){file.updatedAt=Date.now();clearTimeout(savedTimer);savedTimer=setTimeout(persist,350);}
+function toast(message){
+  const el=document.getElementById('toast');
+  el.textContent=message;el.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),3000);
+}
+function dateText(time){
+  return new Intl.DateTimeFormat('en',{month:'short',day:'numeric',year:'numeric'}).format(new Date(time));
+}
+function getActive(){return files.find(f=>f.id===activeId);}
+function download(content,name,type){
+  const blob=new Blob([content],{type});
+  const href=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=href;a.download=name;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(href),1500);
+}
+function slug(name){return String(name).replace(/[^a-z0-9 -]/gi,'').trim().replace(/\s+/g,'-').slice(0,70)||'mysoft-file';}
+function sidebar(){
+  const nav=(id,title,ic,extra='')=>'<button class="nav-link '+(view===id?'active':'')+'" data-nav="'+id+'">'+icon(ic,17)+esc(title)+extra+'</button>';
+  const usage=Math.min(100,Math.round(JSON.stringify(files).length/45000));
+  return '<aside class="sidebar '+(mobileOpen?'open':'')+'"><div class="brand"><span class="brand-symbol"><b></b><b></b><b></b><b></b></span><div><strong>MySoft Office</strong><small>Your work. Your space.</small></div></div>'+
+    '<div class="nav-caption">Workspace</div>'+nav('home','Overview','home')+nav('files','My files','folder','<span class="count">'+files.length+'</span>')+nav('starred','Starred','star')+nav('templates','Templates','grid')+
+    '<div class="nav-caption">Applications</div>'+['docs','sheets','slides','notes'].map(t=>nav(t,labels[t],typeIcons[t])).join('')+
+    '<div class="sidebar-spacer"></div><div class="side-foot"><div class="storage-label"><span>Local workspace</span><strong>'+files.length+' files</strong></div><div class="storage-track"><span class="storage-fill" style="width:'+usage+'%"></span></div><div class="storage-help">Stored only in this browser. Export a backup regularly.</div><button class="nav-link" data-action="backup" style="margin-top:13px">'+icon('download',17)+'Export backup</button><button class="nav-link" data-action="import">'+icon('upload',17)+'Import backup</button></div></aside>';
+}
+function header(){
+  return '<header class="topbar"><div class="topbar-left"><button class="icon-btn mobile-menu" data-action="mobile" aria-label="Open menu">'+icon('menu')+'</button><div class="searchbox">'+icon('search',17)+'<input id="global-search" aria-label="Search files" placeholder="Search your files (Enter)" value="'+esc(query)+'"></div></div><div class="top-actions"><button class="btn btn-primary" data-action="new">'+icon('plus',16)+' New file</button><div class="avatar" title="Local workspace">MS</div></div></header>';
+}
+function appTiles(){
+  const descriptions={docs:'Write and format',sheets:'Calculate and analyze',slides:'Present your ideas',notes:'Capture your thoughts'};
+  return '<div class="app-grid">'+Object.keys(labels).map(t=>'<button class="app-card" data-create="'+t+'"><span class="app-icon '+t+'">'+icon(typeIcons[t],23)+'</span><strong>'+labels[t]+'</strong><span>'+descriptions[t]+'</span></button>').join('')+'</div>';
+}
+function sectionHead(title,desc,action,actionLabel){
+  return '<div class="section-head"><div><h2>'+esc(title)+'</h2><p>'+esc(desc)+'</p></div>'+(action?'<button class="link-button" data-nav="'+action+'">'+esc(actionLabel)+' '+icon('chevron',15)+'</button>':'')+'</div>';
+}
+function renderRows(list){
+  if(!list.length) return '<div class="empty-state">'+icon('folder',36)+'<h3>No matching files yet</h3><p>Create a new file to get started.</p><button class="btn btn-primary" data-action="new">'+icon('plus',15)+' Create file</button></div>';
+  return '<div class="panel"><table class="data-table"><thead><tr><th>Name</th><th>Type</th><th>Modified</th><th>Actions</th></tr></thead><tbody>'+
+    list.map(f=>'<tr data-open="'+esc(f.id)+'" style="cursor:pointer"><td><div class="row"><span class="file-icon '+f.type+'">'+icon(typeIcons[f.type],17)+'</span><div><div class="file-name">'+esc(f.title)+'</div><div class="file-type">'+labels[f.type]+'</div></div></div></td><td><span class="badge">'+typeNames[f.type]+'</span></td><td class="muted">'+dateText(f.updatedAt)+'</td><td><div class="row"><button class="icon-btn '+(f.starred?'starred':'')+'" data-star="'+esc(f.id)+'" title="Toggle favorite" aria-label="Toggle favorite">'+icon('star',16)+'</button><button class="icon-btn" data-duplicate="'+esc(f.id)+'" title="Duplicate" aria-label="Duplicate">'+icon('copy',16)+'</button><button class="icon-btn" data-delete="'+esc(f.id)+'" title="Delete" aria-label="Delete">'+icon('trash',16)+'</button></div></td></tr>').join('')+'</tbody></table></div>';
+}
+function filtered(list){return list.filter(f=>f.title.toLowerCase().includes(query.trim().toLowerCase())).sort((a,b)=>b.updatedAt-a.updatedAt);}
+function home(){
+  const sorted=filtered(files);
+  return '<div class="content"><div class="eyebrow">YOUR PERSONAL WORKSPACE</div><h1 style="margin-top:8px">Welcome to MySoft Office <span style="font-size:26px">✦</span></h1><p class="subtitle">Everything you need to create, organize and get things done.</p>'+
+    '<div class="hero"><div><div class="eyebrow" style="color:#d7d0ff">THE WORKSPACE THAT WORKS FOR YOU</div><h1>Your ideas deserve a better space.</h1><p>Bring your documents, numbers, stories and thoughts together — in one beautiful place.</p><button class="btn" data-action="new">'+icon('plus',16)+' Create something</button></div><div class="hero-art"><div class="art-page"><div class="art-dot"></div><div class="art-line"></div><div class="art-line short"></div><div class="art-line"></div></div><div class="art-page second"><div class="art-dot"></div><div class="art-line"></div><div class="art-line"></div><div class="art-line short"></div></div></div></div>'+
+    sectionHead('Create with MySoft','Choose an app and start making something great.')+appTiles()+
+    sectionHead('Recent files','Pick up where you left off.','files','View all files')+renderRows(sorted.slice(0,7))+'</div>';
+}
+function filesPage(){
+  let list=files;
+  if(view==='starred') list=list.filter(f=>f.starred);
+  else if(typeNames[view]) list=list.filter(f=>f.type===view);
+  if(fileFilter!=='all') list=list.filter(f=>f.type===fileFilter);
+  list=filtered(list);
+  const title=view==='starred'?'Starred files':typeNames[view]?labels[view]:'All files';
+  return '<div class="content"><div class="spread page-heading"><div><div class="eyebrow">WORKSPACE / LIBRARY</div><h1 style="margin-top:8px">'+esc(title)+'</h1><p class="subtitle">'+list.length+' files · Saved in this browser</p></div><button class="btn btn-primary" data-action="new">'+icon('plus',16)+' New file</button></div>'+
+    '<div class="spread" style="margin-bottom:18px"><div class="row"><span class="muted" style="font-size:12px">Filter by type</span><select id="file-filter" style="padding:9px;border-radius:9px;border:1px solid var(--line)"><option value="all">All types</option>'+Object.keys(labels).map(t=>'<option value="'+t+'" '+(fileFilter===t?'selected':'')+'>'+labels[t]+'</option>').join('')+'</select></div><span class="muted" style="font-size:11px">Most recently edited first</span></div>'+
+    renderRows(list)+'</div>';
+}
+function templatesPage(){
+  const templates=[
+    {type:'docs',title:'Project proposal',description:'Start with a clear project outline.'},
+    {type:'sheets',title:'Simple budget',description:'Organize costs and formulas.'},
+    {type:'slides',title:'Pitch deck',description:'Tell a compelling story.'},
+    {type:'notes',title:'Meeting notes',description:'Capture decisions and next actions.'}
+  ];
+  return '<div class="content"><div class="eyebrow">START WITH A HEAD START</div><h1 style="margin:8px 0">Templates</h1><p class="subtitle">Useful starting points for your next project.</p><div class="templates-grid" style="margin-top:27px">'+templates.map((t,i)=>'<button class="template-card" data-template="'+i+'"><span class="app-icon '+t.type+'">'+icon(typeIcons[t.type],22)+'</span><h3>'+t.title+'</h3><p>'+t.description+'</p></button>').join('')+'</div></div>';
+}
+function editorHead(f){
+  return '<div class="editor-head"><button class="icon-btn" data-action="close-editor" title="Back to files">'+icon('back',19)+'</button><span class="file-icon '+f.type+'">'+icon(typeIcons[f.type],18)+'</span><input class="doc-title" id="document-title" aria-label="File title" value="'+esc(f.title)+'" maxlength="120"><div class="save-mark" id="save-status">'+icon('check',13)+' Saved locally</div><button class="btn btn-light btn-sm" data-action="export">'+icon('download',15)+' Export</button></div>';
+}
+function docToolbar(){
+  return '<div class="toolbar">'+
+    '<select id="doc-block" aria-label="Paragraph style"><option value="P">Normal text</option><option value="H1">Heading 1</option><option value="H2">Heading 2</option><option value="H3">Heading 3</option><option value="BLOCKQUOTE">Quote</option></select><span class="toolbar-divider"></span>'+
+    [['bold','B'],['italic','I'],['underline','U']].map(([cmd,label])=>'<button class="tool" data-cmd="'+cmd+'" title="'+cmd+'">'+label+'</button>').join('')+
+    '<span class="toolbar-divider"></span><button class="tool" data-cmd="insertUnorderedList" title="Bulleted list">☷</button><button class="tool" data-cmd="insertOrderedList" title="Numbered list">≡</button>'+
+    '<span class="toolbar-divider"></span><button class="tool" data-cmd="justifyLeft" title="Align left">☰</button><button class="tool" data-cmd="justifyCenter" title="Align center">≡</button><button class="tool" data-cmd="justifyRight" title="Align right">☷</button>'+
+    '<span class="toolbar-divider"></span><button class="tool" data-cmd="undo" title="Undo">↶</button><button class="tool" data-cmd="redo" title="Redo">↷</button><span class="sheet-hint">Select text to format</span></div>';
+}
+function docsEditor(f){
+  return docToolbar()+'<div class="editor-body"><div class="doc-canvas"><article id="rich-content" class="document-paper" contenteditable="true" spellcheck="true" role="textbox" aria-label="Document content" data-placeholder="Start writing your document...">'+sanitize(f.body)+'</article></div></div>';
+}
+function sheetsEditor(f){
+  let rows='<tr><th></th>'+COLUMNS.map(c=>'<th scope="col">'+c+'</th>').join('')+'</tr>';
+  for(let r=1;r<=ROW_COUNT;r++){
+    rows+='<tr><td>'+r+'</td>';
+    for(const c of COLUMNS){
+      const ref=c+r;
+      rows+='<td class="'+(selectedCell===ref?'selected':'')+'"><input class="sheet-cell '+(String(f.cells[ref]||'').startsWith('=')?'formula-result':'')+'" data-cell="'+ref+'" title="'+ref+'" aria-label="Cell '+ref+'" value="'+esc(displayCell(ref,f.cells))+'"></td>';
+    }
+    rows+='</tr>';
+  }
+  return '<div class="sheet-layout"><div class="sheet-formula"><strong id="selected-cell">'+esc(selectedCell)+'</strong><span style="color:#8c97ad;font-weight:800">fx</span><input id="formula-input" aria-label="Formula" value="'+esc(f.cells[selectedCell]||'')+'" placeholder="Type text, numbers or =SUM(A1:A3)"></div><div class="sheet-scroll"><table class="sheet-table" aria-label="Spreadsheet"><tbody>'+rows+'</tbody></table></div></div>';
+}
+function slidesEditor(f){
+  const s=f.slides[slideIndex]||f.slides[0];
+  const theme=themes[s.theme]||themes.violet;
+  return '<div class="slide-layout"><div class="slide-list"><button class="btn btn-soft btn-sm" data-action="slide-add" style="width:100%;margin-bottom:12px">'+icon('plus',14)+' Add slide</button>'+
+    f.slides.map((slide,i)=>'<button class="slide-item '+(i===slideIndex?'active':'')+'" data-slide="'+i+'"><span>'+(i+1)+'</span><div class="slide-thumb"><strong>'+esc(slide.title)+'</strong><small>'+esc(slide.body).slice(0,46)+'</small></div></button>').join('')+'</div>'+
+    '<div class="slide-stage-wrap"><div class="slide-stage '+(theme.dark?'dark':'')+'" style="--slide-accent:'+theme.color+'"><div class="slide-tag">MySoft Slides · '+(slideIndex+1)+' / '+f.slides.length+'</div><div class="slide-title" contenteditable="true" id="slide-title" role="textbox" aria-label="Slide title" data-placeholder="Slide title">'+esc(s.title)+'</div><div class="slide-body" contenteditable="true" id="slide-body" role="textbox" aria-label="Slide body">'+esc(s.body)+'</div></div></div>'+
+    '<div class="slide-controls"><h3>Design theme</h3>'+Object.entries(themes).map(([k,v])=>'<button class="theme-choice '+(s.theme===k?'active':'')+'" data-theme="'+k+'"><span class="theme-dot" style="background:'+v.color+'"></span>'+v.label+'</button>').join('')+
+    '<h3 style="margin-top:30px">Slide actions</h3><button class="btn btn-light btn-sm" data-action="slide-duplicate" style="width:100%;margin:6px 0">'+icon('copy',14)+' Duplicate</button><button class="btn btn-light btn-sm" data-action="slide-delete" style="width:100%;margin:6px 0">'+icon('trash',14)+' Delete</button></div></div>';
+}
+function notesEditor(f){
+  const notes=files.filter(v=>v.type==='notes').sort((a,b)=>b.updatedAt-a.updatedAt);
+  return '<div class="note-layout"><div class="note-list"><div class="spread"><h3>All notes</h3><button class="icon-btn" data-create="notes" title="New note">'+icon('plus',16)+'</button></div>'+
+    notes.map(n=>'<button class="note-list-item '+(n.id===f.id?'active':'')+'" data-open="'+esc(n.id)+'"><strong>'+esc(n.title)+'</strong><span>'+dateText(n.updatedAt)+'</span></button>').join('')+'</div>'+
+    '<div class="note-editor"><div class="eyebrow">MY NOTES</div><input class="note-title" id="note-title" aria-label="Note title" value="'+esc(f.title)+'" maxlength="120"><div class="note-meta">Private to this browser · Autosaved</div><div id="rich-content" class="note-content" contenteditable="true" spellcheck="true" role="textbox" aria-label="Note content" data-placeholder="Capture your thoughts...">'+sanitize(f.body)+'</div></div></div>';
+}
+function editor(){
+  const f=getActive();
+  if(!f){view='files';return filesPage();}
+  return '<div class="editor-shell">'+editorHead(f)+(f.type==='docs'?docsEditor(f):f.type==='sheets'?sheetsEditor(f):f.type==='slides'?slidesEditor(f):notesEditor(f))+'</div>';
+}
+function render(){
+  app.innerHTML='<div class="shell">'+sidebar()+'<main class="main">'+header()+(view==='editor'?editor():view==='home'?home():view==='templates'?templatesPage():filesPage())+'</main></div>';
+}
+function navigate(destination){view=destination;activeId=null;query='';fileFilter='all';mobileOpen=false;render();window.scrollTo(0,0);}
+function openFile(id){
+  if(!files.some(f=>f.id===id)) return;
+  activeId=id;view='editor';slideIndex=0;selectedCell='A1';mobileOpen=false;render();
+}
+function newFile(type,title){
+  const f=makeFile(type,title);
+  files.unshift(f);persist();openFile(f.id);toast('Created '+typeNames[type].toLowerCase());
+  return f;
+}
+function createTemplate(index){
+  const types=['docs','sheets','slides','notes'];
+  const names=['Project proposal','Simple budget','Pitch deck','Meeting notes'];
+  const type=types[index];if(!type) return;
+  const f=newFile(type,names[index]);
+  if(type==='docs') f.body='<h1>Project Proposal</h1><h2>Overview</h2><p>Describe the problem and your proposed solution.</p><h2>Objectives</h2><ul><li>Objective 1</li><li>Objective 2</li></ul><h2>Timeline</h2><p>Add your project milestones here.</p>';
+  if(type==='sheets') f.cells={A1:'Category',B1:'Planned',C1:'Actual',A2:'Equipment',B2:'1000',C2:'850',A3:'Software',B3:'400',C3:'450',A5:'Total',B5:'=SUM(B2:B3)',C5:'=SUM(C2:C3)'};
+  if(type==='slides') f.slides=[{title:'The opportunity',body:'Describe the challenge and what could change.',theme:'violet'},{title:'Our solution',body:'Share your unique approach.',theme:'ocean'},{title:'Next steps',body:'Outline the way forward.',theme:'midnight'}];
+  if(type==='notes') f.body='<h2>Meeting agenda</h2><p>Date:</p><h2>Discussion</h2><p></p><h2>Decisions</h2><p></p><h2>Action items</h2><p></p>';
+  persist();render();
+}
+function modal(kind,id){
+  const f=files.find(x=>x.id===id);
+  if(kind==='new'){
+    modalRoot.innerHTML='<div class="modal-backdrop"><form class="modal" id="new-form"><h2>Create a new file</h2><p>Choose your workspace app and give your file a name.</p><label for="new-type">Application</label><select id="new-type" name="type">'+Object.keys(labels).map(t=>'<option value="'+t+'">'+labels[t]+'</option>').join('')+'</select><label for="new-title">File name</label><input id="new-title" name="title" placeholder="Untitled file" maxlength="120" autofocus><div class="modal-actions"><button type="button" class="btn btn-light" data-action="modal-close">Cancel</button><button class="btn btn-primary" type="submit">Create file</button></div></form></div>';
+  }else if(kind==='delete'&&f){
+    modalRoot.innerHTML='<div class="modal-backdrop"><div class="modal"><h2>Delete this file?</h2><p>This removes <strong>'+esc(f.title)+'</strong> from the local workspace. Export a backup first if needed.</p><div class="modal-actions"><button class="btn btn-light" data-action="modal-close">Cancel</button><button class="btn btn-dark" data-action="confirm-delete" data-id="'+esc(f.id)+'">Delete file</button></div></div></div>';
+  }
+  modalRoot.querySelector('input')?.focus();
+}
+function closeModal(){modalRoot.innerHTML='';}
+function duplicate(id){
+  const source=files.find(f=>f.id===id);if(!source)return;
+  const copy=structuredClone(source);copy.id=uuid();copy.title+=' (copy)';copy.createdAt=Date.now();copy.updatedAt=Date.now();copy.starred=false;
+  files.unshift(copy);persist();render();toast('File duplicated');
+}
+function remove(id){
+  files=files.filter(f=>f.id!==id);closeModal();persist();
+  if(activeId===id) navigate('files');else render();
+  toast('File deleted');
+}
+function exportFile(){
+  const f=getActive();if(!f)return;
+  const name=slug(f.title);
+  if(f.type==='docs'){
+    const content='<!doctype html><html><head><meta charset="utf-8"><title>'+esc(f.title)+'</title></head><body>'+sanitize(f.body)+'</body></html>';
+    download(content,name+'.html','text/html;charset=utf-8');
+  }
+  if(f.type==='notes') download(plain(f.body),name+'.txt','text/plain;charset=utf-8');
+  if(f.type==='sheets'){
+    const values=Array.from({length:ROW_COUNT},(_,i)=>COLUMNS.map(c=>displayCell(c+(i+1),f.cells)));
+    const last=values.reduce((a,row,i)=>row.some(v=>v!=='')?i:a,0);
+    const csv=values.slice(0,last+1).map(row=>row.map(value=>'"'+String(value).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+    download(csv,name+'.csv','text/csv;charset=utf-8');
+  }
+  if(f.type==='slides'){
+    const styles='body{font-family:Arial,sans-serif;background:#eaeefa;margin:0;padding:24px}section{box-sizing:border-box;aspect-ratio:16/9;background:white;border-top:12px solid #7564db;padding:8%;margin:0 auto 30px;max-width:1000px;page-break-after:always;display:flex;flex-direction:column;justify-content:center}h1{font-size:42px;color:#25334d}p{font-size:24px;white-space:pre-wrap;color:#68758c}@media print{body{padding:0;background:white}section{max-width:none;margin:0}}';
+    const html='<!doctype html><html><head><meta charset="utf-8"><title>'+esc(f.title)+'</title><style>'+styles+'</style></head><body>'+f.slides.map(s=>'<section style="border-color:'+(themes[s.theme]||themes.violet).color+'"><h1>'+esc(s.title)+'</h1><p>'+esc(s.body)+'</p></section>').join('')+'</body></html>';
+    download(html,name+'.html','text/html;charset=utf-8');
+  }
+  toast('Exported '+typeNames[f.type].toLowerCase());
+}
+function backup(){download(JSON.stringify({version:1,exportedAt:new Date().toISOString(),files},null,2),'mysoft-office-backup.json','application/json');toast('Workspace backup exported');}
+function validImport(payload){
+  if(!payload||!Array.isArray(payload.files)||payload.files.length>500) return null;
+  const output=[];
+  for(const f of payload.files){
+    if(!f||!typeNames[f.type]||typeof f.title!=='string'||f.title.length>120||typeof f.id!=='string') return null;
+    if(f.type==='docs'||f.type==='notes'){
+      if(typeof f.body!=='string'||f.body.length>1000000) return null;
+    }
+    if(f.type==='sheets'&&(!f.cells||typeof f.cells!=='object'||Array.isArray(f.cells)||Object.keys(f.cells).length>10000)) return null;
+    if(f.type==='slides'&&(!Array.isArray(f.slides)||f.slides.length>200)) return null;
+    output.push(f);
+  }
+  return output;
+}
+async function importBackup(file){
+  try{
+    if(file.size>10000000){toast('Backup is too large');return;}
+    const parsed=JSON.parse(await file.text()),imported=validImport(parsed);
+    if(!imported){toast('Invalid MySoft backup');return;}
+    if(!confirm('Replace this browser workspace with '+imported.length+' imported files? Export your current backup first.')) return;
+    files=imported.map(f=>({...f,updatedAt:Number(f.updatedAt)||Date.now()}));
+    persist();navigate('home');toast('Workspace restored');
+  }catch{toast('Could not read this backup');}
+}
+function updateCell(ref,raw,rerender=false){
+  const f=getActive();if(!f||f.type!=='sheets')return;
+  f.cells[ref]=raw;
+  touch(f);
+  if(rerender) refreshCells();
+}
+function refreshCells(){
+  const f=getActive();if(!f||f.type!=='sheets')return;
+  document.querySelectorAll('[data-cell]').forEach(el=>{
+    if(document.activeElement!==el) el.value=displayCell(el.dataset.cell,f.cells);
+  });
+}
+document.addEventListener('mousedown',event=>{
+  if(event.target.closest('[data-cmd]')) event.preventDefault();
+});
+document.addEventListener('click',event=>{
+  const el=event.target.closest('[data-action],[data-nav],[data-create],[data-open],[data-star],[data-delete],[data-duplicate],[data-slide],[data-theme],[data-template],[data-cmd]');
+  if(!el){
+    if(event.target.classList.contains('modal-backdrop'))closeModal();
+    return;
+  }
+  if(el.dataset.nav){navigate(el.dataset.nav);return;}
+  if(el.dataset.open){openFile(el.dataset.open);return;}
+  if(el.dataset.create){newFile(el.dataset.create);return;}
+  if(el.dataset.star){const f=files.find(x=>x.id===el.dataset.star);if(f){f.starred=!f.starred;touch(f);render();}return;}
+  if(el.dataset.duplicate){duplicate(el.dataset.duplicate);return;}
+  if(el.dataset.delete){modal('delete',el.dataset.delete);return;}
+  if(el.dataset.template!==undefined){createTemplate(Number(el.dataset.template));return;}
+  if(el.dataset.slide!==undefined){slideIndex=Number(el.dataset.slide);render();return;}
+  if(el.dataset.theme){const f=getActive();if(f?.type==='slides'){f.slides[slideIndex].theme=el.dataset.theme;touch(f);render();}return;}
+  if(el.dataset.cmd){
+    const editable=document.getElementById('rich-content');
+    editable?.focus();
+    document.execCommand(el.dataset.cmd,false,null);
+    if(editable){const f=getActive();f.body=sanitize(editable.innerHTML);touch(f);}
+    return;
+  }
+  const action=el.dataset.action;
+  if(action==='mobile'){mobileOpen=!mobileOpen;render();}
+  if(action==='new')modal('new');
+  if(action==='modal-close')closeModal();
+  if(action==='confirm-delete')remove(el.dataset.id);
+  if(action==='close-editor')navigate('files');
+  if(action==='export')exportFile();
+  if(action==='backup')backup();
+  if(action==='import')document.getElementById('backup-upload').click();
+  const f=getActive();
+  if(f?.type==='slides'){
+    if(action==='slide-add'){f.slides.push({title:'New slide',body:'Add your ideas here',theme:'violet'});slideIndex=f.slides.length-1;touch(f);render();}
+    if(action==='slide-duplicate'){const s=structuredClone(f.slides[slideIndex]);f.slides.splice(slideIndex+1,0,s);slideIndex++;touch(f);render();}
+    if(action==='slide-delete'){if(f.slides.length===1){toast('Keep at least one slide');return;}f.slides.splice(slideIndex,1);slideIndex=Math.max(0,slideIndex-1);touch(f);render();}
+  }
+});
+document.addEventListener('submit',event=>{
+  if(event.target.id!=='new-form')return;
+  event.preventDefault();
+  const data=new FormData(event.target),type=data.get('type'),title=String(data.get('title')||'').trim();
+  if(!typeNames[type])return;
+  closeModal();newFile(type,title);
+});
+document.addEventListener('input',event=>{
+  const target=event.target,f=getActive();
+  if(target.id==='global-search'){query=target.value;return;}
+  if(!f)return;
+  if(target.id==='document-title'||target.id==='note-title'){
+    f.title=target.value||'Untitled '+typeNames[f.type];
+    const companion=document.getElementById(target.id==='note-title'?'document-title':'note-title');
+    if(companion)companion.value=f.title;
+    touch(f);
+  }
+  if(target.id==='rich-content'){f.body=target.innerHTML;touch(f);}
+  if(target.id==='slide-title'||target.id==='slide-body'){
+    f.slides[slideIndex][target.id==='slide-title'?'title':'body']=target.textContent||'';touch(f);
+  }
+  if(target.matches('[data-cell]')){
+    updateCell(target.dataset.cell,target.value);
+    const formula=document.getElementById('formula-input');if(formula)formula.value=target.value;
+  }
+  if(target.id==='formula-input'){
+    updateCell(selectedCell,target.value);
+    const cell=document.querySelector('[data-cell="'+selectedCell+'"]');
+    if(cell&&document.activeElement!==cell)cell.value=target.value;
+  }
+});
+document.addEventListener('focusin',event=>{
+  const cell=event.target.closest('[data-cell]');if(!cell)return;
+  const f=getActive();if(!f||f.type!=='sheets')return;
+  document.querySelectorAll('.sheet-table td.selected').forEach(td=>td.classList.remove('selected'));
+  selectedCell=cell.dataset.cell;cell.parentElement.classList.add('selected');
+  cell.value=f.cells[selectedCell]||'';
+  const name=document.getElementById('selected-cell'),formula=document.getElementById('formula-input');
+  if(name)name.textContent=selectedCell;
+  if(formula)formula.value=cell.value;
+});
+document.addEventListener('focusout',event=>{
+  const t=event.target,f=getActive();
+  if(!f)return;
+  if(t.id==='rich-content'){t.innerHTML=sanitize(t.innerHTML);f.body=t.innerHTML;touch(f);}
+  if(t.matches('[data-cell]'))setTimeout(refreshCells,0);
+  if(t.id==='formula-input')setTimeout(refreshCells,0);
+});
+document.addEventListener('change',event=>{
+  if(event.target.id==='file-filter'){fileFilter=event.target.value;render();return;}
+  if(event.target.id==='doc-block'){
+    document.getElementById('rich-content')?.focus();
+    document.execCommand('formatBlock',false,event.target.value);
+    const f=getActive(),editable=document.getElementById('rich-content');
+    if(f&&editable){f.body=sanitize(editable.innerHTML);touch(f);}
+    return;
+  }
+  if(event.target.id==='backup-upload'&&event.target.files[0]){
+    importBackup(event.target.files[0]);event.target.value='';
+  }
+});
+document.addEventListener('keydown',event=>{
+  if(event.target.id==='global-search'&&event.key==='Enter'){event.preventDefault();view='files';fileFilter='all';render();return;}
+  if(event.key==='Escape'){closeModal();return;}
+  if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='s'){
+    event.preventDefault();persist();toast('Saved locally');
+  }
+  if(event.target.id==='formula-input'&&event.key==='Enter'){event.preventDefault();event.target.blur();}
+});
+document.addEventListener('paste',event=>{
+  if(event.target.closest('[contenteditable="true"]')){
+    event.preventDefault();
+    document.execCommand('insertText',false,event.clipboardData.getData('text/plain'));
+  }
+});
+const backupInput=document.createElement('input');
+backupInput.type='file';backupInput.accept='.json,application/json';backupInput.id='backup-upload';backupInput.hidden=true;
+document.body.appendChild(backupInput);
+persist();
+render();
