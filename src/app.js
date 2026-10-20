@@ -254,13 +254,28 @@ function render(){
 }
 function navigate(destination){
   if(view==='editor'&&getActive())snapshot(getActive(),true);
-  persist();view=destination;activeId=null;query='';fileFilter='all';mobileOpen=false;render();window.scrollTo(0,0);
+  persist();view=destination;activeId=null;query='';fileFilter='all';mobileOpen=false;
+  window.history.pushState(null,'','#/'+encodeURIComponent(destination));
+  render();window.scrollTo(0,0);
 }
 function openFile(id){
   if(!files.some(f=>f.id===id))return;
   if(view==='editor'&&getActive())snapshot(getActive(),true);
   activeId=id;view='editor';slideIndex=0;selectedCell='A1';mobileOpen=false;
+  window.history.pushState(null,'','#/file/'+encodeURIComponent(id));
   snapshot(getActive(),true);persist();render();
+}
+function restoreRoute(){
+  const route=window.location.hash;
+  if(route.startsWith('#/file/')){
+    try{
+      const id=decodeURIComponent(route.slice(7));
+      if(files.some(f=>f.id===id)){activeId=id;view='editor';return;}
+    }catch{}
+  }
+  const page=route.startsWith('#/')?route.slice(2):'home';
+  if(['home','files','starred','templates','trash',...Object.keys(typeNames)].includes(page)){view=page;activeId=null;}
+  else {view='home';activeId=null;}
 }
 function newFile(type,title){
   const f=makeFile(type,title);
@@ -580,5 +595,7 @@ const externalInput=document.createElement('input');
 externalInput.type='file';externalInput.accept='.txt,.md,.csv,.html,.htm';
 externalInput.id='external-file-upload';externalInput.hidden=true;
 document.body.appendChild(externalInput);
+window.addEventListener('popstate',()=>{restoreRoute();render();});
+restoreRoute();
 persist();
 render();
