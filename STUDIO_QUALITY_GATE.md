@@ -73,3 +73,11 @@ The app is not yet equivalent to WPS or Microsoft Office. We must extend the v0.
 - Slides: selected-object alignment to six slide edges/centers and bounded resize with persistent dimensions. No grouping/animations yet.
 - Notes: query filtering for notebooks, sections, tags, titles and text, with bounded mobile sidebar and explicit empty state.
 - Continue v0.5.x. Structural document engine, full spreadsheet engine, complex slide object stack and rich notes remain unfinished.
+
+## v0.5.5 — Studio editing experience
+
+- Semantic top-level document paragraph/heading movement, hierarchy changes, section insertion and preserved printer page breaks via dedicated Structure ribbon. Not yet a transactional or live-paginated document editor. Word DOCX conversion has limited fidelity for page breaks and advanced layout.
+- Sheets uses an incremental graph to invalidate formula caches and live-update visible direct/transitive dependents of edited cells; complex Excel functions, cross-sheet graph, async formulas and whole-workbook recalculation remain open.
+- Slides object z-order controls, bounded drag snapping and keyboard movement; no full animation or vector scene graph yet.
+- Updated focus states, horizontal ribbon scrolling, print break styling, responsive layouts and regression tests.
+- The v0.6 cloud milestone is still on hold until editing and fidelity reach a more professional standard.
