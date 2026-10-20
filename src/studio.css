@@ -330,3 +330,57 @@ html[data-mode="dark"] .doc-paper-header,html[data-mode="dark"] .doc-paper-foote
  .doc-page-frame .document-paper{width:100%!important}
  .studio-note-search{display:none!important}
 }
+
+
+/* MySoft Studio v0.5.5 — editing-first visual precision and accessible controls. */
+:root{--studio-panel-border:color-mix(in srgb,var(--studio-accent) 10%,#e9e5e0)}
+.ot-ribbon{box-shadow:0 3px 17px rgba(34,40,62,.045)}
+.ot-ribbon-tools{background:linear-gradient(90deg,#fff 0%,#fff 94%,color-mix(in srgb,var(--studio-accent) 4%,#fff) 100%);scroll-padding:16px}
+.ot-ribbon-tools::-webkit-scrollbar,.ot-ribbon-tabs::-webkit-scrollbar{height:5px}
+.ot-ribbon-tools::-webkit-scrollbar-thumb,.ot-ribbon-tabs::-webkit-scrollbar-thumb{border-radius:4px;background:color-mix(in srgb,var(--studio-accent) 23%,#b2b6c5)}
+.ot-btn{border-radius:10px;min-height:33px;white-space:nowrap}
+.ot-btn:focus-visible,.studio-shape:focus-visible{outline:3px solid var(--studio-accent);outline-offset:2px}
+.ot-tab{font-weight:650}
+.editor-head{box-shadow:0 2px 12px rgba(27,40,60,.045);position:relative;z-index:2}
+.document-paper hr[data-mysoft-page-break="true"]{
+  display:block!important;position:relative!important;overflow:visible;
+  height:0!important;border:0!important;border-top:2px dashed var(--studio-accent)!important;
+  margin:32px 0 30px!important;opacity:.83
+}
+.document-paper hr[data-mysoft-page-break="true"]::after{
+  content:"PAGE BREAK";display:block;position:absolute;top:-11px;left:50%;
+  transform:translateX(-50%);background:#fff8f5;color:var(--studio-accent);
+  font-size:10px;font-weight:800;letter-spacing:1.3px;padding:3px 10px;border-radius:8px;white-space:nowrap
+}
+.doc-page-frame{overflow:visible}
+.doc-outline{overscroll-behavior:contain}
+.studio-shape:focus-visible{outline:2px solid var(--studio-accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--studio-accent) 14%,transparent)}
+.slide-stage{background-image:linear-gradient(90deg,rgba(0,0,0,.015) 1px,transparent 1px),linear-gradient(rgba(0,0,0,.015) 1px,transparent 1px);background-size:10% 10%}
+.slide-stage .studio-object-layer .studio-shape{touch-action:pan-x pan-y}
+.studio-shape-grip{touch-action:none!important}
+.studio-statusbar{border-top:1px solid var(--studio-panel-border);box-shadow:0 -2px 12px rgba(24,35,57,.02)}
+.studio-statusbar #studio-zoom-value{font-weight:750;color:var(--studio-accent)}
+.studio-status-dot{box-shadow:0 0 0 3px rgba(28,165,125,.11)}
+.note-list .studio-note-search{position:relative;z-index:1}
+.ot-ribbon.collapsed{border-bottom:2px solid color-mix(in srgb,var(--studio-accent) 19%,#f0eef0)}
+@media(max-width:860px){
+ .ot-ribbon-tools{scroll-snap-type:x proximity}
+ .ot-ribbon-tools>.ot-btn{scroll-snap-align:start}
+ .doc-canvas{overscroll-behavior-x:contain}
+}
+@media(max-width:590px){
+ .editor-head .btn{min-width:0;white-space:normal;overflow-wrap:anywhere}
+ .ot-ribbon-top{border-bottom:1px solid var(--studio-panel-border)}
+ .ot-ribbon-meta{min-width:0}
+ .ot-ribbon-tools{min-height:52px}
+ .studio-statusbar{min-height:30px}
+ .document-paper hr[data-mysoft-page-break="true"]::after{font-size:8px}
+}
+@media print{
+ .document-paper hr[data-mysoft-page-break="true"]{
+   break-after:page!important;page-break-after:always!important;
+   border:0!important;margin:0!important;height:0!important;visibility:hidden
+ }
+ .document-paper hr[data-mysoft-page-break="true"]::after{display:none!important}
+ .studio-shape-grip{display:none!important}
+}
