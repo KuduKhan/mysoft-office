@@ -20,12 +20,12 @@ test('desktop sidebar stays fixed during scrolling and keeps backup controls acc
   expect(Math.abs((await sidebar.boundingBox()).y)).toBeLessThan(2);
   await page.locator('[data-action="nav-collapse"]').first().click();
   await expect(page.locator('.shell')).toHaveClass(/nav-collapsed/);
-  const compact=await page.evaluate(()=>{
+  // The rail animates to its collapsed width: inspect after transition settles.
+  await expect.poll(async()=>page.evaluate(()=>{
     const s=document.querySelector('#studio-sidebar').getBoundingClientRect();
     const m=document.querySelector('#studio-main').getBoundingClientRect();
-    return {sidebarRight:s.right,mainLeft:m.left};
-  });
-  expect(Math.abs(compact.sidebarRight-compact.mainLeft)).toBeLessThan(2);
+    return Math.abs(s.right-m.left);
+  })).toBeLessThan(2);
   await expect(page.locator('.side-foot [data-action="backup"]')).toBeVisible();
   await expect(page.locator('.side-foot [data-action="backup"]')).toHaveAttribute('aria-label','Export backup');
   const downloadPromise=page.waitForEvent('download');
