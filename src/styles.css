@@ -288,3 +288,25 @@ html[data-mode="dark"] .ot-tab.active{color:#bdb2ff}
 @media(prefers-reduced-motion:reduce){.ot-effect-fade,.ot-effect-slide{animation:none!important}}
 
 .document-paper img,.note-content img{display:block;max-width:100%;height:auto;margin:16px 0;border-radius:6px}
+
+
+/* v0.4 windowed worksheet: 1,000 rows × 26 columns, rendered in batches of 48 */
+.sheet-scroll{position:relative;contain:layout paint;overflow:auto;flex:1;overscroll-behavior:contain}
+.sheet-virtual-grid{width:3270px;position:relative;}
+.sheet-head,.sheet-window .sheet-table{width:3270px;min-width:3270px;max-width:3270px;table-layout:fixed;border-collapse:collapse}
+.sheet-head{position:sticky;top:0;z-index:12;background:#f5f7fc}
+.sheet-head th{height:31px;max-height:31px;padding:0;text-align:center;color:#75819a;font-weight:650;font-size:11px;background:#f5f7fc;border:1px solid #e4e8f0}
+.sheet-head th:first-child,.sheet-window td:first-child{width:46px;min-width:46px;max-width:46px}
+.sheet-head th:not(:first-child),.sheet-window td:not(:first-child){width:124px;min-width:124px;max-width:124px}
+.sheet-head th:first-child{position:sticky;left:0;z-index:14}
+.sheet-window{position:absolute;left:0;width:3270px}
+.sheet-window .sheet-table{min-width:3270px}
+.sheet-window tr{height:30px;max-height:30px}
+.sheet-window td{height:30px;max-height:30px;overflow:hidden}
+.sheet-window td:first-child{position:sticky;left:0;z-index:3;background:#f4f6fa;text-align:center}
+.sheet-window input{height:29px;min-height:29px;max-height:29px;white-space:nowrap}
+.sheet-formula #cell-address{flex:none;width:88px;min-width:88px;max-width:88px;border:1px solid #dce0ed;border-radius:7px;background:#f5f6fa;font-weight:750;text-align:center;color:#35415f;letter-spacing:.4px;padding:7px}
+.sheet-capacity{font-size:10px;color:#8d98b0;white-space:nowrap;font-weight:650}
+html[data-mode="dark"] .sheet-head th,html[data-mode="dark"] .sheet-window td:first-child{background:#263551;color:#dfe7f7;border-color:#465471}
+html[data-mode="dark"] .sheet-formula #cell-address{background:#263551;color:#f2f4fc;border-color:#465471}
+@media(max-width:800px){.sheet-capacity{display:none}}
