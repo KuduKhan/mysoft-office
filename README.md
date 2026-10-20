@@ -2,7 +2,7 @@
 
 **Your work. Your space.**
 
-MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.5.0** adds limited native DOCX/XLSX/PPTX import/export while preserving v0.4 features. This remains a local-first prototype, not full Microsoft Office parity. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
+MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.5.1 Studio Refresh** retains native DOCX/XLSX/PPTX support and adds a redesigned, responsive workspace with orangered/color theme options, denser editing ribbons and new functional commands. This remains a local-first prototype, not full Microsoft Office parity. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
 
 ## Quick start
 
@@ -15,6 +15,19 @@ npm run dev
 ```
 
 Open http://localhost:4173. No installation step or external npm dependencies are required for the local editor prototype. This repository includes static output configuration for Vercel, but the Vercel project is not connected yet.
+
+## New in v0.5.1 — MySoft Studio UI and editing tools
+
+- Studio design system with Orangered, Coral, Saffron, Ocean, Jade, Violet, Rose and Graphite themes.
+- Customized accent swatches, light/dark interface, adjustable zoom and collapsible contextual Ribbon.
+- Editors get a fitted header, local-save status bar, scrollable toolgroups and responsive layouts.
+- Docs/Notes add rich-text alignment, lists, quotes and extra formatting shortcuts.
+- Sheets adds a Format Ribbon, alignments, text Find/Replace, Fill Down (1–50), and clear cell actions.
+- Slides gains backdrop/foreground design presets that carry into the slideshow.
+- Playwright checks for page overflow and header button collisions at 360, 390, 768, 1024 and 1440px.
+- Dedicated [Studio quality gate](STUDIO_QUALITY_GATE.md) keeps editor maturity ahead of cloud milestones.
+
+**Scope:** This is not yet feature-parity with Microsoft Office, WPS or ArtCraft. Advanced editing engines, pivots, shape-based slides, rich notebook structures and full-format fidelity remain to be built.
 
 ## New in v0.5 — Native Office files
 
@@ -84,6 +97,7 @@ npm run dev
 GitHub Actions runs Node unit/build checks and Playwright Chromium browser smoke tests. See `tests/`.
 
 Architecture documentation:
+- [STUDIO_QUALITY_GATE.md](STUDIO_QUALITY_GATE.md) — editor and responsive quality targets before v0.6.
 - [OFFICE_COMPATIBILITY.md](OFFICE_COMPATIBILITY.md) — supported Office file subset and conversion limits.
 - [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) — full Word, Excel, PowerPoint, OneNote-class targets.
 - [ARCHITECTURE.md](ARCHITECTURE.md) — architecture decisions and evolution.
