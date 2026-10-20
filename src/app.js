@@ -228,7 +228,7 @@ function sidebar(){
   const nav=(id,title,ic,extra='')=>'<button type="button" class="nav-link '+(view===id?'active':'')+'" data-nav="'+id+'" title="'+esc(title)+'" aria-label="'+esc(title)+'"'+(view===id?' aria-current="page"':'')+'>'+icon(ic,18)+'<span class="nav-label">'+esc(title)+'</span>'+extra+'</button>';
   const action=(id,title,ic)=>'<button type="button" class="nav-link" data-action="'+id+'" title="'+esc(title)+'" aria-label="'+esc(title)+'">'+icon(ic,17)+'<span class="nav-label">'+esc(title)+'</span></button>';
   return '<aside class="sidebar '+(mobileOpen?'open':'')+'" id="studio-sidebar" aria-label="Workspace navigation">'+
-    '<div class="studio-sidebar-top"><div class="brand"><span class="brand-symbol" aria-hidden="true"><b></b><b></b><b></b><b></b></span><div class="studio-brand-copy"><strong>MySoft Office</strong><small>Your work. Your space.</small></div><button type="button" class="studio-sidebar-dismiss" data-action="mobile-close" aria-label="Close navigation" title="Close navigation">'+icon('x',17)+'</button></div>'+
+    '<div class="studio-sidebar-top"><div class="brand"><span class="brand-symbol" aria-hidden="true"><b></b><b></b><b></b><b></b></span><div class="studio-brand-copy"><strong>MySoft Office</strong><small>Your work. Your space.</small></div><button type="button" class="studio-sidebar-dismiss" data-action="mobile-dismiss" aria-label="Close navigation" title="Close navigation">'+icon('x',17)+'</button></div>'+
     '<div class="studio-sidebar-control"><button type="button" class="studio-nav-collapse" data-action="nav-collapse" title="'+(navCollapsed?'Expand':'Collapse')+' sidebar" aria-label="'+(navCollapsed?'Expand':'Collapse')+' sidebar" aria-pressed="'+navCollapsed+'">'+icon('menu',17)+'<span>'+(navCollapsed?'Expand sidebar':'Collapse sidebar')+'</span></button></div></div>'+
     '<nav class="sidebar-nav" aria-label="Primary navigation"><div class="nav-caption">Workspace</div>'+nav('home','Overview','home')+nav('files','My files','folder','<span class="count">'+files.length+'</span>')+nav('starred','Starred','star')+nav('templates','Templates','grid')+nav('trash','Recycle bin','trash','<span class="count">'+trashFiles.length+'</span>')+
     '<div class="nav-caption">Applications</div>'+['docs','sheets','slides','notes'].map(t=>nav(t,labels[t],typeIcons[t])).join('')+'</nav>'+
@@ -828,7 +828,7 @@ document.addEventListener('click',event=>{
   }
   const action=el.dataset.action;
   if(action==='mobile'){setMobileNavigation(!mobileOpen);return;}
-  if(action==='mobile-close'){setMobileNavigation(false,true);return;}
+  if(action==='mobile-close'||action==='mobile-dismiss'){setMobileNavigation(false,true);return;}
   if(action==='nav-collapse'){setCollapsedSidebar(!navCollapsed);return;}
   if(action==='focus-mode'){focusMode=!focusMode;mobileOpen=false;render();document.querySelector('[data-action="focus-mode"]')?.focus();}
   if(action==='new')modal('new');
