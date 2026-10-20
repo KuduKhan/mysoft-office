@@ -207,9 +207,13 @@ function modal(content){
 function preferencesModal(){
   modal('<h2>Workspace appearance</h2><p>Customize your MySoft Office experience. Preferences are saved in this browser.</p>'+
     '<label for="ot-mode">Appearance</label><select id="ot-mode" data-ot-pref="mode"><option value="light" '+(prefs.mode==='light'?'selected':'')+'>Light</option><option value="dark" '+(prefs.mode==='dark'?'selected':'')+'>Dark</option></select>'+
-    '<label for="ot-accent">Accent color</label><select id="ot-accent" data-ot-pref="accent">'+ACCENT_COLORS.map(x=>'<option value="'+x+'" '+(prefs.accent===x?'selected':'')+'>'+x+'</option>').join('')+'</select>'+
+    '<label for="ot-accent">Accent color</label><select id="ot-accent" data-ot-pref="accent">'+STUDIO_ACCENTS.map(x=>'<option value="'+x.value+'" '+(prefs.accent===x.value?'selected':'')+'>'+x.name+'</option>').join('')+'</select>'+
+    '<div class="studio-swatches" role="group" aria-label="Color accents">'+STUDIO_ACCENTS.map(x=>
+      '<button class="studio-swatch '+(prefs.accent===x.value?'active':'')+'" type="button" data-ot-palette="'+x.value+'" style="--swatch:'+x.value+'" title="'+x.name+'" aria-label="'+x.name+'" aria-pressed="'+(prefs.accent===x.value)+'"><span></span><small>'+x.name+'</small></button>'
+    ).join('')+'</div>'+
     '<label for="ot-density">Density</label><select id="ot-density" data-ot-pref="density"><option value="comfortable" '+(prefs.density==='comfortable'?'selected':'')+'>Comfortable</option><option value="compact" '+(prefs.density==='compact'?'selected':'')+'>Compact</option></select>'+
     '<label for="ot-font-scale">UI scale</label><select id="ot-font-scale" data-ot-pref="fontScale">'+[85,100,110,120].map(n=>'<option value="'+n+'" '+(Number(prefs.fontScale)===n?'selected':'')+'>'+n+'%</option>').join('')+'</select>'+
+    '<label for="ot-zoom">Editor zoom</label><select id="ot-zoom" data-ot-pref="zoom">'+[75,90,100,110,125,150].map(n=>'<option value="'+n+'" '+(Number(prefs.zoom)===n?'selected':'')+'>'+n+'%</option>').join('')+'</select>'+
     '<div class="modal-actions"><button class="btn btn-light" data-ot-action="settings-close">Done</button></div>');
 }
 function syncSheet(ctx,f){
@@ -223,6 +227,12 @@ export function initializeOfficeTools(ctx){
     if(e.target.closest('button[data-ot-action]')?.dataset.otAction && ['strike','superscript','subscript','clear-format','insert-table','insert-hr','insert-checklist','insert-date'].includes(e.target.closest('button').dataset.otAction))e.preventDefault();
   });
   document.addEventListener('click',event=>{
+    const palette=event.target.closest('[data-ot-palette]');
+    if(palette){
+      prefs.accent=palette.dataset.otPalette;
+      localStorage.setItem(PREFS_KEY,JSON.stringify(prefs));
+      applyPreferences();preferencesModal();return;
+    }
     const tab=event.target.closest('[data-ot-tab]');
     if(tab){const f=ctx.getFile();if(f){selectedTab[f.type]=tab.dataset.otTab;ctx.render();}return;}
     const switcher=event.target.closest('[data-ot-sheet]');
@@ -232,14 +242,23 @@ export function initializeOfficeTools(ctx){
     const action=target.dataset.otAction;
     const f=ctx.getFile();
     if(action==='preferences'){preferencesModal();return;}
+    if(action==='ribbon-toggle'){
+      ribbonCollapsed=!ribbonCollapsed;
+      localStorage.setItem('mysoft-office-ribbon-collapsed',ribbonCollapsed?'yes':'no');
+      ctx.render();return;
+    }
     if(action==='settings-close'){document.getElementById('modal-root').innerHTML='';return;}
     if(action==='present-close'){document.getElementById('ot-presentation')?.remove();return;}
     if(action==='present-next'||action==='present-back'){showPresentation(ctx,slideshowIndex+(action==='present-next'?1:-1));return;}
     if(!f)return;
     try{
-      if(['strike','superscript','subscript','clear-format'].includes(action)){
-        richCommand(ctx,{strike:'strikeThrough','clear-format':'removeFormat',superscript:'superscript',subscript:'subscript'}[action]);return;
-      }
+      const textActions={
+        'text-bold':'bold','text-italic':'italic','text-underline':'underline',
+        'align-left':'justifyLeft','align-center':'justifyCenter','align-right':'justifyRight',
+        'bullet-list':'insertUnorderedList','numbered-list':'insertOrderedList',
+        strike:'strikeThrough','clear-format':'removeFormat',superscript:'superscript',subscript:'subscript'
+      };
+      if(Object.hasOwn(textActions,action)){richCommand(ctx,textActions[action]);return;}
       if(action==='insert-table'){richCommand(ctx,'insertHTML','<table><tbody>'+Array.from({length:3},()=>'<tr><td>Cell</td><td>Cell</td><td>Cell</td></tr>').join('')+'</tbody></table><p></p>');return;}
       if(action==='custom-table'){
         const rows=Number(prompt('How many rows? (1–10)','4'));
@@ -275,6 +294,8 @@ export function initializeOfficeTools(ctx){
         input.click();return;
       }
       if(action==='insert-hr'){richCommand(ctx,'insertHTML','<hr><p></p>');return;}
+      if(action==='insert-quote'){richCommand(ctx,'insertHTML','<blockquote><p>Quote or important information</p></blockquote><p></p>');return;}
+      if(action==='insert-page-break'){richCommand(ctx,'insertHTML','<hr><p></p>');ctx.toast('Page separator inserted (print pagination is browser-controlled).');return;}
       if(action==='insert-checklist'){richCommand(ctx,'insertHTML','<ul><li>☐ Task</li></ul>');return;}
       if(action==='insert-date'){richCommand(ctx,'insertText',new Intl.DateTimeFormat('en-GB',{dateStyle:'long'}).format(new Date()));return;}
       if(action==='insert-link'){
@@ -289,6 +310,30 @@ export function initializeOfficeTools(ctx){
         const replacement=document.getElementById('ot-replace')?.value||'';
         const count=replaceAllText(ctx,find,replacement);
         ctx.toast(count?count+' occurrences replaced':'No matches');return;
+      }
+      if(action==='sheet-find-replace'){
+        const needle=prompt('Find in current worksheet (text only):','');
+        if(needle===null)return;
+        const replacement=prompt('Replace matching text with:','');
+        if(replacement===null)return;
+        const count=replaceSheetValues(f.cells,needle,replacement);
+        if(count){ctx.toast(count+' cells updated');syncSheet(ctx,f);}else ctx.toast('No matches');
+        return;
+      }
+      if(action==='sheet-fill-down'){
+        const amount=Number(prompt('Fill the selected value downward across how many rows? (1–50)','5'));
+        if(!Number.isInteger(amount)||amount<1||amount>50)throw Error('Enter a number from 1 to 50');
+        const count=fillDown(f.cells,ctx.getSelectedCell(),amount);
+        ctx.toast(count+' cells filled');syncSheet(ctx,f);return;
+      }
+      if(action==='sheet-clear-cell'){
+        if(!confirm('Clear selected cell and formatting?'))return;
+        clearCell(f.cells,f.cellStyles,ctx.getSelectedCell());
+        syncSheet(ctx,f);return;
+      }
+      if(['cell-align-left','cell-align-center','cell-align-right'].includes(action)){
+        setCellStyle(f,ctx.getSelectedCell(),'align',action.split('-').at(-1));
+        syncSheet(ctx,f);return;
       }
       if(action==='sheet-add')addSheet(f);
       else if(action==='sheet-rename'){const name=prompt('New worksheet name:',f.worksheets[f.activeSheetIndex].name);if(name===null)return;renameSheet(f,name);}
@@ -349,6 +394,9 @@ export function initializeOfficeTools(ctx){
     if(name.startsWith('cell-')){
       const prop={'cell-color':'color','cell-background':'background'}[name];
       if(prop){setCellStyle(f,ctx.getSelectedCell(),prop,value);ctx.touch(f);ctx.persist();ctx.render();}return;
+    }
+    if(name==='backdrop'&&f.type==='slides'){
+      setSlidePreset(f.slides[ctx.getSlideIndex()],value);ctx.touch(f);ctx.render();return;
     }
     if(['layout','transition','text-size'].includes(name)&&f.type==='slides'){
       const prop={'layout':'layout','transition':'transition','text-size':'textScale'}[name];
