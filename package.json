@@ -1,0 +1,16 @@
+{
+  "name": "mysoft-office",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "MySoft Office - Your work. Your space.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node scripts/server.mjs",
+    "test": "node --test",
+    "build": "node scripts/build.mjs",
+    "start": "node scripts/server.mjs"
+  }
+}
