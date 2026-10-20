@@ -30,7 +30,9 @@ let lastTableLocation=null;
 let docFindState={fileId:'',query:'',index:-1};
 let lastDocumentBlock={fileId:null,index:0};
 let slideshowIndex=0;
-let ribbonCollapsed=localStorage.getItem('mysoft-office-ribbon-collapsed')==='yes';
+function safeGet(key){try{return localStorage.getItem(key);}catch{return null;}}
+function safeSet(key,value){try{localStorage.setItem(key,value);}catch{}}
+let ribbonCollapsed=safeGet('mysoft-office-ribbon-collapsed')==='yes';
 const STUDIO_ACTIONS={
   docs:['Home','Insert','Structure','Table','Layout','Review'],
   notes:['Write','Organize'],
@@ -361,7 +363,7 @@ export function initializeOfficeTools(ctx){
     const palette=event.target.closest('[data-ot-palette]');
     if(palette){
       prefs.accent=palette.dataset.otPalette;
-      localStorage.setItem(PREFS_KEY,JSON.stringify(prefs));
+      safeSet(PREFS_KEY,JSON.stringify(prefs));
       applyPreferences();preferencesModal();return;
     }
     const tab=event.target.closest('[data-ot-tab]');
@@ -375,13 +377,13 @@ export function initializeOfficeTools(ctx){
     if(action==='preferences'){preferencesModal();return;}
     if(action==='zoom-in'||action==='zoom-out'){
       prefs.zoom=Math.max(75,Math.min(150,(Number(prefs.zoom)||100)+(action==='zoom-in'?10:-10)));
-      localStorage.setItem(PREFS_KEY,JSON.stringify(prefs));applyPreferences();
+      safeSet(PREFS_KEY,JSON.stringify(prefs));applyPreferences();
       const label=document.getElementById('studio-zoom-value');if(label)label.textContent=prefs.zoom+'%';
       return;
     }
     if(action==='ribbon-toggle'){
       ribbonCollapsed=!ribbonCollapsed;
-      localStorage.setItem('mysoft-office-ribbon-collapsed',ribbonCollapsed?'yes':'no');
+      safeSet('mysoft-office-ribbon-collapsed',ribbonCollapsed?'yes':'no');
       ctx.render();return;
     }
     if(action==='settings-close'){document.getElementById('modal-root').innerHTML='';return;}
@@ -718,7 +720,7 @@ export function initializeOfficeTools(ctx){
   });
   document.addEventListener('change',event=>{
     const p=event.target.closest('[data-ot-pref]');
-    if(p){const key=p.dataset.otPref;if(Object.hasOwn(defaultPrefs,key)){prefs[key]=p.value;localStorage.setItem(PREFS_KEY,JSON.stringify(prefs));applyPreferences();}return;}
+    if(p){const key=p.dataset.otPref;if(Object.hasOwn(defaultPrefs,key)){prefs[key]=p.value;safeSet(PREFS_KEY,JSON.stringify(prefs));applyPreferences();}return;}
     const input=event.target.closest('[data-ot-input]');
     if(!input)return;
     const name=input.dataset.otInput,f=ctx.getFile();

@@ -174,7 +174,7 @@ try{navCollapsed=JSON.parse(localStorage.getItem(STUDIO_SHELL_KEY)||'{}').collap
 let savedTimer=0,toastTimer=0;
 const app=document.getElementById('app');
 const modalRoot=document.getElementById('modal-root');
-async function persist(workspace=workspaceSnapshot()){
+async function persist(workspace=workspaceSnapshot(),options={}){
   clearTimeout(savedTimer);
   const revision=++saveRevision;
   updateSaveStatus('saving');
@@ -184,12 +184,14 @@ async function persist(workspace=workspaceSnapshot()){
     return false;
   }
   try{
-    await workspaceStore.save(workspace);
+    await workspaceStore.save(workspace,options);
     if(revision===saveRevision)updateSaveStatus('saved');
     return true;
   }catch(error){
     if(revision===saveRevision)updateSaveStatus('failed');
-    toast('Save failed. Export a JSON backup before leaving.');
+    toast(error?.name==='WorkspaceConflictError'?
+      'Another tab changed the workspace. Export a JSON backup before reloading.':
+      'Save failed. Export a JSON backup before leaving.');
     return false;
   }
 }
@@ -615,7 +617,7 @@ async function applyWorkspace(payload){
     versions:payload.versions&&typeof payload.versions==='object'&&!Array.isArray(payload.versions)?payload.versions:{}
   };
   // Persist the replacement atomically before changing the visible workspace.
-  if(!await persist(next))return false;
+  if(!await persist(next,{journal:false}))return false;
   files=next.files;trashFiles=next.trash;revisions=next.versions;
   navigate('home');return true;
 }
@@ -1146,6 +1148,7 @@ async function bootWorkspace(){
     restoreRoute();render();updateSaveStatus('saved');
     if(result.source==='legacy-migrated')toast('Existing workspace migrated. Original browser data kept for recovery.');
     if(result.source==='journal-recovered')toast('Unsaved edits recovered from the local recovery journal.');
+    if(result.source==='journal-preserved')toast('Committed files opened. A pending recovery journal was preserved for manual backup.');
   }catch(error){
     storageReady=false;
     let legacy,recovery;
