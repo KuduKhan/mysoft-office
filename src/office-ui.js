@@ -15,6 +15,7 @@ let prefs=defaultPrefs;
 try{prefs={...defaultPrefs,...JSON.parse(localStorage.getItem(PREFS_KEY)||'{}')};}catch{}
 let selectedTab={docs:'Home',sheets:'Home',slides:'Design',notes:'Write'};
 let savedRange=null;
+let lastTableLocation=null;
 let slideshowIndex=0;
 let ribbonCollapsed=localStorage.getItem('mysoft-office-ribbon-collapsed')==='yes';
 const STUDIO_ACTIONS={
@@ -171,16 +172,33 @@ function editorSelection(){
   const range=selection.getRangeAt(0);
   if(rich.contains(range.commonAncestorContainer)) savedRange=range.cloneRange();
 }
-function selectedTableCell(){
+function selectedTableCell(ctx){
   const editable=document.getElementById('rich-content');
   const selection=window.getSelection();
-  const anchor=savedRange?.startContainer||selection?.anchorNode;
+  const anchor=selection?.anchorNode;
   const node=anchor?.nodeType===Node.ELEMENT_NODE?anchor:anchor?.parentElement;
-  const cell=node?.closest?.('td,th');
-  return cell&&editable?.contains(cell)?cell:null;
+  const live=node?.closest?.('td,th');
+  if(live&&editable?.contains(live))return live;
+  if(lastTableLocation?.fileId!==ctx.getFile()?.id)return null;
+  const table=editable?.querySelectorAll('table')[lastTableLocation.table];
+  const row=table?.rows[lastTableLocation.row];
+  return row?.cells[lastTableLocation.col]||null;
+}
+function recordTableLocation(ctx,target){
+  const cell=target?.closest?.('#rich-content td,#rich-content th');
+  if(!cell)return;
+  const table=cell.closest('table'),row=cell.closest('tr');
+  if(!table||!row)return;
+  const editor=document.getElementById('rich-content');
+  lastTableLocation={
+    fileId:ctx.getFile()?.id,
+    table:[...editor.querySelectorAll('table')].indexOf(table),
+    row:[...table.rows].indexOf(row),
+    col:[...row.cells].indexOf(cell)
+  };
 }
 function tableEdit(ctx,action){
-  const cell=selectedTableCell();
+  const cell=selectedTableCell(ctx);
   if(!cell)throw Error('Click inside a table cell first.');
   const row=cell.closest('tr'),table=cell.closest('table');
   if(!row||!table)throw Error('Select a valid table.');
@@ -267,6 +285,8 @@ function syncSheet(ctx,f){
 export function initializeOfficeTools(ctx){
   applyPreferences();
   document.addEventListener('selectionchange',editorSelection);
+  document.addEventListener('pointerdown',event=>recordTableLocation(ctx,event.target));
+  document.addEventListener('focusin',event=>recordTableLocation(ctx,event.target));
   document.addEventListener('mousedown',e=>{
     if(e.target.closest('button[data-ot-action]')?.dataset.otAction && ['strike','superscript','subscript','clear-format','insert-table','insert-hr','insert-checklist','insert-date','insert-quote','insert-page-break','text-bold','text-italic','text-underline','align-left','align-center','align-right','bullet-list','numbered-list','table-add-row','table-add-column','table-remove-row','table-remove-column'].includes(e.target.closest('button').dataset.otAction))e.preventDefault();
   });
