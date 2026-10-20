@@ -111,7 +111,8 @@ function toast(message){
   clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),3000);
 }
 function dateText(time){
-  return new Intl.DateTimeFormat('en',{month:'short',day:'numeric',year:'numeric'}).format(new Date(time));
+  const value=new Date(time);
+  return new Intl.DateTimeFormat('en',{month:'short',day:'numeric',year:'numeric'}).format(Number.isFinite(value.getTime())?value:new Date());
 }
 function getActive(){return files.find(f=>f.id===activeId);}
 function download(content,name,type){
@@ -293,7 +294,7 @@ function validImport(payload){
       if(typeof f.body!=='string'||f.body.length>1000000) return null;
     }
     if(f.type==='sheets'&&(!f.cells||typeof f.cells!=='object'||Array.isArray(f.cells)||Object.keys(f.cells).length>10000)) return null;
-    if(f.type==='slides'&&(!Array.isArray(f.slides)||f.slides.length>200)) return null;
+    if(f.type==='slides'&&(!Array.isArray(f.slides)||f.slides.length<1||f.slides.length>200||f.slides.some(s=>!s||typeof s.title!=='string'||typeof s.body!=='string'||s.title.length>500||s.body.length>20000))) return null;
     output.push(f);
   }
   return output;
@@ -435,6 +436,9 @@ document.addEventListener('paste',event=>{
     event.preventDefault();
     document.execCommand('insertText',false,event.clipboardData.getData('text/plain'));
   }
+});
+document.addEventListener('drop',event=>{
+  if(event.target.closest('[contenteditable="true"]')) event.preventDefault();
 });
 const backupInput=document.createElement('input');
 backupInput.type='file';backupInput.accept='.json,application/json';backupInput.id='backup-upload';backupInput.hidden=true;
