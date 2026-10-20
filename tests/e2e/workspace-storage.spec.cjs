@@ -99,7 +99,9 @@ test('rejected backup is never replayed on a subsequent reload',async({page})=>{
 test('invalid optional recovery journal cannot hide valid committed files',async({page})=>{
   await page.goto('/');
   await expect(page.getByText('Welcome to MySoft Office').first()).toBeVisible();
-  await page.evaluate(()=>localStorage.setItem('mysoft-office-pending-v3','{damaged'));
+  // Inject corruption on next navigation before app modules boot. The old page's
+  // pagehide handler performs a best-effort save and would otherwise repair it.
+  await page.addInitScript(()=>localStorage.setItem('mysoft-office-pending-v3','{damaged'));
   await page.reload();
   await expect(page.getByText('Welcome to MySoft Office').first()).toBeVisible();
   await expect(page.locator('#toast')).toContainText('Damaged recovery journal ignored');
