@@ -19,8 +19,10 @@ test('Sheets conditional comparisons calculate in visible grid and persist',asyn
  await page.locator('[data-create="sheets"]').first().click();
  await page.locator('[data-cell="A1"]').fill('20');
  await page.locator('[data-cell="B1"]').fill('=IF(A1>10,100,0)');
+ await page.locator('[data-cell="B1"]').press('Enter');
  await expect(page.locator('[data-cell="B1"]')).toHaveValue('100');
  await page.locator('[data-cell="A1"]').fill('4');
+ await page.locator('[data-cell="A1"]').press('Enter');
  await expect(page.locator('[data-cell="B1"]')).toHaveValue('0');
  await page.keyboard.press('Control+s');
  await page.reload();
