@@ -1,4 +1,4 @@
-/* MySoft Office 0.6.1 — fixed navigation shell and accessible mobile drawer.
+/* MySoft Office — fixed navigation shell and accessible mobile drawer.
    Overrides legacy/studio layers without changing editor canvas geometry. */
 .shell{--studio-nav-width:252px;display:block;min-height:100dvh}
 .shell.nav-collapsed{--studio-nav-width:78px}
@@ -111,3 +111,68 @@ html[data-mode="dark"] .workspace-search-summary{color:#bfcee1}
 .studio-shape-roundRect{border-radius:17% / 22%}
 .studio-shape-triangle{clip-path:polygon(50% 0%,100% 100%,0% 100%)}
 .studio-shape-triangle.selected{filter:drop-shadow(0 0 3px var(--studio-accent))}
+
+/* Shared SVG icons and restrained surface polish. */
+.ui-icon{display:inline-block;flex:0 0 auto;vertical-align:middle;pointer-events:none}
+.btn .ui-icon,.nav-link .ui-icon,.tool .ui-icon,.ot-btn .ui-icon{align-self:center}
+.welcome-spark{display:inline-flex;vertical-align:middle;color:var(--studio-accent);margin-left:3px}
+.studio-customize,.studio-pin-btn,.studio-zoom-btn,.ot-sheet-tab{align-items:center;justify-content:center;gap:7px}
+.studio-customize,.studio-pin-btn,.studio-zoom-btn{display:inline-flex}
+.ot-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;line-height:1.3}
+.ot-btn.ot-icon-only{width:34px;min-width:34px;padding:8px}
+.ot-btn:active,.icon-btn:active,.tool:active{transform:translateY(1px)}
+.tool{display:inline-flex;align-items:center;justify-content:center}
+.sidebar .nav-link .ui-icon{opacity:.82;transition:opacity .16s}
+.sidebar .nav-link:hover .ui-icon,.sidebar .nav-link.active .ui-icon{opacity:1}
+.sidebar .nav-link.active .ui-icon{color:#ffbc9f}
+.sidebar .nav-caption{font-size:9px;letter-spacing:1.6px}
+.sidebar .count{font-variant-numeric:tabular-nums;border:1px solid rgba(255,255,255,.06)}
+.searchbox{transition:border-color .16s,box-shadow .16s,background-color .16s}
+.content>.subtitle{line-height:1.7;color:#718096}
+.hero{border:1px solid rgba(255,255,255,.2);box-shadow:0 12px 32px color-mix(in srgb,var(--studio-accent) 14%,transparent)}
+.hero .eyebrow{color:#fff!important;opacity:.8;letter-spacing:1.6px;font-size:10px}
+.hero .btn{box-shadow:0 4px 12px rgba(50,25,12,.1)}
+.app-card{display:flex;flex-direction:column;align-items:flex-start;min-height:170px;padding:24px;box-shadow:0 2px 5px rgba(28,43,63,.025);transition:border-color .18s,box-shadow .18s,transform .18s}
+.app-card .app-icon{display:grid;place-items:center;width:46px;height:46px;border-radius:14px;margin-bottom:20px;border:1px solid rgba(255,255,255,.8);box-shadow:0 3px 7px rgba(28,43,63,.06),inset 0 1px 0 rgba(255,255,255,.6)}
+.app-card .app-icon.docs{color:#356fce;background:linear-gradient(145deg,#edf4ff,#dfeaff)}
+.app-card .app-icon.sheets{color:#128260;background:linear-gradient(145deg,#e9faf3,#d5f1e5)}
+.app-card .app-icon.slides{color:#c36824;background:linear-gradient(145deg,#fff5e9,#ffead4)}
+.app-card .app-icon.notes{color:#8753c5;background:linear-gradient(145deg,#f6efff,#eadefa)}
+.app-card strong{line-height:1.4;margin-bottom:5px}
+.app-card>span:last-child{color:#718096;font-size:12px;line-height:1.5}
+.app-card:hover,.template-card:hover{box-shadow:0 10px 25px rgba(28,43,63,.07);transform:translateY(-2px)}
+.section-head h2{font-size:19px;letter-spacing:-.55px}
+.section-head p{line-height:1.7}
+.data-table th{font-size:10px}
+.data-table td{border-bottom-color:color-mix(in srgb,var(--studio-line) 65%,transparent)}
+.data-table tbody tr:last-child td{border-bottom:0}
+.icon-btn{transition:color .16s,background-color .16s}
+.icon-btn:hover{color:var(--studio-accent);background:var(--studio-accent-soft)}
+.icon-btn.starred{color:#bd820b;background:#fff7de}
+.data-table .icon-btn[data-delete]:hover{color:#c63838;background:#fff0f0}
+html[data-mode="dark"] .content>.subtitle,
+html[data-mode="dark"] .app-card>span:last-child{color:#a9b8ce}
+html[data-mode="dark"] .app-card .app-icon{border-color:rgba(255,255,255,.1);box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+html[data-mode="dark"] .app-card .app-icon.docs{color:#9fc3ff;background:#203958}
+html[data-mode="dark"] .app-card .app-icon.sheets{color:#8bdfbf;background:#203e38}
+html[data-mode="dark"] .app-card .app-icon.slides{color:#f5bf8c;background:#48382e}
+html[data-mode="dark"] .app-card .app-icon.notes{color:#d1b0ff;background:#3b3052}
+html[data-mode="dark"] .icon-btn.starred{background:#473a22;color:#f2c66c}
+html[data-mode="dark"] .data-table .icon-btn[data-delete]:hover{background:#492d37;color:#ffacac}
+html[data-mode="dark"] .top-actions .btn-light{background:#263551;border-color:#3b4c68;color:#d6e2f2}
+html[data-mode="dark"] .top-actions .btn-light:hover{background:#334460;color:#fff}
+html[data-mode="dark"] .top-actions .avatar{background:#3d302f;color:#ffc5a3}
+@media(min-width:861px){.shell .topbar .mobile-menu{display:none}}
+@media(max-width:560px){
+  .app-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .app-card{min-height:154px;padding:18px 14px;border-radius:15px}
+  .app-card .app-icon{width:40px;height:40px;margin-bottom:16px;border-radius:12px}
+  .app-card strong{font-size:13px}
+  .app-card>span:last-child{font-size:11px}
+  .welcome-spark .ui-icon{width:20px;height:20px}
+  .ot-btn{gap:6px}
+}
+@media(prefers-reduced-motion:reduce){
+  .app-card,.template-card,.sidebar .nav-link .ui-icon,.searchbox,.icon-btn{transition:none}
+  .app-card:hover,.template-card:hover,.ot-btn:active,.icon-btn:active,.tool:active{transform:none}
+}

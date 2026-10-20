@@ -188,7 +188,7 @@ html[data-mode="dark"] .ot-ribbon-meta .ot-btn{background:#263551;color:#f2f5fa;
  .top-actions{gap:4px;flex:none}
  .top-actions .avatar{display:none}
  .top-actions [data-ot-action="preferences"]{font-size:0!important;width:34px;padding:7px!important;min-width:34px}
- .top-actions [data-ot-action="preferences"]::before{content:"⚙";font-size:17px}
+ .top-actions [data-ot-action="preferences"] span{display:none}
  .top-actions .btn-primary{font-size:10px;min-height:34px;padding:7px!important}
  .mobile-menu{width:30px;min-width:30px;padding:4px}
  .editor-shell{height:calc(100dvh - 70px);min-height:420px}

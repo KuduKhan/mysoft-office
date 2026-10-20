@@ -1,3 +1,4 @@
+import {icon,actionIcons} from './icons.js';
 import {
   ensureWorkbook,addSheet,switchSheet,renameSheet,duplicateSheet,deleteSheet,
   setCellStyle,sheetChartData,sortSheet,wordStatistics,
@@ -51,7 +52,14 @@ export function applyPreferences(){
   root.style.setProperty('--studio-zoom',String(Math.max(75,Math.min(150,Number(prefs.zoom)||100)))+'%');
   root.style.setProperty('--ot-font-scale',String(Math.max(85,Math.min(120,Number(prefs.fontScale)||100))/100));
 }
-const button=(label,action,title='')=>'<button type="button" class="ot-btn" data-ot-action="'+action+'" title="'+escapeHTML(title||label)+'">'+label+'</button>';
+const button=(label,action,title='')=>{
+  const name=actionIcons[action];
+  const iconLabels={'text-bold':'Bold selection','text-italic':'Italic selection','text-underline':'Underline selection','cell-bold':'Bold cell','cell-italic':'Italic cell',strike:'Strikethrough',superscript:'Superscript',subscript:'Subscript','shape-left':'Move selected object left','shape-right':'Move selected object right','shape-up':'Move selected object up','shape-down':'Move selected object down'};
+  const accessible=title||iconLabels[action]||label.replace(/<[^>]*>/g,'').replace(/^[^a-zA-Z0-9%]+/,'').trim();
+  const text=label.replace(/<[^>]*>/g,'').replace(/^[^a-zA-Z0-9%]+/,'').replace(/[▾▴]$/,'').trim();
+  const iconOnly=/^(text-(bold|italic|underline)|cell-(bold|italic)|align-(left|center|right)|shape-(left|right|up|down)|strike|superscript|subscript)$/.test(action);
+  return '<button type="button" class="ot-btn'+(iconOnly?' ot-icon-only':'')+'" data-ot-action="'+action+'" title="'+escapeHTML(accessible)+'" aria-label="'+escapeHTML(accessible)+'">'+(name?icon(name,16):'')+(iconOnly?'':'<span>'+escapeHTML(text)+'</span>')+'</button>';
+};
 const choice=(name,options,current)=>'<label class="ot-select-label">'+escapeHTML(name)+' <select data-ot-input="'+name.toLowerCase().replace(/\s+/g,'-')+'">'+options.map(([value,text])=>'<option value="'+escapeHTML(value)+'"'+(value===current?' selected':'')+'>'+escapeHTML(text)+'</option>').join('')+'</select></label>';
 const color=(label,name,value)=>'<label class="ot-select-label">'+escapeHTML(label)+' <input type="color" data-ot-input="'+name+'" value="'+(/^#[0-9a-fA-F]{6}$/.test(value)?value:'#6555e8')+'"></label>';
 function tabsFor(type){
@@ -68,14 +76,14 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         choice('Font size',[['2','Small'],['3','Normal'],['4','Large'],['5','Heading'],['6','Display']], '3')+
         color('Text','text-color','#212d48')+color('Highlight','highlight','#f8f2ad')+
         button('<b>B</b>','text-bold','Bold selection')+button('<i>I</i>','text-italic','Italic selection')+button('<u>U</u>','text-underline','Underline selection')+
-        button('≡','align-left','Align left')+button('☰','align-center','Align center')+button('≡›','align-right','Align right')+
-        button('• List','bullet-list')+button('1. List','numbered-list')+
+        button('Align left','align-left')+button('Align center','align-center')+button('Align right','align-right')+
+        button('Bulleted list','bullet-list')+button('Numbered list','numbered-list')+
         button('<b>S</b>','strike','Strikethrough')+button('x²','superscript')+button('x₂','subscript')+
         button('Clear','clear-format','Remove text formatting')+button('H1','style-h1','Heading 1')+button('H2','style-h2','Heading 2')+button('Body','style-body','Body paragraph')+button('Quote','style-quote','Quote paragraph');
     } else if(active==='Insert'){
-      body=button('⊞ Table 3×3','insert-table')+button('Table size…','custom-table')+button('Picture','insert-picture')+button('— Divider','insert-hr')+
-        button('🔗 Link','insert-link')+button('☐ Checklist','insert-checklist')+button('📅 Date','insert-date')+
-        button('❝ Quote','insert-quote')+button('¶ Page break','insert-page-break')+button('☷ Insert contents','insert-contents','Insert editable heading list');
+      body=button('Table 3×3','insert-table')+button('Table size…','custom-table')+button('Picture','insert-picture')+button('Divider','insert-hr')+
+        button('Link','insert-link')+button('Checklist','insert-checklist')+button('Date','insert-date')+
+        button('Quote','insert-quote')+button('Page break','insert-page-break')+button('Insert contents','insert-contents','Insert editable heading list');
     } else if(active==='Structure'){
       body=button('↑ Move block','block-up')+button('↓ Move block','block-down')+
         button('H+ Promote','block-promote')+button('H− Demote','block-demote')+
@@ -142,7 +150,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         button('Recalculate','sheet-recalculate')+
         '<span class="ot-metric">Sorting applies to column A and keeps row 1 as header. Formula sheets are protected.</span>';
     } else {
-      body=button('▥ Bar chart','chart-bar')+button('◷ Line chart','chart-line')+
+      body=button('Bar chart','chart-bar')+button('Line chart','chart-line')+
         '<span class="ot-metric">Chart preview uses labels in column A and numbers in column B, rows 2–1000.</span>';
     }
   } else if(file.type==='slides'){
@@ -154,7 +162,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         choice('Text size',[['normal','Normal'],['large','Large'],['compact','Compact']],slide.textScale||'normal')+
         button('Apply theme to all','theme-all');
     } else if(active==='Shapes'){
-      body=button('＋ Text box','shape-text')+button('▣ Rectangle','shape-rect')+button('◯ Ellipse','shape-ellipse')+button('▢ Rounded','shape-roundRect')+button('△ Triangle','shape-triangle')+
+      body=button('Text box','shape-text')+button('Rectangle','shape-rect')+button('Ellipse','shape-ellipse')+button('Rounded','shape-roundRect')+button('Triangle','shape-triangle')+
         color('Fill','shape-fill','#ea4c24')+color('Text','shape-color','#202d48')+
         button('Text A+','shape-font-up')+button('Text A−','shape-font-down')+
         button('Align left','shape-align-left')+button('Center','shape-align-center')+
@@ -174,11 +182,11 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         button('＋ New slide','slide-new')+button('Clone slide','slide-copy')+
         button('Delete slide','slide-remove')+button('Replace text…','slide-find-replace','Find and replace in slide titles, bodies and speaker notes');
     } else {
-      body=button('▶ Start presentation','present')+
+      body=button('Start presentation','present')+
         '<label class="ot-select-label">Speaker notes <textarea class="ot-notes" data-ot-input="speaker-notes" placeholder="Presenter-only notes">'+escapeHTML(slide.notes||'')+'</textarea></label>';
     }
   }
-  const sheetTabs=file.type==='sheets'?'<div class="ot-sheet-tabs">'+(file.worksheets||[{name:'Sheet 1'}]).map((sh,i)=>'<button class="ot-sheet-tab '+((file.activeSheetIndex||0)===i?'active':'')+'" data-ot-sheet="'+i+'">'+escapeHTML(sh.name)+'</button>').join('')+'<button class="ot-sheet-tab" data-ot-action="sheet-add">＋</button></div>':'';
+  const sheetTabs=file.type==='sheets'?'<div class="ot-sheet-tabs">'+(file.worksheets||[{name:'Sheet 1'}]).map((sh,i)=>'<button class="ot-sheet-tab '+((file.activeSheetIndex||0)===i?'active':'')+'" data-ot-sheet="'+i+'">'+escapeHTML(sh.name)+'</button>').join('')+'<button class="ot-sheet-tab" data-ot-action="sheet-add" title="Add worksheet" aria-label="Add worksheet">'+icon('plus',15)+'</button></div>':'';
   return '<section class="ot-ribbon'+(ribbonCollapsed?' collapsed':'')+'" aria-label="Editing tools"><div class="ot-ribbon-top"><div class="ot-ribbon-tabs" role="tablist" aria-label="Editor tool categories">'+tabs+'</div>'+
     '<div class="ot-ribbon-meta"><span class="ot-ribbon-version">MySoft Studio · 0.6.2</span>'+
     button(ribbonCollapsed?'Show tools ▾':'Hide tools ▴','ribbon-toggle')+'</div></div>'+
