@@ -281,9 +281,19 @@ function createTemplate(index){
 function modal(kind,id){
   const f=files.find(x=>x.id===id);
   if(kind==='new'){
-    modalRoot.innerHTML='<div class="modal-backdrop"><form class="modal" id="new-form"><h2>Create a new file</h2><p>Choose your workspace app and give your file a name.</p><label for="new-type">Application</label><select id="new-type" name="type">'+Object.keys(labels).map(t=>'<option value="'+t+'">'+labels[t]+'</option>').join('')+'</select><label for="new-title">File name</label><input id="new-title" name="title" placeholder="Untitled file" maxlength="120" autofocus><div class="modal-actions"><button type="button" class="btn btn-light" data-action="modal-close">Cancel</button><button class="btn btn-primary" type="submit">Create file</button></div></form></div>';
-  }else if(kind==='delete'&&f){
-    modalRoot.innerHTML='<div class="modal-backdrop"><div class="modal"><h2>Delete this file?</h2><p>This removes <strong>'+esc(f.title)+'</strong> from the local workspace. Export a backup first if needed.</p><div class="modal-actions"><button class="btn btn-light" data-action="modal-close">Cancel</button><button class="btn btn-dark" data-action="confirm-delete" data-id="'+esc(f.id)+'">Delete file</button></div></div></div>';
+    modalRoot.innerHTML='<div class="modal-backdrop"><form class="modal" id="new-form"><h2>Create a new file</h2><p>Choose an app and give your file a name.</p><label for="new-type">Application</label><select id="new-type" name="type">'+Object.keys(labels).map(t=>'<option value="'+t+'">'+labels[t]+'</option>').join('')+'</select><label for="new-title">File name</label><input id="new-title" name="title" placeholder="Untitled file" maxlength="120" autofocus><div class="modal-actions"><button type="button" class="btn btn-light" data-action="modal-close">Cancel</button><button class="btn btn-primary" type="submit">Create file</button></div></form></div>';
+  } else if(kind==='delete'&&f){
+    modalRoot.innerHTML='<div class="modal-backdrop"><div class="modal"><h2>Move to recycle bin?</h2><p><strong>'+esc(f.title)+'</strong> can be restored from your recycle bin.</p><div class="modal-actions"><button class="btn btn-light" data-action="modal-close">Cancel</button><button class="btn btn-dark" data-action="confirm-delete" data-id="'+esc(f.id)+'">Move to bin</button></div></div></div>';
+  } else if(kind==='revisions'&&f){
+    snapshot(f,true);persist();
+    const entries=[...(revisions[f.id]||[])].reverse();
+    modalRoot.innerHTML='<div class="modal-backdrop"><div class="modal"><h2>Version history</h2><p>Up to 12 local snapshots per file. Restore an earlier version if needed.</p><div style="max-height:280px;overflow:auto">'+entries.map((v,i)=>'<div class="spread" style="padding:11px 0;border-bottom:1px solid #ecedf4"><span class="muted" style="font-size:12px">'+new Date(v.at).toLocaleString()+'</span><button class="btn btn-soft btn-sm" data-revision="'+i+'">Restore</button></div>').join('')+'</div><div class="modal-actions"><button class="btn btn-light" data-action="modal-close">Close</button></div></div></div>';
+  } else if(kind==='cloud'){
+    modalRoot.innerHTML='<div class="modal-backdrop"><div class="modal"><h2>MySoft Cloud snapshots</h2>'+
+      (!cloudConfigured?'<p>Cloud is not configured yet. Your data remains on this browser until a dedicated MySoft Supabase project is connected.</p><p>Follow <strong>CLOUD_SETUP.md</strong> in the repository.</p>':
+        cloudUser?'<p>Signed in as <strong>'+esc(cloudUser.email||'MySoft user')+'</strong>. Cloud operations are manual snapshot transfers, not continuous synchronization.</p><div class="row" style="flex-wrap:wrap"><button class="btn btn-primary" data-action="cloud-upload">Upload snapshot</button><button class="btn btn-light" data-action="cloud-download">Download snapshot</button><button class="btn btn-light" data-action="cloud-signout">Sign out</button></div>':
+        '<p>Sign in to upload and recover workspace snapshots across devices.</p><form id="cloud-form"><label>Email</label><input name="email" type="email" autocomplete="email" required><label>Password</label><input name="password" type="password" autocomplete="current-password" minlength="8" required><div class="row"><button class="btn btn-primary" type="submit" name="mode" value="login">Sign in</button><button class="btn btn-soft" type="submit" name="mode" value="register">Create account</button></div></form>')+
+      '<div class="modal-actions"><button class="btn btn-light" data-action="modal-close">Close</button></div></div></div>';
   }
   modalRoot.querySelector('input')?.focus();
 }
@@ -349,15 +359,55 @@ function validImport(payload){
   }
   return output;
 }
+function applyWorkspace(payload){
+  const imported=validImport(payload);
+  const trash=payload?.trash?validImport({files:payload.trash}):[];
+  if(!imported||!trash)return false;
+  files=imported.map(f=>({...f,updatedAt:Number(f.updatedAt)||Date.now()}));
+  trashFiles=trash.slice(0,100);
+  revisions=payload.versions&&typeof payload.versions==='object'&&!Array.isArray(payload.versions)?payload.versions:{};
+  persist();navigate('home');return true;
+}
 async function importBackup(file){
   try{
     if(file.size>10000000){toast('Backup is too large');return;}
-    const parsed=JSON.parse(await file.text()),imported=validImport(parsed);
-    if(!imported){toast('Invalid MySoft backup');return;}
-    if(!confirm('Replace this browser workspace with '+imported.length+' imported files? Export your current backup first.')) return;
-    files=imported.map(f=>({...f,updatedAt:Number(f.updatedAt)||Date.now()}));
-    persist();navigate('home');toast('Workspace restored');
+    const parsed=JSON.parse(await file.text());
+    if(!validImport(parsed)){toast('Invalid MySoft backup');return;}
+    if(!confirm('Replace local files with this backup? Export your current workspace first.'))return;
+    if(applyWorkspace(parsed))toast('Workspace restored');
+    else toast('Backup failed validation');
   }catch{toast('Could not read this backup');}
+}
+async function importExternalFile(file){
+  if(file.size>1000000){toast('Maximum import size is 1 MB');return;}
+  const ext=file.name.toLowerCase().split('.').pop();
+  if(!['csv','txt','md','html','htm'].includes(ext)){toast('Unsupported file format');return;}
+  const source=await file.text();
+  const name=file.name.replace(/\.[^.]+$/,'');
+  if(ext==='csv'){
+    const f=newFile('sheets',name);f.cells=parseCSV(source);touch(f);render();
+  }else if(ext==='html'||ext==='htm'){
+    const f=newFile('docs',name);f.body=sanitize(source);touch(f);render();
+  }else{
+    const f=newFile('notes',name);f.body=esc(source).replace(/\n/g,'<br>');touch(f);render();
+  }
+  toast('File imported');
+}
+async function runCloudAction(action){
+  try{
+    if(action==='cloud-signout'){await cloudSignOut();cloudUser=null;modal('cloud');toast('Signed out');return;}
+    if(action==='cloud-upload'){
+      if(!persist())return;
+      await cloudPush(workspaceSnapshot());toast('Cloud snapshot uploaded');modal('cloud');return;
+    }
+    if(action==='cloud-download'){
+      const row=await cloudPull();
+      if(!row){toast('No cloud snapshot found');return;}
+      if(!validImport(row.payload)){toast('Cloud snapshot failed validation');return;}
+      if(!confirm('Replace ALL local files with cloud snapshot from '+new Date(row.updated_at).toLocaleString()+'? Download a local backup first.'))return;
+      if(applyWorkspace(row.payload)){closeModal();toast('Cloud snapshot downloaded');}
+    }
+  }catch(error){toast('Cloud: '+String(error.message||error).slice(0,95));}
 }
 function updateCell(ref,raw,rerender=false){
   const f=getActive();if(!f||f.type!=='sheets')return;
