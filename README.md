@@ -26,7 +26,7 @@ Open http://localhost:4173. No installation step or external npm dependencies ar
 **MySoft Docs**
 - Paragraph styles, common rich-text formatting, and text alignment.
 - Custom font, font size, text color, highlight, superscript/subscript and strikethrough.
-- Tables, hyperlinks, dividers, checklists, dates and text find/replace.
+- Tables (including custom dimensions), small embedded pictures (up to 150 KB, PNG/JPEG/WebP), hyperlinks, dividers, checklists, dates and text find/replace.
 - Page size (A4/Letter/Legal), orientation, margins, page color, line spacing, print-to-PDF.
 
 **MySoft Sheets**
