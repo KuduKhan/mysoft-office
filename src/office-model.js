@@ -21,7 +21,10 @@ export function ensureWorkbook(file){
   const active=file.worksheets[file.activeSheetIndex];
   if(!active.cells||typeof active.cells!=='object')active.cells={};
   if(!active.styles||typeof active.styles!=='object')active.styles={};
-  // The active-sheet copy is authoritative when reopening a saved workbook.
+  // The active top-level values also serve v0.2 templates and importers.
+  // After JSON loading, the active cell map and workbook copy are different objects.
+  if(file.cells && file.cells!==active.cells)active.cells=file.cells;
+  if(file.cellStyles && file.cellStyles!==active.styles)active.styles=file.cellStyles;
   file.cells=active.cells;
   file.cellStyles=active.styles;
   return file;
