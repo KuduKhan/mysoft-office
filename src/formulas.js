@@ -95,13 +95,29 @@ export function evaluateCell(reference, cells, stack = new Set()) {
       if(/^[A-Z]+[1-9][0-9]*$/.test(token)) return refValue(token);
       if(['SUM','AVERAGE','MIN','MAX','COUNT','COUNTA','PRODUCT','MEDIAN','ROUND','ABS','SQRT','POWER','MOD','INT','CEILING','FLOOR','SUMSQ','STDEV','VAR','SIGN'].includes(token) && take()==='(') {
         const values=[];
+        // COUNT counts numeric values; COUNTA counts every nonempty cell,
+        // including text and formulas. Both skip empty cells in ranges.
+        const addCell=(ref)=>{
+          const raw=String(cells[ref]??'');
+          if(raw.trim()==='')return;
+          if(token==='COUNTA'){values.push(1);return;}
+          if(token==='COUNT'){
+            const calculated=raw.startsWith('=')?evaluateCell(ref,cells,next):raw;
+            if(typeof calculated==='string'&&calculated.startsWith('#'))throw Error(calculated);
+            if(Number.isFinite(Number(calculated)))values.push(Number(calculated));
+            return;
+          }
+          values.push(refValue(ref));
+        };
         if(peek()!==')') {
           do {
             if(/^[A-Z]+[1-9][0-9]*$/.test(peek()||'') && tokens[position+1]===':') {
               const start=take();take();const end=take();
-              for(const ref of cellRange(start,end)) {
-                if(String(cells[ref] ?? '').trim() !== '') values.push(refValue(ref));
-              }
+              for(const ref of cellRange(start,end)) addCell(ref);
+            } else if(['COUNT','COUNTA'].includes(token) &&
+              /^[A-Z]+[1-9][0-9]*$/.test(peek()||'') &&
+              [',',')'].includes(tokens[position+1])){
+              addCell(take());
             } else values.push(expression());
             if(peek()!==',') break;
             take();

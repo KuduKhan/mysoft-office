@@ -4,7 +4,8 @@ import {
   PAGE_SIZES,FONT_FAMILIES,ACCENT_COLORS
 } from './office-model.js';
 import {STUDIO_ACCENTS,SLIDE_PRESETS,setSlidePreset,replaceSheetValues,fillDown,clearCell} from './studio-tools.js';
-import {formatRange,clearRange,copyRangeTSV,seriesFill,rangeSummary,parseRange} from './sheet-range.js';
+import {formatRange,clearRange,copyRangeTSV,seriesFill,rangeSummary,parseRange,transposeRange} from './sheet-range.js';
+import {documentContents,replacePresentationText,noteInsertTemplate} from './editor-productivity.js';
 import {addSlideObject,deleteSlideObject,duplicateSlideObject,moveSlideObject,getSlideObject,updateSlideObject,renderedSlideObjects} from './slide-objects.js';
 import {addDocComment} from './doc-review.js';
 import {printPageCSS} from './doc-layout.js';
@@ -72,7 +73,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
     } else if(active==='Insert'){
       body=button('⊞ Table 3×3','insert-table')+button('Table size…','custom-table')+button('Picture','insert-picture')+button('— Divider','insert-hr')+
         button('🔗 Link','insert-link')+button('☐ Checklist','insert-checklist')+button('📅 Date','insert-date')+
-        button('❝ Quote','insert-quote')+button('¶ Page break','insert-page-break');
+        button('❝ Quote','insert-quote')+button('¶ Page break','insert-page-break')+button('☷ Insert contents','insert-contents','Insert editable heading list');
     } else if(active==='Structure'){
       body=button('↑ Move block','block-up')+button('↓ Move block','block-down')+
         button('H+ Promote','block-promote')+button('H− Demote','block-demote')+
@@ -101,7 +102,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         button('Replace all','replace-all')+button('Print / PDF','print');
     } else if(active==='Organize'){
       body='<label class="ot-select-label">Tags <input class="ot-text" data-ot-input="tags" maxlength="180" value="'+escapeHTML((file.tags||[]).join(', '))+'" placeholder="ideas, meetings, work"></label>'+
-        button('☐ Checklist','insert-checklist')+button('Print / PDF','print')+
+        button('☐ Checklist','insert-checklist')+button('Meeting template','note-template-meeting')+button('Daily plan','note-template-daily')+button('Print / PDF','print')+
         '<span class="ot-metric">'+wordStatistics(file.body||'').words+' words</span>';
     }
   } else if(file.type==='sheets'){
@@ -120,7 +121,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
     } else if(active==='Range'){
       body=button('Bold range','range-bold')+button('Highlight range','range-highlight')+
         button('Clear range','range-clear')+button('Copy range','range-copy')+
-        button('Fill number series','range-series')+button('Range statistics','range-summary')+
+        button('Fill number series','range-series')+button('Copy transposed…','range-transpose')+button('Range statistics','range-summary')+
         '<span class="ot-metric">Choose a range such as A1:C10 (up to 2,600 cells).</span>';
     } else if(active==='Rules'){
       const count=sheetRulesSummary(file).length;
@@ -169,7 +170,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
     } else if(active==='Arrange'){
       body=button('↑ Move up','slide-up')+button('↓ Move down','slide-down')+
         button('＋ New slide','slide-new')+button('Clone slide','slide-copy')+
-        button('Delete slide','slide-remove');
+        button('Delete slide','slide-remove')+button('Replace text…','slide-find-replace','Find and replace in slide titles, bodies and speaker notes');
     } else {
       body=button('▶ Start presentation','present')+
         '<label class="ot-select-label">Speaker notes <textarea class="ot-notes" data-ot-input="speaker-notes" placeholder="Presenter-only notes">'+escapeHTML(slide.notes||'')+'</textarea></label>';
@@ -177,7 +178,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
   }
   const sheetTabs=file.type==='sheets'?'<div class="ot-sheet-tabs">'+(file.worksheets||[{name:'Sheet 1'}]).map((sh,i)=>'<button class="ot-sheet-tab '+((file.activeSheetIndex||0)===i?'active':'')+'" data-ot-sheet="'+i+'">'+escapeHTML(sh.name)+'</button>').join('')+'<button class="ot-sheet-tab" data-ot-action="sheet-add">＋</button></div>':'';
   return '<section class="ot-ribbon'+(ribbonCollapsed?' collapsed':'')+'" aria-label="Editing tools"><div class="ot-ribbon-top"><div class="ot-ribbon-tabs" role="tablist" aria-label="Editor tool categories">'+tabs+'</div>'+
-    '<div class="ot-ribbon-meta"><span class="ot-ribbon-version">MYSoft Studio · 0.5.1</span>'+
+    '<div class="ot-ribbon-meta"><span class="ot-ribbon-version">MySoft Studio · 0.6.0</span>'+
     button(ribbonCollapsed?'Show tools ▾':'Hide tools ▴','ribbon-toggle')+'</div></div>'+
     '<div class="ot-ribbon-tools">'+body+'</div>'+sheetTabs+'</section>';
 }
@@ -398,6 +399,21 @@ export function initializeOfficeTools(ctx){
       if(['table-add-row','table-add-column','table-remove-row','table-remove-column'].includes(action)){
         tableEdit(ctx,action);return;
       }
+      if(action==='insert-contents'){
+        if(f.type!=='docs')return;
+        const editor=document.getElementById('rich-content');
+        const headings=[...(editor?.querySelectorAll('h1,h2,h3')||[])].map(node=>({level:Number(node.tagName.slice(1)),text:node.textContent||''}));
+        const html=documentContents(headings);
+        if(!html){ctx.toast('Add headings to the document before inserting contents.');return;}
+        richCommand(ctx,'insertHTML',html);
+        ctx.toast('Editable contents inserted. Refresh manually after changing headings.');return;
+      }
+      if(action==='note-template-meeting'||action==='note-template-daily'){
+        if(f.type!=='notes')return;
+        const now=new Date(),localDate=[now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');
+        richCommand(ctx,'insertHTML',noteInsertTemplate(action.endsWith('meeting')?'meeting':'daily',localDate));
+        ctx.toast('Note template inserted');return;
+      }
       if(action==='insert-table'){richCommand(ctx,'insertHTML','<table><tbody>'+Array.from({length:3},()=>'<tr><td>Cell</td><td>Cell</td><td>Cell</td></tr>').join('')+'</tbody></table><p></p>');return;}
       if(action==='custom-table'){
         const rows=Number(prompt('How many rows? (1–10)','4'));
@@ -509,6 +525,16 @@ export function initializeOfficeTools(ctx){
         const replacement=document.getElementById('ot-replace')?.value||'';
         const count=replaceAllText(ctx,find,replacement);
         ctx.toast(count?count+' occurrences replaced':'No matches');return;
+      }
+      if(action==='range-transpose'){
+        if(f.type!=='sheets')return;
+        const range=prompt('Copy transposed: source range (e.g. A1:B3):',ctx.getSelectedCell());
+        if(range===null)return;
+        const destination=prompt('Top-left destination cell (e.g. D1):','D1');
+        if(destination===null)return;
+        const count=transposeRange(f,range,destination);
+        ctx.toast(count+' cells copied transposed. Formulas remain unchanged.');
+        syncSheet(ctx,f);return;
       }
       if(['range-bold','range-highlight','range-clear','range-copy','range-series','range-summary'].includes(action)){
         const range=prompt('Cell range (e.g. A1:C10):',ctx.getSelectedCell());
@@ -626,6 +652,16 @@ export function initializeOfficeTools(ctx){
         if(!id)throw Error('Select a shape first.');
         rotateSlideObject(slide,id,action.endsWith('left')?'left':'right');
         ctx.touch(f);ctx.persist();ctx.render();return;
+      } else if(action==='slide-find-replace'){
+        if(f.type!=='slides')return;
+        const needle=prompt('Find text in all slide titles, bodies and speaker notes:','');
+        if(needle===null)return;
+        const replacement=prompt('Replace with (blank to remove):','');
+        if(replacement===null)return;
+        const count=replacePresentationText(f.slides,needle,replacement);
+        if(count){ctx.toast(count+' occurrences replaced across slides');syncSheet(ctx,f);}
+        else ctx.toast('No matching slide text');
+        return;
       } else if(action==='slide-snap-toggle'){
         const slide=f.slides[ctx.getSlideIndex()];
         slide.snapToGrid=!slide.snapToGrid;

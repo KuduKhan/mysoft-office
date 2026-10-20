@@ -87,3 +87,28 @@ export function rangeSummary(file,range){
   const sum=nums.reduce((a,b)=>a+b,0);
   return {cells:p.count,nonempty,numeric:nums.length,sum,average:nums.length?sum/nums.length:0,min:nums.length?Math.min(...nums):null,max:nums.length?Math.max(...nums):null};
 }
+
+// Copy a source rectangle across its diagonal into a destination area.
+// Values and formulas are copied literally; relative references are NOT shifted.
+export function transposeRange(file,source,destination){
+  const from=parseRange(source),to=parseRange(destination);
+  if(to.count!==1)throw Error('Enter one destination cell, such as C5.');
+  const height=from.bottom-from.top+1,width=from.right-from.left+1;
+  if(to.top+width-1>LIMIT_ROWS||to.left+height-1>=LIMIT_COLS)
+    throw Error('Transposed range would exceed Z1000.');
+  const count=height*width;
+  if(count>MAX_EDIT_CELLS)throw Error('Range limit is 2,600 cells per operation.');
+  if(!file?.cells||typeof file.cells!=='object')throw Error('Worksheet is unavailable');
+  const writes=[];
+  for(let row=0;row<height;row++){
+    for(let col=0;col<width;col++){
+      const value=file.cells[key(from.left+col,from.top+row)];
+      writes.push([key(to.left+row,to.top+col),value]);
+    }
+  }
+  for(const [ref,value] of writes){
+    if(value===undefined)delete file.cells[ref];
+    else file.cells[ref]=value;
+  }
+  return count;
+}
