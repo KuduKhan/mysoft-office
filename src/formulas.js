@@ -30,7 +30,7 @@ export function cellRange(from, to) {
 
 function scan(source) {
   const tokens=[];
-  const regex=/\s*([A-Z]+[1-9][0-9]*|[A-Z]+|(?:\d+(?:\.\d*)?|\.\d+)|[()+\-*/:,])/gy;
+  const regex=/\s*(>=|<=|<>|[A-Z]+[1-9][0-9]*|[A-Z]+|(?:\d+(?:\.\d*)?|\.\d+)|[()+\-*/:,<>=])/gy;
   let index=0;
   while (index<source.length) {
     regex.lastIndex=index;
@@ -65,6 +65,16 @@ export function evaluateCell(reference, cells, stack = new Set()) {
       return numeric(value);
     };
     const expression=()=>{
+      let value=additive();
+      if(['>','<','>=','<=','=','<>'].includes(peek())){
+        const op=take(),other=additive();
+        value=Number(op==='>'?value>other:op==='<'?value<other:
+          op==='>='?value>=other:op==='<='?value<=other:
+          op==='='?value===other:value!==other);
+      }
+      return value;
+    };
+    const additive=()=>{
       let value=term();
       while(peek()==='+' || peek()==='-') {
         const op=take(),right=term();
@@ -93,7 +103,7 @@ export function evaluateCell(reference, cells, stack = new Set()) {
       if(!token) throw Error('Missing value');
       if(/^\d|^\./.test(token)) return Number(token);
       if(/^[A-Z]+[1-9][0-9]*$/.test(token)) return refValue(token);
-      if(['SUM','AVERAGE','MIN','MAX','COUNT','COUNTA','PRODUCT','MEDIAN','ROUND','ABS','SQRT','POWER','MOD','INT','CEILING','FLOOR','SUMSQ','STDEV','VAR','SIGN'].includes(token) && take()==='(') {
+      if(['SUM','AVERAGE','MIN','MAX','COUNT','COUNTA','PRODUCT','MEDIAN','ROUND','ABS','SQRT','POWER','MOD','INT','CEILING','FLOOR','SUMSQ','STDEV','VAR','SIGN','IF','AND','OR','NOT'].includes(token) && take()==='(') {
         const values=[];
         // COUNT counts numeric values; COUNTA counts every nonempty cell,
         // including text and formulas. Both skip empty cells in ranges.
@@ -124,6 +134,16 @@ export function evaluateCell(reference, cells, stack = new Set()) {
           } while(position<tokens.length);
         }
         if(take()!==')') throw Error('Missing function parenthesis');
+        if(token==='IF'){
+          if(values.length<2||values.length>3)throw Error('IF expects condition and branches');
+          return values[0]!==0?values[1]:values[2]??0;
+        }
+        if(token==='AND')return values.every(value=>value!==0)?1:0;
+        if(token==='OR')return values.some(value=>value!==0)?1:0;
+        if(token==='NOT'){
+          if(values.length!==1)throw Error('NOT expects one argument');
+          return values[0]===0?1:0;
+        }
         if(token==='SUM') return values.reduce((a,b)=>a+b,0);
         if(token==='AVERAGE') return values.length ? values.reduce((a,b)=>a+b,0)/values.length : 0;
         if(token==='MIN') return values.length ? Math.min(...values) : 0;

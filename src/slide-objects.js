@@ -1,6 +1,6 @@
 // MySoft Slides native editable objects, kept in the local slide model.
 // Geometry is normalized 0-100% and limited to the 16:9 slide stage.
-const KINDS=new Set(['text','rect','ellipse']);
+const KINDS=new Set(['text','rect','ellipse','roundRect','triangle']);
 const MAX_OBJECTS=40;
 const safeColor=value=>/^#[0-9a-f]{6}$/i.test(String(value||''));
 const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));

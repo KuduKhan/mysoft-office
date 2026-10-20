@@ -30,7 +30,9 @@ let lastTableLocation=null;
 let docFindState={fileId:'',query:'',index:-1};
 let lastDocumentBlock={fileId:null,index:0};
 let slideshowIndex=0;
-let ribbonCollapsed=localStorage.getItem('mysoft-office-ribbon-collapsed')==='yes';
+function safeGet(key){try{return localStorage.getItem(key);}catch{return null;}}
+function safeSet(key,value){try{localStorage.setItem(key,value);}catch{}}
+let ribbonCollapsed=safeGet('mysoft-office-ribbon-collapsed')==='yes';
 const STUDIO_ACTIONS={
   docs:['Home','Insert','Structure','Table','Layout','Review'],
   notes:['Write','Organize'],
@@ -69,7 +71,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         button('≡','align-left','Align left')+button('☰','align-center','Align center')+button('≡›','align-right','Align right')+
         button('• List','bullet-list')+button('1. List','numbered-list')+
         button('<b>S</b>','strike','Strikethrough')+button('x²','superscript')+button('x₂','subscript')+
-        button('Clear','clear-format','Remove text formatting');
+        button('Clear','clear-format','Remove text formatting')+button('H1','style-h1','Heading 1')+button('H2','style-h2','Heading 2')+button('Body','style-body','Body paragraph')+button('Quote','style-quote','Quote paragraph');
     } else if(active==='Insert'){
       body=button('⊞ Table 3×3','insert-table')+button('Table size…','custom-table')+button('Picture','insert-picture')+button('— Divider','insert-hr')+
         button('🔗 Link','insert-link')+button('☐ Checklist','insert-checklist')+button('📅 Date','insert-date')+
@@ -102,7 +104,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         button('Replace all','replace-all')+button('Print / PDF','print');
     } else if(active==='Organize'){
       body='<label class="ot-select-label">Tags <input class="ot-text" data-ot-input="tags" maxlength="180" value="'+escapeHTML((file.tags||[]).join(', '))+'" placeholder="ideas, meetings, work"></label>'+
-        button('☐ Checklist','insert-checklist')+button('Meeting template','note-template-meeting')+button('Daily plan','note-template-daily')+button('Print / PDF','print')+
+        button('☐ Checklist','insert-checklist')+button('Rename notebook','note-rename-notebook')+button('Rename section','note-rename-section')+button('Meeting template','note-template-meeting')+button('Daily plan','note-template-daily')+button('Print / PDF','print')+
         '<span class="ot-metric">'+wordStatistics(file.body||'').words+' words</span>';
     }
   } else if(file.type==='sheets'){
@@ -152,7 +154,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         choice('Text size',[['normal','Normal'],['large','Large'],['compact','Compact']],slide.textScale||'normal')+
         button('Apply theme to all','theme-all');
     } else if(active==='Shapes'){
-      body=button('＋ Text box','shape-text')+button('▣ Rectangle','shape-rect')+button('◯ Ellipse','shape-ellipse')+
+      body=button('＋ Text box','shape-text')+button('▣ Rectangle','shape-rect')+button('◯ Ellipse','shape-ellipse')+button('▢ Rounded','shape-roundRect')+button('△ Triangle','shape-triangle')+
         color('Fill','shape-fill','#ea4c24')+color('Text','shape-color','#202d48')+
         button('Text A+','shape-font-up')+button('Text A−','shape-font-down')+
         button('Align left','shape-align-left')+button('Center','shape-align-center')+
@@ -178,7 +180,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
   }
   const sheetTabs=file.type==='sheets'?'<div class="ot-sheet-tabs">'+(file.worksheets||[{name:'Sheet 1'}]).map((sh,i)=>'<button class="ot-sheet-tab '+((file.activeSheetIndex||0)===i?'active':'')+'" data-ot-sheet="'+i+'">'+escapeHTML(sh.name)+'</button>').join('')+'<button class="ot-sheet-tab" data-ot-action="sheet-add">＋</button></div>':'';
   return '<section class="ot-ribbon'+(ribbonCollapsed?' collapsed':'')+'" aria-label="Editing tools"><div class="ot-ribbon-top"><div class="ot-ribbon-tabs" role="tablist" aria-label="Editor tool categories">'+tabs+'</div>'+
-    '<div class="ot-ribbon-meta"><span class="ot-ribbon-version">MySoft Studio · 0.6.0</span>'+
+    '<div class="ot-ribbon-meta"><span class="ot-ribbon-version">MySoft Studio · 0.6.2</span>'+
     button(ribbonCollapsed?'Show tools ▾':'Hide tools ▴','ribbon-toggle')+'</div></div>'+
     '<div class="ot-ribbon-tools">'+body+'</div>'+sheetTabs+'</section>';
 }
@@ -355,13 +357,13 @@ export function initializeOfficeTools(ctx){
   document.addEventListener('pointerdown',event=>recordTableLocation(ctx,event.target));
   document.addEventListener('focusin',event=>recordTableLocation(ctx,event.target));
   document.addEventListener('mousedown',e=>{
-    if(e.target.closest('button[data-ot-action]')?.dataset.otAction && ['strike','superscript','subscript','clear-format','insert-table','insert-hr','insert-checklist','insert-date','insert-quote','insert-page-break','text-bold','text-italic','text-underline','align-left','align-center','align-right','bullet-list','numbered-list','table-add-row','table-add-column','table-remove-row','table-remove-column'].includes(e.target.closest('button').dataset.otAction))e.preventDefault();
+    if(e.target.closest('button[data-ot-action]')?.dataset.otAction && ['strike','superscript','subscript','clear-format','insert-table','insert-hr','insert-checklist','insert-date','insert-quote','insert-page-break','text-bold','text-italic','text-underline','align-left','align-center','align-right','bullet-list','numbered-list','table-add-row','table-add-column','table-remove-row','table-remove-column','style-h1','style-h2','style-body','style-quote'].includes(e.target.closest('button').dataset.otAction))e.preventDefault();
   });
   document.addEventListener('click',event=>{
     const palette=event.target.closest('[data-ot-palette]');
     if(palette){
       prefs.accent=palette.dataset.otPalette;
-      localStorage.setItem(PREFS_KEY,JSON.stringify(prefs));
+      safeSet(PREFS_KEY,JSON.stringify(prefs));
       applyPreferences();preferencesModal();return;
     }
     const tab=event.target.closest('[data-ot-tab]');
@@ -375,13 +377,13 @@ export function initializeOfficeTools(ctx){
     if(action==='preferences'){preferencesModal();return;}
     if(action==='zoom-in'||action==='zoom-out'){
       prefs.zoom=Math.max(75,Math.min(150,(Number(prefs.zoom)||100)+(action==='zoom-in'?10:-10)));
-      localStorage.setItem(PREFS_KEY,JSON.stringify(prefs));applyPreferences();
+      safeSet(PREFS_KEY,JSON.stringify(prefs));applyPreferences();
       const label=document.getElementById('studio-zoom-value');if(label)label.textContent=prefs.zoom+'%';
       return;
     }
     if(action==='ribbon-toggle'){
       ribbonCollapsed=!ribbonCollapsed;
-      localStorage.setItem('mysoft-office-ribbon-collapsed',ribbonCollapsed?'yes':'no');
+      safeSet('mysoft-office-ribbon-collapsed',ribbonCollapsed?'yes':'no');
       ctx.render();return;
     }
     if(action==='settings-close'){document.getElementById('modal-root').innerHTML='';return;}
@@ -396,6 +398,20 @@ export function initializeOfficeTools(ctx){
         strike:'strikeThrough','clear-format':'removeFormat',superscript:'superscript',subscript:'subscript'
       };
       if(Object.hasOwn(textActions,action)){richCommand(ctx,textActions[action]);return;}
+      if(['style-h1','style-h2','style-body','style-quote'].includes(action)){
+        if(!['docs','notes'].includes(f.type))return;
+        const tag={'style-h1':'h1','style-h2':'h2','style-body':'p','style-quote':'blockquote'}[action];
+        richCommand(ctx,'formatBlock',tag);ctx.toast('Paragraph style applied');return;
+      }
+      if(['note-rename-notebook','note-rename-section'].includes(action)){
+        if(f.type!=='notes')return;
+        const location=ctx.getNoteLocation(f),notebook=location.notebook;
+        const section=action==='note-rename-section'?location.section:null;
+        const name=prompt(section===null?'Rename notebook for every note:':'Rename this section for all matching notes:',section??notebook);
+        if(name===null)return;
+        const changed=ctx.renameNotes({notebook,section,newName:name});
+        ctx.touch(f);ctx.persist();ctx.render();ctx.toast(changed+' notes reorganized');return;
+      }
       if(['table-add-row','table-add-column','table-remove-row','table-remove-column'].includes(action)){
         tableEdit(ctx,action);return;
       }
@@ -683,9 +699,9 @@ export function initializeOfficeTools(ctx){
           resizeSlideObject(slide,id,Number(width),Number(height));
         }else alignSlideObject(slide,id,action.slice('shape-align-'.length));
         ctx.touch(f);ctx.persist();ctx.render();return;
-      } else if(['shape-text','shape-rect','shape-ellipse'].includes(action)){
+      } else if(['shape-text','shape-rect','shape-ellipse','shape-roundRect','shape-triangle'].includes(action)){
         if(f.type!=='slides')return;
-        const kind={'shape-text':'text','shape-rect':'rect','shape-ellipse':'ellipse'}[action];
+        const kind={'shape-text':'text','shape-rect':'rect','shape-ellipse':'ellipse','shape-roundRect':'roundRect','shape-triangle':'triangle'}[action];
         const item=addSlideObject(f.slides[ctx.getSlideIndex()],kind);
         ctx.setSlideObjectId(item.id);ctx.touch(f);ctx.persist();ctx.render();return;
       } else if(['shape-left','shape-right','shape-up','shape-down','shape-duplicate','shape-delete','shape-font-up','shape-font-down'].includes(action)){
@@ -718,7 +734,7 @@ export function initializeOfficeTools(ctx){
   });
   document.addEventListener('change',event=>{
     const p=event.target.closest('[data-ot-pref]');
-    if(p){const key=p.dataset.otPref;if(Object.hasOwn(defaultPrefs,key)){prefs[key]=p.value;localStorage.setItem(PREFS_KEY,JSON.stringify(prefs));applyPreferences();}return;}
+    if(p){const key=p.dataset.otPref;if(Object.hasOwn(defaultPrefs,key)){prefs[key]=p.value;safeSet(PREFS_KEY,JSON.stringify(prefs));applyPreferences();}return;}
     const input=event.target.closest('[data-ot-input]');
     if(!input)return;
     const name=input.dataset.otInput,f=ctx.getFile();

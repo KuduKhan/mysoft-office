@@ -105,6 +105,16 @@ export class BrowserWorkspaceStore {
     this.committedSequence=0;
     this.nextSequence=0;
     this.legacyStorage=null;
+    this.knownRevision=0;
+    this.lastWriter=null;
+    // Session-scoped identity survives reload in this tab, not a normal new tab.
+    let owner=null;
+    try{owner=globalThis.sessionStorage?.getItem('mysoft-office-tab-id')||null;}catch{}
+    if(!owner||owner.length>120){
+      owner=globalThis.crypto?.randomUUID?.()||'tab-'+Date.now()+'-'+Math.random().toString(36).slice(2);
+      try{globalThis.sessionStorage?.setItem('mysoft-office-tab-id',owner);}catch{}
+    }
+    this.ownerToken=owner;
     this.queue = new OrderedWriteQueue(snapshot => this.write(snapshot));
   }
 
@@ -140,6 +150,8 @@ export class BrowserWorkspaceStore {
     if (!Number.isSafeInteger(metadata.sequence ?? 0) || (metadata.sequence ?? 0) < 0)
       throw new Error('Invalid persisted workspace sequence');
     this.committedSequence=metadata.sequence ?? 0;
+    this.knownRevision=Number.isSafeInteger(metadata.revision)?metadata.revision:0;
+    this.lastWriter=typeof metadata.lastWriter==='string'?metadata.lastWriter:null;
     this.nextSequence=Math.max(this.nextSequence,this.committedSequence);
     if (metadata.version !== 3 || files.length !== metadata.fileCount ||
         trash.length !== metadata.trashCount || versions.length !== metadata.versionCount) {
@@ -159,16 +171,28 @@ export class BrowserWorkspaceStore {
     const existing = await this.read();
     // A synchronous journal protects the last edits if a tab reload interrupts
     // a debounced IndexedDB transaction. Never replay an older journal.
-    const recovery=readRecoveryJournal(legacyStorage);
-    if(recovery && recovery.sequence>this.committedSequence) {
+    let recovery=null,invalidJournal=false;
+    try{recovery=readRecoveryJournal(legacyStorage);}
+    catch{invalidJournal=true;} // Keep malformed optional journal for manual export.
+    // Only replay edits that started from the exact committed version.
+    // An old unversioned journal must never replace healthy IndexedDB content.
+    const sameTabCommit=this.lastWriter===this.ownerToken &&
+      Number.isSafeInteger(recovery?.baseRevision) &&
+      recovery.baseRevision<=this.knownRevision;
+    if(recovery && recovery.owner===this.ownerToken &&
+       recovery.sequence>this.committedSequence &&
+       (recovery.baseRevision===this.knownRevision||sameTabCommit)){
       await this.queue.save({...recovery.workspace,_sequence:recovery.sequence});
       this.nextSequence=Math.max(this.nextSequence,recovery.sequence);
       return {workspace:recovery.workspace,source:'journal-recovered'};
     }
-    if(recovery)this.removeCompletedJournal();
-    if (existing) return { workspace: existing, source: 'indexeddb' };
-    const legacy = readLegacyWorkspace(legacyStorage);
-    const workspace = legacy || validateWorkspace({ files: createStarter(), trash: [], versions: {} });
+    if (existing) return {workspace:existing,source:
+      invalidJournal||recovery?.sequence>this.committedSequence?'journal-preserved':'indexeddb'};
+    let legacy=null;
+    try{legacy=readLegacyWorkspace(legacyStorage);}
+    catch(error){if(error?.name!=='SecurityError')throw error;}
+    const workspace = legacy || (recovery?.owner===this.ownerToken?recovery.workspace:null) ||
+      validateWorkspace({ files: createStarter(), trash: [], versions: {} });
     await this.queue.save({...workspace,_sequence:0});
     return { workspace, source: legacy ? 'legacy-migrated' : 'new' };
   }
@@ -180,48 +204,66 @@ export class BrowserWorkspaceStore {
     const sequence=++this.nextSequence;
     let journaled=false;
     try{
-      this.legacyStorage?.setItem(RECOVERY_KEY,JSON.stringify({sequence,workspace:snapshot}));
-      journaled=!!this.legacyStorage;
-    }catch{/* IndexedDB can still complete even if localStorage is full. */}
+      const old=readRecoveryJournal(this.legacyStorage);
+      // Do not replace another tab's or pre-upgrade recovery record.
+      if(!old||old.owner===this.ownerToken){
+        this.legacyStorage?.setItem(RECOVERY_KEY,JSON.stringify({
+          owner:this.ownerToken,baseRevision:this.knownRevision,sequence,workspace:snapshot
+        }));
+        journaled=!!this.legacyStorage;
+      }
+    }catch{/* Keep invalid or inaccessible journals for manual recovery. */}
     return {workspace:snapshot,sequence,journaled};
   }
 
   removeCompletedJournal(){
     try{
       const journal=readRecoveryJournal(this.legacyStorage);
-      if(journal && journal.sequence<=this.committedSequence)
+      if(journal && journal.owner===this.ownerToken && journal.sequence<=this.committedSequence)
         this.legacyStorage.removeItem(RECOVERY_KEY);
     }catch{/* Preserve invalid recovery journal for manual repair. */}
   }
 
-  save(workspace) {
+  save(workspace,{journal=true}={}) {
     if (!this.db) return Promise.reject(Error('Workspace database not ready'));
-    const staged=this.stage(workspace);
+    // Rejected backup/cloud replacements must not become crash-replay journals.
+    const staged=journal?this.stage(workspace):{
+      workspace:structuredClone(validateWorkspace(workspace)),sequence:++this.nextSequence
+    };
     return this.queue.save({...staged.workspace,_sequence:staged.sequence});
   }
 
   async write(workspace) {
-    const tx = this.db.transaction(STORES, 'readwrite');
-    const done = completed(tx);
-    try {
-      for (const store of ['files', 'trash', 'versions']) tx.objectStore(store).clear();
-      for (const value of workspace.files) tx.objectStore('files').put({ id: value.id, value });
-      for (const value of workspace.trash) tx.objectStore('trash').put({ id: value.id, value });
-      for (const [id, value] of Object.entries(workspace.versions)) {
-        tx.objectStore('versions').put({ id, value });
-      }
-      tx.objectStore('meta').put({
-        id: 'workspace', version: 3, sequence: workspace._sequence ?? 0,
-        fileCount: workspace.files.length, trashCount: workspace.trash.length,
-        versionCount: Object.keys(workspace.versions).length,
-        savedAt: Date.now()
-      });
-    } catch (error) {
-      try { tx.abort(); } catch {}
-      await done.catch(() => {});
-      throw error;
-    }
-    await done;
+    const tx=this.db.transaction(STORES,'readwrite');
+    const done=completed(tx);
+    let conflict=null,committedRevision=null;
+    const check=tx.objectStore('meta').get('workspace');
+    check.onsuccess=()=>{
+      try{
+        const meta=check.result;
+        const current=Number.isSafeInteger(meta?.revision)?meta.revision:0;
+        if(current!==this.knownRevision){
+          conflict=new Error('Workspace changed in another tab. Export your unsaved backup, then reload.');
+          conflict.name='WorkspaceConflictError';
+          tx.abort();return;
+        }
+        for(const name of ['files','trash','versions'])tx.objectStore(name).clear();
+        for(const value of workspace.files)tx.objectStore('files').put({id:value.id,value});
+        for(const value of workspace.trash)tx.objectStore('trash').put({id:value.id,value});
+        for(const [id,value] of Object.entries(workspace.versions))
+          tx.objectStore('versions').put({id,value});
+        committedRevision=current+1;
+        tx.objectStore('meta').put({
+          id:'workspace',version:3,revision:committedRevision,lastWriter:this.ownerToken,
+          sequence:workspace._sequence??0,
+          fileCount:workspace.files.length,trashCount:workspace.trash.length,
+          versionCount:Object.keys(workspace.versions).length,savedAt:Date.now()
+        });
+      }catch(error){conflict=error;try{tx.abort();}catch{}}
+    };
+    try{await done;}catch(error){throw conflict||error;}
+    this.knownRevision=committedRevision;
+    this.lastWriter=this.ownerToken;
     this.committedSequence=Math.max(this.committedSequence,workspace._sequence??0);
     this.removeCompletedJournal();
   }

@@ -51,3 +51,9 @@ Replace the contenteditable editor with a structured editing model, expand workb
 - **XLSX:** MySoft worksheet conditional-formatting rules are stored in MySoft local files/JSON backups, **not** in XLSX output. Review original conditional styles after export.
 - **DOCX:** local find navigation, review annotations, advanced pagination and section metadata do not have complete DOCX round-trip fidelity.
 - **Notes:** pinned-note metadata is kept in MySoft local workspace and JSON backup, not in Office document formats.
+
+## v0.6.2 supported additions and boundaries
+
+- DOCX export remains limited to semantic paragraphs/headings/basic inline styles and simple tables. The new heading style actions use H1/H2 and may round-trip; unsupported quotes, layouts, comments and advanced typography require manual review.
+- XLSX exports numeric calculation expressions as formula text; IF/AND/OR/NOT and numeric comparisons may be evaluated inside MySoft, but exact formula semantics, caches and third-party reader compatibility are **not guaranteed** for arbitrary workbooks.
+- PPTX round-trips supported MySoft rounded rectangles and triangle objects using DrawingML preset geometries. Third-party SVG, media, rich shape fills and animations are not preserved.

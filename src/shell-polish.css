@@ -106,3 +106,8 @@ html[data-mode="dark"] .workspace-search-summary{color:#bfcee1}
   .shell .topbar{position:static;box-shadow:none}
   .studio-skip-link{display:none!important}
 }
+
+/* Additional native geometry editable in MySoft and exported to PPTX. */
+.studio-shape-roundRect{border-radius:17% / 22%}
+.studio-shape-triangle{clip-path:polygon(50% 0%,100% 100%,0% 100%)}
+.studio-shape-triangle.selected{filter:drop-shadow(0 0 3px var(--studio-accent))}
