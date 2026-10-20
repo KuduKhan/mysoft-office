@@ -7,6 +7,9 @@ import {STUDIO_ACCENTS,SLIDE_PRESETS,setSlidePreset,replaceSheetValues,fillDown,
 import {formatRange,clearRange,copyRangeTSV,seriesFill,rangeSummary,parseRange} from './sheet-range.js';
 import {addSlideObject,deleteSlideObject,duplicateSlideObject,moveSlideObject,getSlideObject,updateSlideObject,renderedSlideObjects} from './slide-objects.js';
 import {addDocComment} from './doc-review.js';
+import {printPageCSS} from './doc-layout.js';
+import {auditSheet,traceCell} from './sheet-audit.js';
+import {alignSlideObject,resizeSlideObject} from './slide-align.js';
 
 const escapeHTML = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const COLORS=['#212d48','#6555e8','#176db3','#b04472','#e05d4a','#16957d'];
@@ -73,7 +76,9 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         choice('Orientation',[['portrait','Portrait'],['landscape','Landscape']],p.orientation||'portrait')+
         choice('Margins',[['narrow','Narrow'],['normal','Normal'],['wide','Wide']],p.margins||'normal')+
         choice('Line spacing',[['1.2','Compact'],['1.6','Normal'],['2','Double']],String(p.lineHeight||'1.6'))+
-        color('Page color','page-color',p.background||'#ffffff')+button('Print / PDF','print');
+        color('Page color','page-color',p.background||'#ffffff')+
+        button('Header text','page-header')+button('Footer text','page-footer')+
+        button('Print / PDF','print');
     } else if(active==='Review'){
       const stats=wordStatistics(file.body||'');
       body=button('✎ Add comment','review-add-comment')+
@@ -109,6 +114,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         button('Fill down 5','sheet-fill-down')+button('Clear cell','sheet-clear-cell')+
         button('Sort A → Z','sort-asc')+button('Sort Z → A','sort-desc')+
         button('Auto SUM','insert-sum')+button('Auto AVERAGE','insert-avg')+
+        button('Audit formulas','sheet-audit')+button('Trace cell','sheet-trace')+
         '<span class="ot-metric">Sorting applies to column A and keeps row 1 as header. Formula sheets are protected.</span>';
     } else {
       body=button('▥ Bar chart','chart-bar')+button('◷ Line chart','chart-line')+
@@ -126,6 +132,10 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
       body=button('＋ Text box','shape-text')+button('▣ Rectangle','shape-rect')+button('◯ Ellipse','shape-ellipse')+
         color('Fill','shape-fill','#ea4c24')+color('Text','shape-color','#202d48')+
         button('Text A+','shape-font-up')+button('Text A−','shape-font-down')+
+        button('Align left','shape-align-left')+button('Center','shape-align-center')+
+        button('Align right','shape-align-right')+button('Top','shape-align-top')+
+        button('Middle','shape-align-middle')+button('Bottom','shape-align-bottom')+
+        button('Resize…','shape-resize')+
         button('←','shape-left','Move selected object left')+button('→','shape-right')+
         button('↑','shape-up')+button('↓','shape-down')+
         button('Duplicate','shape-duplicate')+button('Delete','shape-delete')+
@@ -162,8 +172,16 @@ export function sheetCellAppearance(file,ref,value){
   return {style:rules.join(';'),value:formatted};
 }
 function printDoc(file){
-  if(file.type==='notes')window.print();
-  else window.print();
+  const old=document.getElementById('studio-dynamic-print-css');
+  old?.remove();
+  if(file.type==='docs'){
+    const sheet=document.createElement('style');
+    sheet.id='studio-dynamic-print-css';
+    sheet.textContent=printPageCSS(file.pageSettings||{});
+    document.head.appendChild(sheet);
+    window.addEventListener('afterprint',()=>sheet.remove(),{once:true});
+  }
+  window.print();
 }
 function svgChart(data,mode){
   const max=Math.max(1,...data.map(d=>Math.abs(d.value)));
@@ -398,6 +416,15 @@ export function initializeOfficeTools(ctx){
         addDocComment(f,quote,note);ctx.touch(f);ctx.persist();ctx.render();
         ctx.toast('Review comment added');return;
       }
+      if(action==='page-header'||action==='page-footer'){
+        if(f.type!=='docs')return;
+        const field=action==='page-header'?'header':'footer';
+        const prev=String(f.pageSettings?.[field]||'');
+        const entered=prompt((field==='header'?'Page header':'Page footer')+' (up to 120 characters):',prev);
+        if(entered===null)return;
+        f.pageSettings={...(f.pageSettings||{}),[field]:entered.replace(/[\u0000-\u001f]/g,' ').trim().slice(0,120)};
+        ctx.touch(f);ctx.persist();ctx.render();return;
+      }
       if(action==='print'){printDoc(f);return;}
       if(action==='replace-all'){
         const find=document.getElementById('ot-find')?.value||'';
@@ -434,6 +461,24 @@ export function initializeOfficeTools(ctx){
           return;
         }
         ctx.toast('Range '+range+' updated');syncSheet(ctx,f);return;
+      }
+      if(action==='sheet-audit'){
+        const summary=auditSheet(f.cells);
+        const lines=summary.errors.map(row=>'<tr><td>'+escapeHTML(row.cell)+'</td><td>'+escapeHTML(row.result)+'</td><td>'+escapeHTML(row.formula)+'</td></tr>').join('');
+        modal('<h2>Formula audit</h2><p>'+summary.formulaCount+' formulas · '+summary.errorCount+' errors</p>'+
+          (summary.errorCount?'<div class="studio-audit-scroll"><table class="studio-audit-table"><thead><tr><th>Cell</th><th>Result</th><th>Formula</th></tr></thead><tbody>'+lines+'</tbody></table></div>':
+            '<p>No formula errors found in the active worksheet.</p>')+
+          '<div class="modal-actions"><button data-ot-action="settings-close" class="btn btn-light">Close</button></div>');
+        return;
+      }
+      if(action==='sheet-trace'){
+        const report=traceCell(f.cells,ctx.getSelectedCell());
+        modal('<h2>Cell trace: '+escapeHTML(report.cell)+'</h2>'+
+          '<p>Displayed result: '+escapeHTML(String(report.value))+'</p>'+
+          '<p>Dependencies: '+escapeHTML(report.deps.join(', ')||'None')+'</p>'+
+          '<p>Used by: '+escapeHTML(report.dependents.join(', ')||'None')+'</p>'+
+          '<div class="modal-actions"><button data-ot-action="settings-close" class="btn btn-light">Close</button></div>');
+        return;
       }
       if(action==='sheet-find-replace'){
         const needle=prompt('Find in current worksheet (text only):','');
@@ -478,6 +523,18 @@ export function initializeOfficeTools(ctx){
         if(!data.length){ctx.toast('Add labels in column A and numeric values in B, rows 2–30.');return;}
         modal('<h2>'+ (action==='chart-bar'?'Bar':'Line') +' chart preview</h2><p>Uses current worksheet A:B data (up to 20 points). Preview only—editable embedded charts come later.</p>'+svgChart(data,action==='chart-bar'?'bar':'line')+'<div class="modal-actions"><button class="btn btn-light" data-ot-action="settings-close">Close</button></div>');
         return;
+      } else if(action.startsWith('shape-align-')||action==='shape-resize'){
+        const slide=f.slides[ctx.getSlideIndex()],id=ctx.getSlideObjectId();
+        if(!id||!getSlideObject(slide,id))throw Error('Select a slide object first.');
+        if(action==='shape-resize'){
+          const obj=getSlideObject(slide,id);
+          const width=prompt('Object width (% of slide):',String(Math.round(obj.w)));
+          if(width===null)return;
+          const height=prompt('Object height (% of slide):',String(Math.round(obj.h)));
+          if(height===null)return;
+          resizeSlideObject(slide,id,Number(width),Number(height));
+        }else alignSlideObject(slide,id,action.slice('shape-align-'.length));
+        ctx.touch(f);ctx.persist();ctx.render();return;
       } else if(['shape-text','shape-rect','shape-ellipse'].includes(action)){
         if(f.type!=='slides')return;
         const kind={'shape-text':'text','shape-rect':'rect','shape-ellipse':'ellipse'}[action];
