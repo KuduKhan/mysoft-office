@@ -5,6 +5,8 @@ import {
 } from './office-model.js';
 import {STUDIO_ACCENTS,SLIDE_PRESETS,setSlidePreset,replaceSheetValues,fillDown,clearCell} from './studio-tools.js';
 import {formatRange,clearRange,copyRangeTSV,seriesFill,rangeSummary,parseRange} from './sheet-range.js';
+import {addSlideObject,deleteSlideObject,duplicateSlideObject,moveSlideObject,getSlideObject,renderedSlideObjects} from './slide-objects.js';
+import {addDocComment} from './doc-review.js';
 
 const escapeHTML = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const COLORS=['#212d48','#6555e8','#176db3','#b04472','#e05d4a','#16957d'];
@@ -22,7 +24,7 @@ const STUDIO_ACTIONS={
   docs:['Home','Insert','Table','Layout','Review'],
   notes:['Write','Organize'],
   sheets:['Home','Format','Range','Data','Insert'],
-  slides:['Design','Arrange','Present']
+  slides:['Design','Shapes','Arrange','Present']
 };
 
 export function applyPreferences(){
@@ -74,7 +76,8 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         color('Page color','page-color',p.background||'#ffffff')+button('Print / PDF','print');
     } else if(active==='Review'){
       const stats=wordStatistics(file.body||'');
-      body='<span class="ot-metric">'+stats.words+' words · '+stats.characters+' chars · ~'+stats.readMinutes+' min read</span>'+
+      body=button('✎ Add comment','review-add-comment')+
+        '<span class="ot-metric">'+stats.words+' words · '+stats.characters+' chars · ~'+stats.readMinutes+' min read</span>'+
         '<label class="ot-select-label">Find <input class="ot-text" data-ot-input="find-text" id="ot-find" placeholder="Find text"></label>'+
         '<label class="ot-select-label">Replace <input class="ot-text" data-ot-input="replace-text" id="ot-replace" placeholder="New text"></label>'+
         button('Replace all','replace-all')+button('Print / PDF','print');
@@ -119,6 +122,12 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         choice('Transition',[['none','None'],['fade','Fade'],['slide','Slide']],slide.transition||'none')+
         choice('Text size',[['normal','Normal'],['large','Large'],['compact','Compact']],slide.textScale||'normal')+
         button('Apply theme to all','theme-all');
+    } else if(active==='Shapes'){
+      body=button('＋ Text box','shape-text')+button('▣ Rectangle','shape-rect')+button('◯ Ellipse','shape-ellipse')+
+        button('←','shape-left','Move selected object left')+button('→','shape-right')+
+        button('↑','shape-up')+button('↓','shape-down')+
+        button('Duplicate','shape-duplicate')+button('Delete','shape-delete')+
+        '<span class="ot-metric">Click a shape to select; drag its handle to move.</span>';
     } else if(active==='Arrange'){
       body=button('↑ Move up','slide-up')+button('↓ Move down','slide-down')+
         button('＋ New slide','slide-new')+button('Clone slide','slide-copy')+
@@ -252,7 +261,8 @@ function replaceAllText(ctx,needle,replacement){
 }
 function presentationHTML(slide){
   const scheme=SLIDE_PRESETS[slide.studioPreset]||SLIDE_PRESETS.ivory;
-  return '<div class="ot-present-page ot-present-'+(slide.layout||'title')+' ot-effect-'+(['fade','slide'].includes(slide.transition)?slide.transition:'none')+'" style="--present-color:'+scheme.accent+';--studio-slide-bg:'+scheme.background+';--studio-slide-text:'+scheme.foreground+'"><h1>'+escapeHTML(slide.title)+'</h1><p>'+escapeHTML(slide.body)+'</p></div>';
+  return '<div class="ot-present-page ot-present-'+(slide.layout||'title')+' ot-effect-'+(['fade','slide'].includes(slide.transition)?slide.transition:'none')+'" style="--present-color:'+scheme.accent+';--studio-slide-bg:'+scheme.background+';--studio-slide-text:'+scheme.foreground+'"><h1>'+escapeHTML(slide.title)+'</h1><p>'+escapeHTML(slide.body)+'</p>'+
+    '<div class="studio-object-layer studio-object-present">'+renderedSlideObjects(slide)+'</div></div>';
 }
 function showPresentation(ctx,index=0){
   const file=ctx.getFile();if(!file?.slides)return;
@@ -377,6 +387,15 @@ export function initializeOfficeTools(ctx){
         try{const parsed=new URL(url);if(!['https:','http:'].includes(parsed.protocol))throw Error();richCommand(ctx,'createLink',url);}
         catch{ctx.toast('Only HTTP/HTTPS links are supported.');}return;
       }
+      if(action==='review-add-comment'){
+        if(f.type!=='docs')return;
+        const quote=ctx.getReviewQuote();
+        if(!quote)throw Error('Select text in your document before adding a comment.');
+        const note=prompt('Comment about: '+quote.slice(0,90),'');
+        if(note===null)return;
+        addDocComment(f,quote,note);ctx.touch(f);ctx.persist();ctx.render();
+        ctx.toast('Review comment added');return;
+      }
       if(action==='print'){printDoc(f);return;}
       if(action==='replace-all'){
         const find=document.getElementById('ot-find')?.value||'';
@@ -457,6 +476,19 @@ export function initializeOfficeTools(ctx){
         if(!data.length){ctx.toast('Add labels in column A and numeric values in B, rows 2–30.');return;}
         modal('<h2>'+ (action==='chart-bar'?'Bar':'Line') +' chart preview</h2><p>Uses current worksheet A:B data (up to 20 points). Preview only—editable embedded charts come later.</p>'+svgChart(data,action==='chart-bar'?'bar':'line')+'<div class="modal-actions"><button class="btn btn-light" data-ot-action="settings-close">Close</button></div>');
         return;
+      } else if(['shape-text','shape-rect','shape-ellipse'].includes(action)){
+        if(f.type!=='slides')return;
+        const kind={'shape-text':'text','shape-rect':'rect','shape-ellipse':'ellipse'}[action];
+        const item=addSlideObject(f.slides[ctx.getSlideIndex()],kind);
+        ctx.setSlideObjectId(item.id);ctx.touch(f);ctx.persist();ctx.render();return;
+      } else if(['shape-left','shape-right','shape-up','shape-down','shape-duplicate','shape-delete'].includes(action)){
+        if(f.type!=='slides')return;
+        const id=ctx.getSlideObjectId(),slide=f.slides[ctx.getSlideIndex()];
+        if(!id||!getSlideObject(slide,id))throw Error('Select an object on the slide first.');
+        if(action==='shape-delete'){deleteSlideObject(slide,id);ctx.setSlideObjectId(null);}
+        else if(action==='shape-duplicate'){ctx.setSlideObjectId(duplicateSlideObject(slide,id).id);}
+        else {const delta={ 'shape-left':[-3,0],'shape-right':[3,0],'shape-up':[0,-3],'shape-down':[0,3]}[action];moveSlideObject(slide,id,...delta);}
+        ctx.touch(f);ctx.persist();ctx.render();return;
       } else if(action==='theme-all'){
         const current=f.slides[ctx.getSlideIndex()].theme;
         f.slides.forEach(slide=>slide.theme=current);
