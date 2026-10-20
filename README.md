@@ -21,9 +21,9 @@ Open http://localhost:4173. No installation step or external npm dependencies ar
 - **IndexedDB workspace storage:** files, recycle bin and revision records now commit in a single IndexedDB transaction. No cloud account is required.
 - **Safe one-time migration:** existing `mysoft-office-v1` localStorage data is imported before the app opens. Legacy keys are **not deleted**, so a pre-migration recovery copy remains available.
 - **Verified save status:** Ctrl/Cmd+S, command-palette saves and autosave report `Saved on device` only after the database transaction completes. Failed writes show a visible error and backup warning.
-- **Recovery precautions:** malformed legacy data stops startup and offers a raw recovery export instead of silently replacing documents. Failed JSON/cloud workspace restoration leaves the current workspace untouched.
+- **Recovery precautions:** edits are staged to a small synchronous localStorage recovery journal before asynchronous writes. Pending snapshots replay after interrupted reloads; malformed legacy data offers raw recovery export instead of silently replacing documents. Failed JSON/cloud workspace restoration leaves the current workspace untouched.
 - **Regression tests:** unit tests cover migration parsing and ordered write failures; Chromium tests cover migration, save errors, failed import and corrupt-legacy recovery.
-- **Limitations:** browser data can still be cleared by users or storage eviction; export external backups. Page-close writes are best effort. Per-file writes are currently full-workspace transactional replacements, with incremental updates and automated backups reserved for later.
+- **Limitations:** browser data can still be cleared by users or storage eviction; export external backups. The localStorage recovery journal is quota-bound and not a guaranteed substitute for IndexedDB transactions. Per-file writes are currently full-workspace transactional replacements.
 
 ## New in v0.5.7 — Keyboard workflow refinement
 

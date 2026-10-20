@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  readLegacyWorkspace, validateWorkspace, OrderedWriteQueue, LEGACY_KEYS
+  readLegacyWorkspace, readRecoveryJournal, validateWorkspace, OrderedWriteQueue, LEGACY_KEYS, RECOVERY_KEY
 } from '../src/workspace-storage.js';
 
 const note = (id='note-1') => ({id,type:'notes',title:'Recovered note',body:'<p>Safe</p>'});
@@ -65,4 +65,19 @@ test('failed write does not poison later retry',async()=>{
   await assert.rejects(queue.save(sample()),/QuotaExceeded/);
   await assert.doesNotReject(queue.save(sample()));
   assert.equal(count,2);
+});
+
+
+test('recovery journal reader validates pending edits and sequence',()=>{
+  const pending={sequence:8,workspace:sample()};
+  const recovered=readRecoveryJournal(storage({
+    [RECOVERY_KEY]:JSON.stringify(pending)
+  }));
+  assert.equal(recovered.sequence,8);
+  assert.equal(recovered.workspace.files[0].title,'Recovered note');
+  assert.equal(readRecoveryJournal(storage({})),null);
+  assert.throws(()=>readRecoveryJournal(storage({[RECOVERY_KEY]:'broken'})),/invalid JSON/);
+  assert.throws(()=>readRecoveryJournal(storage({
+    [RECOVERY_KEY]:JSON.stringify({sequence:-1,workspace:sample()})
+  })),/invalid sequence/);
 });

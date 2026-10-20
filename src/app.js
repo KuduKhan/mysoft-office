@@ -196,6 +196,7 @@ function touch(file,trackHistory=true){
   if(trackHistory&&['docs','notes'].includes(file.type))documentHistory.record(file.id,file.body||'');
   file.updatedAt=Date.now();snapshot(file);
   const mark=document.getElementById('save-status');
+  ++saveRevision;
   updateSaveStatus('saving');
   if(storageReady)workspaceStore.stage(workspaceSnapshot());
   clearTimeout(savedTimer);savedTimer=setTimeout(()=>{void persist();},350);

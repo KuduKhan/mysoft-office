@@ -72,3 +72,5 @@ On a fresh database the app reads the legacy `mysoft-office-v1` / trash / revisi
 Save confirmations wait for committed transactions; pagehide/visibilitychange saves are **best effort**, not a guarantee after abrupt process termination. External JSON backups remain recommended. Browser storage remains subject to quota and eviction.
 
 **Next storage upgrades:** incremental per-file transactions, export snapshots and hash checks for larger attachments, quota/eviction telemetry, OPFS where appropriate, multi-tab conflict control, and independently restored disaster-recovery backups.
+
+The synchronous `mysoft-office-pending-v3` recovery journal stages small pending edits before the IndexedDB debounce. A monotonically increasing sequence on committed database metadata prevents stale journal replay. Journal entries at or below the committed sequence are cleared; newer journal entries are replayed at startup. Large workspaces can exhaust localStorage quota, in which case the IndexedDB path still operates but immediate-reload recovery cannot be guaranteed.
