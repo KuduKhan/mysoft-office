@@ -2,7 +2,17 @@
 
 **Your work. Your space.**
 
-MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.5.8 Data Integrity & Recovery** retains native DOCX/XLSX/PPTX support and adds a redesigned, responsive workspace with orangered/color theme options, denser editing ribbons and new functional commands. This remains a local-first prototype, not full Microsoft Office parity. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
+MySoft Office is an independent, local-first productivity suite with four browser-based editors. Version **0.6.0 Editor Productivity Preview** retains native DOCX/XLSX/PPTX support and adds a redesigned, responsive workspace with orangered/color theme options, denser editing ribbons and new functional commands. This remains a local-first prototype, not full Microsoft Office parity. It is NOT at full Microsoft Office parity; consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for an explicit capability inventory and engineering plan.
+
+## Editor Productivity Preview — v0.6.0
+
+- **Docs:** Insert an editable table-of-contents **snapshot** from Heading 1–3 blocks. This is not an auto-refreshing TOC with anchor links; regenerate after changing headings.
+- **Sheets:** Range ribbon copies a rectangular selection in transposed orientation to a chosen cell. Existing source values remain unchanged; overlapping destinations are handled using a snapshot. Formula strings are copied **without relative-reference adjustment**. COUNT and COUNTA now distinguish numeric values from nonempty text cells.
+- **Slides:** Arrange ribbon finds and replaces literal text (case-insensitive) throughout slide titles, body text and presenter notes. Shape text is not included.
+- **Notes:** Organize ribbon inserts reusable meeting notes and daily planning templates into the editable page.
+- **Verification:** New pure-function tests plus full four-editor Chromium tests. Existing OOXML import/export and storage behavior remain limited to documented subsets.
+
+**Scope note:** v0.6.0 is an editor-productivity preview. The separately planned secure-backend, multi-tab conflict resolution and collaboration milestones are **not completed** by this release.
 
 ## Quick start
 
