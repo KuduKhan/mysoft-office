@@ -179,3 +179,11 @@ Architecture documentation:
 - Existing v0.1/v0.2 browser workspaces continue to load.
 - Advanced desktop/Office file formats are not advertised until round-trip tests prove them.
 - All server-side storage and collaboration must be designed with strict access control.
+
+## Repository audit: local safety and recovery fixes
+
+- Invalid recovery-journal JSON no longer blocks existing committed IndexedDB data; the damaged journal is preserved and a warning appears.
+- Rejected workspace backup/cloud replacement snapshots are not staged for crash replay. The existing workspace remains authoritative after failed restoration.
+- localStorage denial no longer prevents startup when IndexedDB works; appearance preferences degrade gracefully.
+- The local dev server now serves only app JS/CSS, the landing page and supported static assets. It rejects internal files and symlinks that escape the project root. It binds to loopback by default; set HOST explicitly only for trusted networking.
+- A successful local CI test suite is necessary but not sufficient: production hardening requires CSP/security review, multi-tab conflict policy, and external backup testing.

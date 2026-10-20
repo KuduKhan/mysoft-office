@@ -81,3 +81,40 @@ test('recovery journal reader validates pending edits and sequence',()=>{
     [RECOVERY_KEY]:JSON.stringify({sequence:-1,workspace:sample()})
   })),/invalid sequence/);
 });
+
+
+test('restore saves can opt out of pending replay journal',async()=>{
+  const writes=[],changes=[];
+  const store={
+    db:{},nextSequence:9,
+    stage(){throw Error('A rejected restore must not touch the journal');},
+    queue:new OrderedWriteQueue(async workspace=>writes.push(workspace))
+  };
+  const {BrowserWorkspaceStore}=await import('../src/workspace-storage.js');
+  await BrowserWorkspaceStore.prototype.save.call(store,sample(),{journal:false});
+  assert.equal(writes[0]._sequence,10);
+  assert.equal(writes[0].files[0].id,'note-1');
+  assert.equal(store.nextSequence,10);
+});
+
+test('invalid recovery journal cannot overwrite a valid committed database',async()=>{
+  const {BrowserWorkspaceStore}=await import('../src/workspace-storage.js');
+  const store=new BrowserWorkspaceStore({});
+  store.db={};
+  store.read=async()=>sample();
+  const result=await store.initialize(storage({[RECOVERY_KEY]:'{invalid'}),()=>[]);
+  assert.equal(result.source,'journal-ignored');
+  assert.equal(result.workspace.files[0].title,'Recovered note');
+});
+
+test('unavailable localStorage can still initialize an IndexedDB-backed workspace',async()=>{
+  const {BrowserWorkspaceStore}=await import('../src/workspace-storage.js');
+  const store=new BrowserWorkspaceStore({});
+  store.db={};
+  store.read=async()=>null;
+  store.queue=new OrderedWriteQueue(async()=>{});
+  const noAccess={getItem(){const err=new Error('Denied');err.name='SecurityError';throw err;}};
+  const result=await store.initialize(noAccess,()=>[note()]);
+  assert.equal(result.source,'new');
+  assert.equal(result.workspace.files.length,1);
+});

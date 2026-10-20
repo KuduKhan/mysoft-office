@@ -159,7 +159,15 @@ export class BrowserWorkspaceStore {
     const existing = await this.read();
     // A synchronous journal protects the last edits if a tab reload interrupts
     // a debounced IndexedDB transaction. Never replay an older journal.
-    const recovery=readRecoveryJournal(legacyStorage);
+    let recovery;
+    try { recovery=readRecoveryJournal(legacyStorage); }
+    catch(error) {
+      // A corrupt optional journal must never hide a valid committed database.
+      if(existing)return {workspace:existing,source:'journal-ignored'};
+      if(error?.name!=='SecurityError')throw error;
+      // Browsers may deny localStorage even while IndexedDB remains available.
+      this.legacyStorage=null;
+    }
     if(recovery && recovery.sequence>this.committedSequence) {
       await this.queue.save({...recovery.workspace,_sequence:recovery.sequence});
       this.nextSequence=Math.max(this.nextSequence,recovery.sequence);
@@ -167,7 +175,9 @@ export class BrowserWorkspaceStore {
     }
     if(recovery)this.removeCompletedJournal();
     if (existing) return { workspace: existing, source: 'indexeddb' };
-    const legacy = readLegacyWorkspace(legacyStorage);
+    let legacy=null;
+    try{legacy=readLegacyWorkspace(legacyStorage);}
+    catch(error){if(error?.name!=='SecurityError')throw error;}
     const workspace = legacy || validateWorkspace({ files: createStarter(), trash: [], versions: {} });
     await this.queue.save({...workspace,_sequence:0});
     return { workspace, source: legacy ? 'legacy-migrated' : 'new' };
@@ -194,9 +204,15 @@ export class BrowserWorkspaceStore {
     }catch{/* Preserve invalid recovery journal for manual repair. */}
   }
 
-  save(workspace) {
+  save(workspace,{journal=true}={}) {
     if (!this.db) return Promise.reject(Error('Workspace database not ready'));
-    const staged=this.stage(workspace);
+    // Explicit destructive workspace replacement must NOT be journaled before
+    // the commit succeeds. Otherwise a failed restore could replay on reload.
+    const staged=journal?this.stage(workspace):{
+      workspace:structuredClone(validateWorkspace(workspace)),
+      sequence:++this.nextSequence,
+      journaled:false
+    };
     return this.queue.save({...staged.workspace,_sequence:staged.sequence});
   }
 

@@ -73,3 +73,48 @@ test('failed backup replacement leaves the existing workspace unchanged',async({
   await expect(page.getByText('Welcome to MySoft Office').first()).toBeVisible();
   await expect(page.getByText('Must not replace original')).toHaveCount(0);
 });
+
+
+test('rejected backup is never replayed on a subsequent reload',async({page})=>{
+  await page.goto('/');
+  await expect(page.getByText('Welcome to MySoft Office').first()).toBeVisible();
+  await page.evaluate(()=>{
+    const original=IDBDatabase.prototype.transaction;
+    IDBDatabase.prototype.transaction=function(){
+      if(arguments[1]==='readwrite')throw new DOMException('Out of space','QuotaExceededError');
+      return original.apply(this,arguments);
+    };
+  });
+  page.on('dialog',dialog=>dialog.accept());
+  const replacement={version:2,files:[{id:'not-accepted',type:'notes',title:'Rejected replacement',body:'<p>not saved</p>'}],trash:[],versions:{}};
+  await page.locator('#backup-upload').setInputFiles({
+    name:'rejected.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(replacement))
+  });
+  await expect(page.locator('#toast')).toContainText('Current files are unchanged.');
+  await page.reload();
+  await expect(page.getByText('Welcome to MySoft Office').first()).toBeVisible();
+  await expect(page.getByText('Rejected replacement')).toHaveCount(0);
+});
+
+test('invalid optional recovery journal cannot hide valid committed files',async({page})=>{
+  await page.goto('/');
+  await expect(page.getByText('Welcome to MySoft Office').first()).toBeVisible();
+  await page.evaluate(()=>localStorage.setItem('mysoft-office-pending-v3','{damaged'));
+  await page.reload();
+  await expect(page.getByText('Welcome to MySoft Office').first()).toBeVisible();
+  await expect(page.locator('#toast')).toContainText('Damaged recovery journal ignored');
+  expect(await page.evaluate(()=>localStorage.getItem('mysoft-office-pending-v3'))).toBe('{damaged');
+});
+
+test('browser with blocked localStorage still opens workspace using IndexedDB',async({page})=>{
+  await page.addInitScript(()=>{
+    Storage.prototype.getItem=function(){throw new DOMException('Denied','SecurityError');};
+    Storage.prototype.setItem=function(){throw new DOMException('Denied','SecurityError');};
+  });
+  await page.goto('/');
+  await expect(page.getByText('Welcome to MySoft Office').first()).toBeVisible();
+  await page.locator('[data-create="docs"]').first().click();
+  await page.locator('#rich-content').fill('IndexedDB remains usable');
+  await page.keyboard.press('Control+s');
+  await expect(page.locator('#save-status')).toContainText('Saved on device');
+});
