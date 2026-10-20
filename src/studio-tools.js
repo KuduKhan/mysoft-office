@@ -1,5 +1,6 @@
 // Bounded editor commands shared by MySoft's v0.5.1 studio ribbon.
 export const STUDIO_ACCENTS=[
+  {name:'Indigo',value:'#4f46e5',soft:'#eef2ff'},
   {name:'Orangered',value:'#ea4c24',soft:'#fff0e9'},
   {name:'Coral',value:'#ef626c',soft:'#fff0f2'},
   {name:'Saffron',value:'#ce7f10',soft:'#fff7e6'},

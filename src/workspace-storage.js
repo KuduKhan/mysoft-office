@@ -1,3 +1,4 @@
+import {validateMediaRecord} from './media-model.js';
 // MySoft v0.5.8: IndexedDB is the authoritative, transactional workspace store.
 // Legacy localStorage values are read only for one-time migration and never erased here.
 export const DATABASE_NAME = 'mysoft-office-workspace-v3';
@@ -8,7 +9,8 @@ export const LEGACY_KEYS = Object.freeze({
   versions: 'mysoft-office-revisions-v2'
 });
 const STORES = ['files', 'trash', 'versions', 'meta'];
-const TYPES = new Set(['docs', 'sheets', 'slides', 'notes']);
+import {validatePDFRecord} from './pdf-model.js';
+const TYPES = new Set(['docs', 'sheets', 'slides', 'notes', 'pdf', 'media']);
 
 function object(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -32,6 +34,8 @@ export function validateWorkspace(workspace) {
       throw new Error('Invalid or duplicate file record');
     }
     ids.add(entry.id);
+    if(entry.type==='media'&&!validateMediaRecord(entry))throw new Error('Invalid media record');
+    if(entry.type==='pdf'&&!validatePDFRecord(entry))throw new Error('Invalid PDF record');
   }
   return workspace;
 }

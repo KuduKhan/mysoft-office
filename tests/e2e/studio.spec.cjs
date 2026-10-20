@@ -6,16 +6,48 @@ test.beforeEach(async({page})=>{
   await page.reload();
 });
 
-test('orangered studio palette persists across reload and supports dark mode',async({page})=>{
+test('indigo studio palette persists across reload and supports dark mode',async({page})=>{
   await page.locator('[data-ot-action="preferences"]').click();
-  await expect(page.locator('.studio-swatch')).toHaveCount(8);
-  await page.locator('[data-ot-palette="#ea4c24"]').click();
-  await expect(page.locator('html')).toHaveCSS('--studio-accent','#ea4c24');
+  await expect(page.locator('.studio-swatch')).toHaveCount(9);
+  await page.locator('[data-ot-palette="#4f46e5"]').click();
+  await expect(page.locator('html')).toHaveCSS('--studio-accent','#4f46e5');
   await page.locator('[data-ot-pref="mode"]').selectOption('dark');
   await page.locator('[data-ot-action="settings-close"]').click();
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-mode','dark');
-  await expect(page.locator('html')).toHaveCSS('--studio-accent','#ea4c24');
+  await expect(page.locator('html')).toHaveCSS('--studio-accent','#4f46e5');
+});
+
+test('native app identities survive workspace accent changes in light and dark modes',async({page})=>{
+  await page.locator('[data-ot-action="preferences"]').click();
+  await page.locator('[data-ot-palette="#15846c"]').click();
+  await page.locator('[data-ot-action="settings-close"]').click();
+  const apps=[
+    ['docs','#185abd','rgb(24, 90, 189)','rgb(165, 202, 255)'],
+    ['sheets','#107c41','rgb(16, 124, 65)','rgb(141, 219, 177)'],
+    ['slides','#c43e1c','rgb(196, 62, 28)','rgb(255, 180, 157)'],
+    ['notes','#8030a7','rgb(128, 48, 167)','rgb(221, 180, 244)']
+  ];
+  for(const mode of ['light','dark']){
+    await page.locator('[data-ot-action="preferences"]').click();
+    await page.locator('[data-ot-pref="mode"]').selectOption(mode);
+    await page.locator('[data-ot-action="settings-close"]').click();
+    for(const [type,accent,light,dark] of apps){
+      const ink=mode==='light'?light:dark;
+      await expect(page.locator('.app-card .app-icon.'+type)).toHaveCSS('color',ink);
+      await page.locator('[data-create="'+type+'"]').first().click();
+      await expect(page.locator('#studio-main')).toHaveCSS('--studio-accent',accent);
+      await expect(page.locator('.top-actions .btn-primary')).toHaveCSS('background-color',light);
+      await expect(page.locator('.editor-head .file-icon')).toHaveCSS('color',ink);
+      if(type!=='notes')await expect(page.locator('[data-action="office-export"]')).toHaveCSS('color',ink);
+      if(type==='notes')await expect(page.locator('#note-title')).toHaveCSS('background-color','rgba(0, 0, 0, 0)');
+      await expect(page.locator('.sidebar [data-nav="'+type+'"]')).toHaveAttribute('aria-current','page');
+      await expect(page.locator('html')).toHaveCSS('--studio-accent','#15846c');
+      await page.screenshot({path:'.artifacts/native-colors/'+type+'-'+mode+'.png'});
+      await page.locator('[data-action="close-editor"]').click();
+      await page.goto('/');
+    }
+  }
 });
 
 test('ribbon collapse and zoom are fully functional',async({page})=>{

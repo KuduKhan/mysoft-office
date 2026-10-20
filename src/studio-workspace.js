@@ -19,5 +19,7 @@ export function editorMetric(file,text=''){
     return Object.values(cells).filter(v=>String(v??'')!=='').length+' populated cells';
   }
   if(file.type==='slides')return (file.slides?.length||0)+' slides';
+  if(file.type==='pdf')return (file.pdfPageOrder?.length||file.pdfPageCount||0)+' pages';
+  if(file.type==='media')return file.mediaKind==='empty'?'No media loaded':file.mediaKind+' · '+file.mediaEdits.outputWidth+' × '+file.mediaEdits.outputHeight;
   return '';
 }

@@ -14,8 +14,9 @@ export const SECURITY_HEADERS=Object.freeze({
     "script-src 'self' https://esm.sh",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
+    "media-src 'self' blob: data:",
     "font-src 'self' data:",
     "connect-src 'self' https:",
-    "worker-src 'none'"
+    "worker-src 'self'"
   ].join('; ')
 });

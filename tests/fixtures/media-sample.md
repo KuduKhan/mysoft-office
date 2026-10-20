@@ -1,0 +1,1 @@
+Synthetic 320 x 180, two-second WebM with a blue canvas and 440 Hz tone. Generated with FFmpeg lavfi color and sine sources, VP8 video and Opus audio. Contains no user media. Tests decoding, editing, audio preservation and cancellation.

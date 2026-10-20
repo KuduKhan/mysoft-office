@@ -7,6 +7,8 @@ export function workspaceMatchSource(file,query){
   if(contains(file?.title,q))return 'name';
   if(Array.isArray(file?.tags)&&file.tags.some(tag=>contains(tag,q)))return 'tag';
   if(['docs','notes'].includes(file?.type)&&contains(body(file.body),q))return 'document content';
+  if(file?.type==='media'&&(contains(file.mediaSourceName,q)||contains(file.mediaEdits?.text,q)))return 'media content';
+  if(file?.type==='pdf'&&contains(file.pdfText,q))return 'PDF text';
   if(file?.type==='sheets'){
     const sheets=Array.isArray(file.worksheets)?file.worksheets.slice(0,20):[file];
     for(const sheet of sheets){
