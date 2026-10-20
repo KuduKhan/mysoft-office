@@ -1,7 +1,7 @@
 name: Browser smoke tests
 on:
   push:
-    branches: [main, feat/v0.5.6-editor-productivity]
+    branches: [main, feat/v0.5.7-studio-workflow]
   pull_request:
 permissions:
   contents: read
