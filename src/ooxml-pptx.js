@@ -23,7 +23,7 @@ function slideShape(id,name,text,x,y,w,h,isTitle,accent){
     '<a:latin typeface="Aptos"/></a:rPr><a:t>'+xmlEscape(line)+'</a:t></a:r></a:p>').join('');
   return '<p:sp><p:nvSpPr><p:cNvPr id="'+id+'" name="'+name+'"/><p:cNvSpPr/>'+
     '<p:nvPr><p:ph type="'+(isTitle?'title':'body')+'"'+(isTitle?'':' idx="1"')+'/></p:nvPr></p:nvSpPr>'+
-    '<p:spPr><a:xfrm rot="'+(Number.isInteger(object.rotation)&&object.rotation%90===0?((object.rotation%360+360)%360)*60000:0)+'"><a:off x="'+x+'" y="'+y+'"/><a:ext cx="'+w+'" cy="'+h+'"/></a:xfrm>'+
+    '<p:spPr><a:xfrm><a:off x="'+x+'" y="'+y+'"/><a:ext cx="'+w+'" cy="'+h+'"/></a:xfrm>'+
     '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></p:spPr>'+
     '<p:txBody><a:bodyPr wrap="square"/><a:lstStyle/>'+paragraphs+'</p:txBody></p:sp>';
 }
@@ -42,7 +42,7 @@ function customObjectShape(object,index){
     '<a:p><a:r><a:rPr lang="en-US" sz="'+size+'"><a:solidFill><a:srgbClr val="'+color+'"/></a:solidFill></a:rPr>'+
     '<a:t>'+xmlEscape(line)+'</a:t></a:r></a:p>').join('');
   return '<p:sp><p:nvSpPr><p:cNvPr id="'+(index+4)+'" name="MySoft object '+index+'"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>'+
-    '<p:spPr><a:xfrm><a:off x="'+x+'" y="'+y+'"/><a:ext cx="'+w+'" cy="'+h+'"/></a:xfrm>'+
+    '<p:spPr><a:xfrm rot="'+(Number.isInteger(object.rotation)&&object.rotation%90===0?((object.rotation%360+360)%360)*60000:0)+'"><a:off x="'+x+'" y="'+y+'"/><a:ext cx="'+w+'" cy="'+h+'"/></a:xfrm>'+
     '<a:prstGeom prst="'+kind+'"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="'+fill+'"/></a:solidFill>'+
     '<a:ln><a:noFill/></a:ln></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/>'+(paras||'<a:p/>')+'</p:txBody></p:sp>';
 }
