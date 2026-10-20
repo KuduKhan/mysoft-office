@@ -65,3 +65,11 @@ The app is not yet equivalent to WPS or Microsoft Office. We must extend the v0.
 - Slides: native rectangles, ellipses and editable text boxes with repositioning, duplication, deletion and custom colors. These persist locally and basic shapes are included in MySoft's own PPTX round-trip subset. Complex Office shapes, animations and masters remain unsupported.
 - Notes: notebook and section organization with grouped navigation, relocation controls and metadata preserved through revisions; mobile navigation stays visible in a bounded panel.
 - The release remains v0.5.x. A structured text editor, professional spreadsheet engine, freeform animations and fully featured note hierarchy remain required before any cloud milestone.
+
+## v0.5.4 Editing Reliability
+
+- Docs: paper geometry and printer `@page` size/margin setup, plus optional header/footer text as standalone document metadata. Browser-dependent print layout; **not** full paginated document flow, running page numbering, or section-specific headers.
+- Sheets: an on-demand formula audit and trace inspection for active worksheet formulas, with limits; not a dependency-aware recalculation engine.
+- Slides: selected-object alignment to six slide edges/centers and bounded resize with persistent dimensions. No grouping/animations yet.
+- Notes: query filtering for notebooks, sections, tags, titles and text, with bounded mobile sidebar and explicit empty state.
+- Continue v0.5.x. Structural document engine, full spreadsheet engine, complex slide object stack and rich notes remain unfinished.
