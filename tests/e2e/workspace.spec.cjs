@@ -56,3 +56,50 @@ test('cloud explains required setup when unconfigured',async({page})=>{
   await page.locator('[data-action="cloud"]').click();
   await expect(page.getByText('Cloud is not configured yet.')).toBeVisible();
 });
+
+
+test('Docs ribbon creates a formatted table and updates page layout',async({page})=>{
+  await page.locator('[data-create="docs"]').first().click();
+  await page.locator('[data-ot-tab="Insert"]').click();
+  await page.locator('[data-ot-action="insert-table"]').click();
+  await expect(page.locator('#rich-content table tr')).toHaveCount(3);
+  await page.locator('[data-ot-tab="Layout"]').click();
+  await page.locator('[data-ot-input="orientation"]').selectOption('landscape');
+  await page.locator('[data-action="close-editor"]').click();
+  await page.locator('[data-open]').first().click();
+  await expect(page.locator('#rich-content table tr')).toHaveCount(3);
+  await page.locator('[data-ot-tab="Layout"]').click();
+  await expect(page.locator('[data-ot-input="orientation"]')).toHaveValue('landscape');
+});
+test('Sheets offers multiple independent worksheets and cell formatting',async({page})=>{
+  await page.locator('[data-create="sheets"]').first().click();
+  await page.locator('[data-cell="A1"]').fill('Original');
+  await page.locator('[data-ot-action="sheet-add"]').first().click();
+  await page.locator('[data-cell="A1"]').fill('Second');
+  await page.locator('[data-ot-sheet="0"]').click();
+  await expect(page.locator('[data-cell="A1"]')).toHaveValue('Original');
+  await page.locator('[data-cell="A1"]').click();
+  await page.locator('[data-ot-action="cell-bold"]').click();
+  await expect(page.locator('[data-cell="A1"]')).toHaveCSS('font-weight','750');
+  await page.reload();
+  await expect(page.locator('[data-cell="A1"]')).toHaveValue('Original');
+  await expect(page.locator('[data-ot-sheet]')).toHaveCount(2);
+});
+test('appearance preferences persist between reloads',async({page})=>{
+  await page.locator('[data-ot-action="preferences"]').click();
+  await page.locator('[data-ot-pref="mode"]').selectOption('dark');
+  await expect(page.locator('html')).toHaveAttribute('data-mode','dark');
+  await page.locator('[data-ot-action="settings-close"]').click();
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-mode','dark');
+});
+test('slide show can advance and close',async({page})=>{
+  await page.locator('[data-create="slides"]').first().click();
+  await page.locator('[data-ot-tab="Present"]').click();
+  await page.locator('[data-ot-action="present"]').click();
+  await expect(page.locator('#ot-presentation')).toBeVisible();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('#ot-presentation')).toContainText('1 / 1');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#ot-presentation')).toHaveCount(0);
+});
