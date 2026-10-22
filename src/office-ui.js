@@ -91,7 +91,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
     } else if(active==='Insert'){
       body=button('Table 3×3','insert-table')+button('Table size…','custom-table')+button('Picture','insert-picture')+button('Divider','insert-hr')+
         button('Link','insert-link')+button('Checklist','insert-checklist')+button('Date','insert-date')+
-        button('Quote','insert-quote')+button('Page break','insert-page-break')+button('Insert contents','insert-contents','Insert editable heading list')+button('Refresh contents','refresh-contents')+button('Link MySoft file','workspace-link');
+        button('Quote','insert-quote')+button('Page break','insert-page-break')+button('Insert contents','insert-contents','Insert editable heading list')+button('Refresh contents','refresh-contents');
     } else if(active==='Structure'){
       body=button('↑ Move block','block-up')+button('↓ Move block','block-down')+
         button('H+ Promote','block-promote')+button('H− Demote','block-demote')+
