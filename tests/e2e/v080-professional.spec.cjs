@@ -4,7 +4,7 @@ test('Sheets copies relative formulas to a new destination and saves them',async
  await page.locator('[data-cell="A1"]').fill('12');await page.locator('[data-cell="A1"]').press('Enter');
  await page.locator('[data-cell="B1"]').fill('=A1+3');await page.locator('[data-cell="B1"]').press('Enter');
  await page.locator('[data-ot-tab="Range"]').click();
- page.once('dialog',d=>d.accept('A1:B1'));page.once('dialog',d=>d.accept('D3'));
+ const answers=['A1:B1','D3'];page.on('dialog',d=>d.accept(answers.shift()));
  await page.locator('[data-ot-action="range-copy-to"]').click();
  await expect(page.locator('[data-cell="E3"]')).toHaveValue('15');
  await page.keyboard.press('Control+s');await page.reload();

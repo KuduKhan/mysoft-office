@@ -7,7 +7,7 @@ import {renderVisual,fitCanvas,drawWaveform} from './media-render.js';
 const esc=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function createMediaStudio(ctx){
   let file=null,source=null,audio=null,processedAudio=null,video=null,sourceURL='',previewURL='',graph=null,observer=null,epoch=0,raf=0,busy=false,controller=null,stroke=null,undo=[],redo=[];
-  let selectedLayer=-1,layerSignature='';
+  let selectedLayer=-1,layerSignature='',compareOriginal=false;
   let tool='view',color='#087f8c',brush=6,fill=false;
   const $=id=>document.getElementById(id);
   const button=(action,label,ic)=>'<button class="btn btn-light btn-sm" data-media-action="'+action+'">'+(ic?icon(ic,15):'')+label+'</button>';
@@ -34,11 +34,15 @@ export function createMediaStudio(ctx){
   function markup(f){
     file=f;f.mediaEdits={...defaultMediaEdits(f.mediaEdits.outputWidth,f.mediaEdits.outputHeight),...f.mediaEdits};
     if(f.mediaKind==='empty')return '<section class="media-empty editor-body"><span class="media-emblem">'+icon('image',38)+'</span><h2>MySoft Media</h2><p>Your creative space for images, audio and video.</p><div class="media-launch">'+[['image','Open image','image'],['audio','Open audio','play'],['video','Open video','play'],['drawing','New drawing','plus']].map(([k,t,i])=>button(k,t,i)).join('')+'</div><small>Local editing · Original files preserved · Up to 16 MB per file</small></section>';
-    return '<section class="media-layout"><div class="media-toolbar">'+button('open','Open media','upload')+button('drawing','New drawing','plus')+button('undo','Undo','undo-2')+button('redo','Redo','redo-2')+button('reset','Reset edits')+(f.mediaData?button('original','Original','download'):'')+(f.mediaKind==='video'?button('frame','Save frame','image')+button('storyboard','Storyboard','image'):'')+'</div><div class="media-workspace"><div class="media-preview"><div id="media-stage" class="media-stage"><canvas id="media-canvas" aria-label="Media preview"></canvas></div><div id="media-playback" class="media-playback">'+(f.mediaKind==='video'?button('play','Play / pause','play')+'<input id="media-seek" aria-label="Video position" type="range" min="0" max="'+f.mediaDuration+'" step=".01" value="0">':'')+'</div><div id="media-status" class="media-status" role="status">Loading media…</div><div id="media-progress" class="media-progress" hidden><progress max="1" value="0" aria-label="Export progress"></progress>'+button('cancel','Cancel export')+'</div></div><aside id="media-inspector" class="media-inspector" aria-label="Media adjustments">'+inspector()+'</aside></div></section>';
+    return '<section class="media-layout"><div class="media-toolbar">'+button('open','Open media','upload')+button('drawing','New drawing','plus')+button('undo','Undo','undo-2')+button('redo','Redo','redo-2')+button('reset','Reset edits')+(f.mediaData?button('original','Original','download'):'')+(f.mediaKind==='video'?button('frame','Save frame','image')+button('storyboard','Storyboard','image'):'')+(['image','video'].includes(f.mediaKind)?button('compare','Compare original','eye'):'')+'</div><div class="media-workspace"><div class="media-preview"><div id="media-stage" class="media-stage"><canvas id="media-canvas" aria-label="Media preview"></canvas></div><div id="media-playback" class="media-playback">'+(f.mediaKind==='video'?button('play','Play / pause','play')+'<input id="media-seek" aria-label="Video position" type="range" min="0" max="'+f.mediaDuration+'" step=".01" value="0">':'')+'</div><div id="media-status" class="media-status" role="status">Loading media…</div><div id="media-progress" class="media-progress" hidden><progress max="1" value="0" aria-label="Export progress"></progress>'+button('cancel','Cancel export')+'</div></div><aside id="media-inspector" class="media-inspector" aria-label="Media adjustments">'+inspector()+'</aside></div></section>';
   }
-  function paint(){if(!file||!$('media-canvas')||busy)return;if(file.mediaKind==='audio'){if(audio)drawWaveform($('media-canvas'),processedAudio?.channels||audio.channels);}else renderVisual($('media-canvas'),source,file,stroke);fitCanvas($('media-canvas'),$('media-stage'));}
+  function paint(){if(!file||!$('media-canvas')||busy)return;if(file.mediaKind==='audio'){if(audio)drawWaveform($('media-canvas'),processedAudio?.channels||audio.channels);}else {
+      const preview=compareOriginal?{...file,mediaEdits:defaultMediaEdits(file.mediaEdits.outputWidth,file.mediaEdits.outputHeight),mediaLayers:[]}:file;
+      renderVisual($('media-canvas'),source,preview,compareOriginal?null:stroke);
+    }fitCanvas($('media-canvas'),$('media-stage'));}
   function syncLayers(){const select=$('media-layer');if(!select)return;const signature=file.mediaLayers.map(l=>l.kind+':'+l.points.length).join('|');if(signature!==layerSignature||select.options.length!==file.mediaLayers.length+1){select.innerHTML='<option value="-1">Choose a layer</option>'+file.mediaLayers.map((l,i)=>'<option value="'+i+'">'+(i+1)+' · '+l.kind+'</option>').join('');layerSignature=signature;}selectedLayer=Math.min(selectedLayer,file.mediaLayers.length-1);select.value=selectedLayer;}
   function refresh(){syncLayers();paint();if(video){video.playbackRate=file.mediaEdits.speed;if(graph)graph.gain.gain.value=file.mediaEdits.muted?0:file.mediaEdits.gain;}
+    document.querySelector('[data-media-action="compare"]')?.setAttribute('aria-pressed',String(compareOriginal));
     document.querySelectorAll('[data-media-action="undo"]').forEach(b=>b.disabled=!undo.length);document.querySelectorAll('[data-media-action="redo"]').forEach(b=>b.disabled=!redo.length);
     if(file)status(file.mediaKind==='audio'||file.mediaKind==='video'?file.mediaKind+' · '+trimBoundsSafe()+' · '+(file.mediaKind==='audio'?'WAV export':'WebM export in real time'):file.mediaEdits.outputWidth+' × '+file.mediaEdits.outputHeight+' · '+file.mediaLayers.length+' drawing layers');
   }
@@ -51,7 +55,7 @@ export function createMediaStudio(ctx){
   }
   async function audioPreview(){if(!audio||!file)return;try{const result=processAudio(audio.channels,audio.sampleRate,file.mediaEdits),blob=new Blob([encodeWAV(result.channels,result.sampleRate)],{type:'audio/wav'});if(previewURL)URL.revokeObjectURL(previewURL);previewURL=URL.createObjectURL(blob);processedAudio=result;const player=$('media-audio');player.pause();player.loop=Boolean(file.mediaEdits.audioLoop);player.src=previewURL;drawWaveform($('media-canvas'),result.channels);}catch(error){status(error.message);}}
   async function mount(f){
-    file=f;undo=[];redo=[];selectedLayer=-1;layerSignature='';tool=f.mediaKind==='drawing'?'pen':'view';const token=++epoch;
+    file=f;undo=[];redo=[];compareOriginal=false;selectedLayer=-1;layerSignature='';tool=f.mediaKind==='drawing'?'pen':'view';const token=++epoch;
     if(f.mediaKind==='empty')return;
     try{
       if(f.mediaKind==='image'){const image=await createImageBitmap(sourceBlob(f));if(token!==epoch){image.close();return;}source=image;}
@@ -96,6 +100,7 @@ export function createMediaStudio(ctx){
     if(action==='cancel'){controller?.abort();return;}if(busy)return;
     if(['open','image','audio','video'].includes(action)){ctx.importMedia(action==='open'?'all':action);return;}if(action==='drawing'){ctx.newDrawing();return;}if(!file)return;
     try{
+      if(action==='compare'){compareOriginal=!compareOriginal;refresh();return;}
       if(action==='original'){ctx.download(sourceBlob(file),file.mediaSourceName||'original',file.mediaMime);return;}
       if(action==='frame'){await exportCurrent(true);return;}
       if(action==='storyboard'){await storyboard();return;}

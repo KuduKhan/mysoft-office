@@ -57,3 +57,11 @@ Replace the contenteditable editor with a structured editing model, expand workb
 - DOCX export remains limited to semantic paragraphs/headings/basic inline styles and simple tables. The new heading style actions use H1/H2 and may round-trip; unsupported quotes, layouts, comments and advanced typography require manual review.
 - XLSX exports numeric calculation expressions as formula text; IF/AND/OR/NOT and numeric comparisons may be evaluated inside MySoft, but exact formula semantics, caches and third-party reader compatibility are **not guaranteed** for arbitrary workbooks.
 - PPTX round-trips supported MySoft rounded rectangles and triangle objects using DrawingML preset geometries. Third-party SVG, media, rich shape fills and animations are not preserved.
+
+
+## v0.8.0 fidelity boundaries
+- DOCX: Manual contents refresh works in MySoft but is not a native Word field-code or page-aware TOC.
+- XLSX: Relative references copied within A1:Z1000 are shifted; absolute/cross-sheet references and unsupported functions remain restricted.
+- PPTX: Diamond and hexagon objects round-trip for supported MySoft preset geometry; images, complex charts, masters and animations remain incomplete.
+- PDF: MySoft source-page bookmarks are workspace metadata, **not** embedded PDF bookmarks, annotations or cryptographic signatures.
+- Media: Compare original is a transient preview-only mode that never overwrites the source or current edit settings.

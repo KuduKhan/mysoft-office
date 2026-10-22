@@ -6,6 +6,11 @@ export function validatePDFRecord(file){
   if(!Number.isInteger(file.pdfPageCount)||file.pdfPageCount<0||file.pdfPageCount>PDF_MAX_PAGES)return false;
   if(Boolean(file.pdfData)!==Boolean(file.pdfPageCount))return false;
   if(file.pdfPageOrder!==undefined&&(!Array.isArray(file.pdfPageOrder)||!file.pdfPageOrder.length||file.pdfPageOrder.length>PDF_MAX_PAGES||file.pdfPageOrder.some(n=>!Number.isInteger(n)||n<1||n>file.pdfPageCount)))return false;
+  if(file.pdfBookmarks!==undefined && (!Array.isArray(file.pdfBookmarks)||file.pdfBookmarks.length>50||
+      file.pdfBookmarks.some(item=>!item||!Number.isInteger(item.page)||item.page<1||
+        item.page>file.pdfPageCount||typeof item.label!=='string'||!item.label.trim()||
+        item.label.length>80||/[\u0000-\u001f]/.test(item.label))||
+      new Set(file.pdfBookmarks.map(item=>item.page)).size!==file.pdfBookmarks.length))return false;
   const rotations=file.pdfRotations||{};
   return typeof rotations==='object'&&!Array.isArray(rotations)&&
     Object.entries(rotations).every(([page,angle])=>/^[1-9]\d{0,2}$/.test(page)&&Number(page)<=file.pdfPageCount&&[0,90,180,270].includes(angle));
@@ -77,4 +82,24 @@ export async function exportPDF(file){
   const pages=await doc.copyPages(source,order.map(n=>n-1));
   pages.forEach((page,i)=>{const angle=file.pdfRotations?.[order[i]]||0;if(angle)page.setRotation(degrees((page.getRotation().angle+angle)%360));doc.addPage(page);});
   return doc.save();
+}
+
+// Original-source-page bookmarks are internal MySoft metadata, not PDF outline objects.
+export function setPDFBookmark(file,sourcePage,label){
+  if(!validatePDFRecord(file)||!file.pdfData||!Number.isInteger(sourcePage)||
+    sourcePage<1||sourcePage>file.pdfPageCount)throw Error('Choose a valid PDF source page.');
+  const text=String(label??'').replace(/[\u0000-\u001f]/g,' ').trim();
+  if(!text||text.length>80)throw Error('Bookmark name must be 1–80 characters.');
+  const bookmarks=[...(file.pdfBookmarks||[])],index=bookmarks.findIndex(b=>b.page===sourcePage);
+  if(index===-1&&bookmarks.length>=50)throw Error('Maximum 50 PDF bookmarks.');
+  if(index<0)bookmarks.push({page:sourcePage,label:text});
+  else bookmarks[index]={page:sourcePage,label:text};
+  file.pdfBookmarks=bookmarks.sort((a,b)=>a.page-b.page);
+  return {page:sourcePage,label:text};
+}
+export function removePDFBookmark(file,sourcePage){
+  if(!Number.isInteger(sourcePage)||!Array.isArray(file?.pdfBookmarks))return false;
+  const before=file.pdfBookmarks.length;
+  file.pdfBookmarks=file.pdfBookmarks.filter(b=>b.page!==sourcePage);
+  return before!==file.pdfBookmarks.length;
 }

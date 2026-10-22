@@ -60,7 +60,7 @@ export function evaluateCell(reference, cells, stack = new Set()) {
       const number=Number(value);
       return Number.isFinite(number) ? number : 0;
     };
-    const refValue=(name,active)=>{
+    const refValue=(name,active=true)=>{
       if(!active)return 0; // Parse inactive IF/AND/OR branches without resolving their references.
       const value=evaluateCell(name,cells,next);
       return numeric(value);
