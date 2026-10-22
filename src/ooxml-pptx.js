@@ -120,6 +120,12 @@ function themeXML(){
 export function createPPTX(file){
   if(file?.type!=='slides'||!Array.isArray(file.slides)||!file.slides.length)throw Error('PPTX export needs presentation slides.');
   if(file.slides.length>200)throw Error('Too many slides.');
+  // Speaker notes cannot be silently truncated on Office export.
+  for(const slide of file.slides){
+    const text=String(slide.notes||'');
+    if(text.length>20000||text.split(/\r?\n/).length>250)
+      throw Error('Speaker notes exceed the 20,000 character or 250 paragraph export limit.');
+  }
   const noted=file.slides.map(slide=>String(slide.notes||'').trim().length>0);
   const noteCount=noted.filter(Boolean).length;
   // Keep generated files importable under the bounded OOXML package reader.

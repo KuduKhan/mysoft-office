@@ -81,3 +81,15 @@ test('PPTX rejects exports beyond the safe package part count',async({page})=>{
   });
   expect(message).toContain('180-part');
 });
+
+test('PPTX does not silently truncate oversized speaker notes',async({page})=>{
+  await page.goto('/');
+  const message=await page.evaluate(async()=>{
+    const {createPPTX}=await import('/src/ooxml-pptx.js');
+    try{
+      createPPTX({type:'slides',slides:[{title:'Long notes',body:'Body',notes:'N'.repeat(20001)}]});
+      return '';
+    }catch(error){return error.message;}
+  });
+  expect(message).toContain('20,000 character');
+});
