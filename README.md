@@ -1,5 +1,12 @@
 # MySoft Office
 
+## v0.7.0 — Incremental local persistence foundation
+
+- Workspace saves now patch only changed IndexedDB file/trash/revision records while keeping the same atomic read/write transaction and committed-revision conflict detection. Previously each save cleared and rewrote every collection.
+- A pure change planner is tested for edits, source-to-trash moves, revision updates, and same-metadata content changes. The full saved workspace remains the authoritative data model; this is **not** cloud collaboration or automatic conflict merging.
+- Existing browser workspaces, legacy migration, JSON backups and recovery journal compatibility remain unchanged.
+
+
 **Your work. Your space.**
 
 Interface icons use locally bundled [Lucide](https://lucide.dev) SVGs (v0.468.0), with consistent strokes, accessible control labels, and no runtime icon service. The license is retained in `assets/lucide-license.txt`.

@@ -1,4 +1,5 @@
 import {validateMediaRecord} from './media-model.js';
+import {workspaceRecordChanges} from './workspace-diff.js';
 // MySoft v0.5.8: IndexedDB is the authoritative, transactional workspace store.
 // Legacy localStorage values are read only for one-time migration and never erased here.
 export const DATABASE_NAME = 'mysoft-office-workspace-v3';
@@ -111,6 +112,7 @@ export class BrowserWorkspaceStore {
     this.legacyStorage=null;
     this.knownRevision=0;
     this.lastWriter=null;
+    this.committedWorkspace=null;
     // Session-scoped identity survives reload in this tab, not a normal new tab.
     let owner=null;
     try{owner=globalThis.sessionStorage?.getItem('mysoft-office-tab-id')||null;}catch{}
@@ -149,6 +151,7 @@ export class BrowserWorkspaceStore {
     await done;
     if (!metadata) {
       if (files.length || trash.length || versions.length) throw new Error('Incomplete workspace database');
+      this.committedWorkspace={files:[],trash:[],versions:{}};
       return null;
     }
     if (!Number.isSafeInteger(metadata.sequence ?? 0) || (metadata.sequence ?? 0) < 0)
@@ -166,7 +169,9 @@ export class BrowserWorkspaceStore {
       trash: trash.map(({ id, value }) => value),
       versions: Object.fromEntries(versions.map(({ id, value }) => [id, value]))
     };
-    return validateWorkspace(state);
+    const validated=validateWorkspace(state);
+    this.committedWorkspace=structuredClone(validated);
+    return validated;
   }
 
   async initialize(legacyStorage, createStarter) {
@@ -238,6 +243,9 @@ export class BrowserWorkspaceStore {
   }
 
   async write(workspace) {
+    // Compute record-level patches against the last confirmed commit.
+    // Never mutate the committed baseline before the IndexedDB transaction succeeds.
+    const changes=workspaceRecordChanges(this.committedWorkspace,workspace);
     const tx=this.db.transaction(STORES,'readwrite');
     const done=completed(tx);
     let conflict=null,committedRevision=null;
@@ -251,11 +259,11 @@ export class BrowserWorkspaceStore {
           conflict.name='WorkspaceConflictError';
           tx.abort();return;
         }
-        for(const name of ['files','trash','versions'])tx.objectStore(name).clear();
-        for(const value of workspace.files)tx.objectStore('files').put({id:value.id,value});
-        for(const value of workspace.trash)tx.objectStore('trash').put({id:value.id,value});
-        for(const [id,value] of Object.entries(workspace.versions))
-          tx.objectStore('versions').put({id,value});
+        for(const name of ['files','trash','versions']) {
+          const store=tx.objectStore(name);
+          for(const id of changes[name].remove)store.delete(id);
+          for(const entry of changes[name].put)store.put(entry);
+        }
         committedRevision=current+1;
         tx.objectStore('meta').put({
           id:'workspace',version:3,revision:committedRevision,lastWriter:this.ownerToken,
@@ -267,6 +275,7 @@ export class BrowserWorkspaceStore {
     };
     try{await done;}catch(error){throw conflict||error;}
     this.knownRevision=committedRevision;
+    this.committedWorkspace=structuredClone({files:workspace.files,trash:workspace.trash,versions:workspace.versions});
     this.lastWriter=this.ownerToken;
     this.committedSequence=Math.max(this.committedSequence,workspace._sequence??0);
     this.removeCompletedJournal();
