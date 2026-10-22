@@ -1,5 +1,12 @@
 # MySoft Office
 
+## v0.8.0 — Professional editing workflows (bounded preview)
+
+- Docs can refresh an existing manually inserted heading contents list from H1–H3, with explicit user action. This is not real page-aware TOC automation.
+- Sheets adds **Copy to…** with transactional preflight, relative A1 formula shifts and cell style preservation. Absolute and cross-sheet references remain unsupported, as do destinations beyond Z1000.
+- Other editors gain source-preserving PDF bookmarks and a Media original comparison preview in the same development release. See release tests and Office compatibility documentation.
+- The v0.7.0 data safety and v0.7.1 conditional formulas, local cross-app links and Slides shapes remain in effect.
+
 ## v0.7.1 — Calculation correctness, cross-app links and PPTX shapes
 
 - Numeric IF, AND and OR formulas now avoid executing unselected expressions. Syntax remains validated, while selected errors such as division by zero are still reported.

@@ -112,3 +112,38 @@ export function transposeRange(file,source,destination){
   }
   return count;
 }
+
+// Copy supported relative A1 references when pasting within a worksheet.
+export function shiftRelativeFormula(formula,rowOffset,colOffset){
+  const text=String(formula??'');
+  if(!text.startsWith('='))return text;
+  if(/\$[A-Za-z]+\d|[A-Za-z]+\$\d/.test(text))
+    throw Error('Absolute references are not supported in this calculation engine.');
+  return text.replace(/\b([A-Za-z]+)([1-9]\d{0,3})\b/g,(match,letters,digits)=>{
+    const col=letters.toUpperCase(),row=Number(digits);
+    if(col.length!==1||col<'A'||col>'Z'||row>LIMIT_ROWS)throw Error('Formula reference outside A1:Z1000.');
+    const newCol=col.charCodeAt(0)-65+colOffset,newRow=row+rowOffset;
+    if(newCol<0||newCol>=LIMIT_COLS||newRow<1||newRow>LIMIT_ROWS)throw Error('Copied formula outside A1:Z1000.');
+    return String.fromCharCode(65+newCol)+newRow;
+  });
+}
+export function copyRangeTo(file,source,destination){
+  const from=parseRange(source),to=parseRange(destination);
+  if(to.count!==1)throw Error('Select one destination cell.');
+  const height=from.bottom-from.top+1,width=from.right-from.left+1;
+  if(to.top+height-1>LIMIT_ROWS||to.left+width>LIMIT_COLS)throw Error('Destination would exceed Z1000.');
+  if(!file?.cells||typeof file.cells!=='object')throw Error('Worksheet unavailable');
+  const styles=file.cellStyles||{},writes=[];
+  for(let row=0;row<height;row++)for(let col=0;col<width;col++){
+    const src=key(from.left+col,from.top+row),dest=key(to.left+col,to.top+row);
+    const raw=file.cells[src],value=raw===undefined?undefined:shiftRelativeFormula(raw,to.top-from.top,to.left-from.left);
+    writes.push({dest,value,style:styles[src]===undefined?undefined:structuredClone(styles[src])});
+  }
+  // Precompute entire operation before changing the workbook.
+  file.cellStyles=styles;
+  for(const {dest,value,style} of writes){
+    if(value===undefined)delete file.cells[dest];else file.cells[dest]=value;
+    if(style===undefined)delete styles[dest];else styles[dest]=style;
+  }
+  return writes.length;
+}

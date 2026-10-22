@@ -6,8 +6,8 @@ import {
   PAGE_SIZES,FONT_FAMILIES,ACCENT_COLORS
 } from './office-model.js';
 import {STUDIO_ACCENTS,SLIDE_PRESETS,setSlidePreset,replaceSheetValues,fillDown,clearCell} from './studio-tools.js';
-import {formatRange,clearRange,copyRangeTSV,seriesFill,rangeSummary,parseRange,transposeRange} from './sheet-range.js';
-import {documentContents,replacePresentationText,noteInsertTemplate} from './editor-productivity.js';
+import {formatRange,clearRange,copyRangeTSV,seriesFill,rangeSummary,parseRange,transposeRange,copyRangeTo} from './sheet-range.js';
+import {documentContents,refreshDocumentContents,replacePresentationText,noteInsertTemplate} from './editor-productivity.js';
 import {addSlideObject,deleteSlideObject,duplicateSlideObject,moveSlideObject,getSlideObject,updateSlideObject,renderedSlideObjects} from './slide-objects.js';
 import {addDocComment} from './doc-review.js';
 import {printPageCSS} from './doc-layout.js';
@@ -91,7 +91,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
     } else if(active==='Insert'){
       body=button('Table 3×3','insert-table')+button('Table size…','custom-table')+button('Picture','insert-picture')+button('Divider','insert-hr')+
         button('Link','insert-link')+button('Checklist','insert-checklist')+button('Date','insert-date')+
-        button('Quote','insert-quote')+button('Page break','insert-page-break')+button('Insert contents','insert-contents','Insert editable heading list');
+        button('Quote','insert-quote')+button('Page break','insert-page-break')+button('Insert contents','insert-contents','Insert editable heading list')+button('Refresh contents','refresh-contents')+button('Link MySoft file','workspace-link');
     } else if(active==='Structure'){
       body=button('↑ Move block','block-up')+button('↓ Move block','block-down')+
         button('H+ Promote','block-promote')+button('H− Demote','block-demote')+
@@ -139,7 +139,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
     } else if(active==='Range'){
       body=button('Bold range','range-bold')+button('Highlight range','range-highlight')+
         button('Clear range','range-clear')+button('Copy range','range-copy')+
-        button('Fill number series','range-series')+button('Copy transposed…','range-transpose')+button('Range statistics','range-summary')+
+        button('Fill number series','range-series')+button('Copy transposed…','range-transpose')+button('Copy to…','range-copy-to')+button('Range statistics','range-summary')+
         '<span class="ot-metric">Choose a range such as A1:C10 (up to 2,600 cells).</span>';
     } else if(active==='Rules'){
       const count=sheetRulesSummary(file).length;
@@ -196,7 +196,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
   }
   const sheetTabs=file.type==='sheets'?'<div class="ot-sheet-tabs">'+(file.worksheets||[{name:'Sheet 1'}]).map((sh,i)=>'<button class="ot-sheet-tab '+((file.activeSheetIndex||0)===i?'active':'')+'" data-ot-sheet="'+i+'">'+escapeHTML(sh.name)+'</button>').join('')+'<button class="ot-sheet-tab" data-ot-action="sheet-add" title="Add worksheet" aria-label="Add worksheet">'+icon('plus',15)+'</button></div>':'';
   return '<section class="ot-ribbon'+(ribbonCollapsed?' collapsed':'')+'" aria-label="Editing tools"><div class="ot-ribbon-top"><div class="ot-ribbon-tabs" role="tablist" aria-label="Editor tool categories">'+tabs+'</div>'+
-    '<div class="ot-ribbon-meta"><span class="ot-ribbon-version">MySoft Studio · 0.7.1</span>'+
+    '<div class="ot-ribbon-meta"><span class="ot-ribbon-version">MySoft Studio · 0.8.0</span>'+
     button(ribbonCollapsed?'Show tools ▾':'Hide tools ▴','ribbon-toggle')+'</div></div>'+
     '<div class="ot-ribbon-tools">'+body+'</div>'+sheetTabs+'</section>';
 }
@@ -432,6 +432,13 @@ export function initializeOfficeTools(ctx){
       if(['table-add-row','table-add-column','table-remove-row','table-remove-column'].includes(action)){
         tableEdit(ctx,action);return;
       }
+      if(action==='refresh-contents'){
+        if(f.type!=='docs')return;
+        const root=document.getElementById('rich-content');
+        if(!refreshDocumentContents(root)){ctx.toast('Insert a contents list first.');return;}
+        f.body=ctx.sanitize(root.innerHTML);ctx.touch(f);ctx.persist();ctx.render();
+        ctx.toast('Contents refreshed');return;
+      }
       if(action==='insert-contents'){
         if(f.type!=='docs')return;
         const editor=document.getElementById('rich-content');
@@ -558,6 +565,16 @@ export function initializeOfficeTools(ctx){
         const replacement=document.getElementById('ot-replace')?.value||'';
         const count=replaceAllText(ctx,find,replacement);
         ctx.toast(count?count+' occurrences replaced':'No matches');return;
+      }
+      if(action==='range-copy-to'){
+        if(f.type!=='sheets')return;
+        const source=prompt('Source range (e.g. A1:B3):',ctx.getSelectedCell());
+        if(source===null)return;
+        const destination=prompt('Destination top-left cell:','D1');
+        if(destination===null)return;
+        const count=copyRangeTo(f,source,destination);
+        ctx.toast(count+' cells copied; supported relative formulas adjusted.');
+        syncSheet(ctx,f);return;
       }
       if(action==='range-transpose'){
         if(f.type!=='sheets')return;

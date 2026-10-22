@@ -42,3 +42,16 @@ export function noteInsertTemplate(kind,dateString){
   if(kind==='daily')return '<h2>Daily plan — '+date+'</h2><h3>Top priorities</h3><ol><li>Priority one</li><li>Priority two</li><li>Priority three</li></ol><h3>Tasks</h3><ul><li>☐ Task</li></ul><h3>Notes and reflection</h3><p></p>';
   throw Error('Unknown note template');
 }
+
+// Updates an existing manually inserted contents snapshot without touching the rest of the document.
+export function refreshDocumentContents(editor){
+  if(!editor)return 0;
+  const title=[...editor.querySelectorAll('h2')].find(node=>node.textContent.trim().toLowerCase()==='contents');
+  const list=title?.nextElementSibling;
+  if(!list||list.tagName!=='OL')return 0;
+  const headings=[...editor.querySelectorAll('h1,h2,h3')].filter(node=>node!==title)
+    .map(node=>node.textContent.trim().slice(0,250)).filter(Boolean).slice(0,80);
+  if(!headings.length)return 0;
+  list.replaceChildren(...headings.map(text=>{const li=editor.ownerDocument.createElement('li');li.textContent=text;return li;}));
+  return headings.length;
+}
