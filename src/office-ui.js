@@ -196,7 +196,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
   }
   const sheetTabs=file.type==='sheets'?'<div class="ot-sheet-tabs">'+(file.worksheets||[{name:'Sheet 1'}]).map((sh,i)=>'<button class="ot-sheet-tab '+((file.activeSheetIndex||0)===i?'active':'')+'" data-ot-sheet="'+i+'">'+escapeHTML(sh.name)+'</button>').join('')+'<button class="ot-sheet-tab" data-ot-action="sheet-add" title="Add worksheet" aria-label="Add worksheet">'+icon('plus',15)+'</button></div>':'';
   return '<section class="ot-ribbon'+(ribbonCollapsed?' collapsed':'')+'" aria-label="Editing tools"><div class="ot-ribbon-top"><div class="ot-ribbon-tabs" role="tablist" aria-label="Editor tool categories">'+tabs+'</div>'+
-    '<div class="ot-ribbon-meta"><span class="ot-ribbon-version">MySoft Studio · 0.8.0</span>'+
+    '<div class="ot-ribbon-meta"><span class="ot-ribbon-version">MySoft Studio · 0.8.1</span>'+
     button(ribbonCollapsed?'Show tools ▾':'Hide tools ▴','ribbon-toggle')+'</div></div>'+
     '<div class="ot-ribbon-tools">'+body+'</div>'+sheetTabs+'</section>';
 }

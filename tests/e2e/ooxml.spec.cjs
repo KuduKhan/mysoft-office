@@ -102,7 +102,7 @@ test('exported Office packages open in independent readers',async({page})=>{
     const docx=await import('/src/ooxml-docx.js');
     const xlsx=await import('/src/ooxml-xlsx.js');
     const pptx=await import('/src/ooxml-pptx.js');
-    const word=docx.createDOCX({type:'docs',body:'<h1>Interop Heading</h1><p>Emphasized <strong>words</strong></p><table><tr><td>Cell A</td><td>Cell B</td></tr></table>'});
+    const word=docx.createDOCX({type:'docs',body:'<h1>Interop Heading</h1><p>Emphasized <strong>words</strong> and <a href="https://example.org/help?a=1&amp;b=two">support</a> with x<sup>2</sup></p><table><tr><td>Cell A</td><td>Cell B</td></tr></table>'});
     const workbook=xlsx.createXLSX({type:'sheets',activeSheetIndex:0,
       worksheets:[
         {name:'Finance',cells:{A1:'Description',B2:'345',C2:'=B2*2'},styles:{A1:{bold:true}}},
@@ -112,7 +112,7 @@ test('exported Office packages open in independent readers',async({page})=>{
       cellStyles:{A1:{bold:true}}
     });
     const slides=pptx.createPPTX({type:'slides',slides:[
-      {title:'Interop Title',body:'Key insight',theme:'violet'},
+      {title:'Interop Title',body:'Key insight',notes:'Presenter briefing\nFollow-up item',theme:'violet'},
       {title:'Next steps',body:'Follow up',theme:'ocean'}
     ]});
     return {docx:Array.from(word.bytes),xlsx:Array.from(workbook.bytes),pptx:Array.from(slides.bytes)};

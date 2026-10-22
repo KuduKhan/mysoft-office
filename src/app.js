@@ -467,9 +467,9 @@ function modal(kind,id){
   } else if(kind==='office-export'&&f){
     const fmt={docs:'DOCX',sheets:'XLSX',slides:'PPTX'}[f.type];
     const notices={
-      docs:'Only paragraphs, basic headings, emphasis, simple tables and visible text are retained. Images, hyperlinks, complex layout and comments are not faithfully exported.',
+      docs:'Exports paragraphs, headings, simple tables, supported inline styles and safe HTTP(S) hyperlinks. Images, local links, advanced layout and review comments are not faithfully reproduced.',
       sheets:'Exports the supported A1:Z1000 range, up to 20 worksheets, formulas and basic styles. MySoft conditional formatting, charts, external references, pivots and advanced Excel features are not preserved.',
-      slides:'Exports title/body and basic MySoft text boxes, rectangles, ellipses and quarter-turn rotations. Complex PowerPoint objects, images, speaker notes, animations and precise third-party layouts are not fully preserved.'
+      slides:'Exports slide titles, bodies, supported MySoft shapes, and plain-text speaker notes. Images, animations, slide masters and complex third-party layouts are not faithfully reproduced.'
     };
     modalRoot.innerHTML='<div class="modal-backdrop"><div class="modal"><h2>Export to '+fmt+'</h2><p>'+notices[f.type]+'</p><p>For full preservation, also export a JSON workspace backup.</p><div class="modal-actions"><button class="btn btn-light" data-action="modal-close">Cancel</button><button class="btn btn-primary" data-action="office-export-confirm">Export '+fmt+'</button></div></div></div>';
   } else if(kind==='commands'){
