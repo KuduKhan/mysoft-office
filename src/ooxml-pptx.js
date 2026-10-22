@@ -8,6 +8,8 @@ const slideCT='application/vnd.openxmlformats-officedocument.presentationml.slid
 const masterCT='application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml';
 const layoutCT='application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml';
 const themeCT='application/vnd.openxmlformats-officedocument.theme+xml';
+const notesSlideCT='application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml';
+const notesMasterCT='application/vnd.openxmlformats-officedocument.presentationml.notesMaster+xml';
 const prefix='xmlns:a="'+A+'" xmlns:r="'+R+'" xmlns:p="'+P+'"';
 
 const shapeTreeRoot='<p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>'+
@@ -55,6 +57,29 @@ function slideXML(slide){
     (Array.isArray(slide.objects)?slide.objects.slice(0,40):[]).map(customObjectShape).join('')+
     '</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>';
 }
+// Presenter notes remain editable PowerPoint notes-slide text, not a visual slide object.
+function notesXML(source){
+  const paragraphs=String(source||'').slice(0,20000).split(/\r?\n/).slice(0,250)
+    .map(line=>'<a:p><a:r><a:rPr lang="en-US"/><a:t>'+xmlEscape(line)+'</a:t></a:r></a:p>').join('');
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+    '<p:notes '+prefix+'><p:cSld><p:spTree>'+shapeTreeRoot+
+    '<p:sp><p:nvSpPr><p:cNvPr id="2" name="Speaker Notes"/><p:cNvSpPr/>'+
+    '<p:nvPr><p:ph type="body" idx="3" sz="quarter"/></p:nvPr></p:nvSpPr>'+
+    '<p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/>'+paragraphs+
+    '</p:txBody></p:sp></p:spTree></p:cSld>'+
+    '<p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:notes>';
+}
+function notesMasterXML(){
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+    '<p:notesMaster '+prefix+'><p:cSld><p:spTree>'+shapeTreeRoot+
+    '<p:sp><p:nvSpPr><p:cNvPr id="2" name="Notes Placeholder"/><p:cNvSpPr/>'+
+    '<p:nvPr><p:ph type="body" idx="3"/></p:nvPr></p:nvSpPr>'+
+    '<p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/><a:p/></p:txBody></p:sp>'+
+    '</p:spTree></p:cSld>'+
+    '<p:clrMap accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4"'+
+    ' accent5="accent5" accent6="accent6" bg1="lt1" bg2="lt2"'+
+    ' folHlink="folHlink" hlink="hlink" tx1="dk1" tx2="dk2"/></p:notesMaster>';
+}
 function layoutXML(){
   return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
     '<p:sldLayout '+prefix+' type="obj" preserve="1"><p:cSld name="Title and Content"><p:spTree>'+
@@ -95,22 +120,33 @@ function themeXML(){
 export function createPPTX(file){
   if(file?.type!=='slides'||!Array.isArray(file.slides)||!file.slides.length)throw Error('PPTX export needs presentation slides.');
   if(file.slides.length>200)throw Error('Too many slides.');
+  const noted=file.slides.map(slide=>String(slide.notes||'').trim().length>0);
+  const noteCount=noted.filter(Boolean).length;
+  // Keep generated files importable under the bounded OOXML package reader.
+  if(9+2*file.slides.length+(noteCount?2:0)+2*noteCount>180)
+    throw Error('Presentation exceeds the supported 180-part Office package limit.');
   const files=packageBase('ppt/presentation.xml',CT);
   const overrides={
     'ppt/presentation.xml':CT,
     'ppt/slideMasters/slideMaster1.xml':masterCT,
     'ppt/slideLayouts/slideLayout1.xml':layoutCT,
-    'ppt/theme/theme1.xml':themeCT
+    'ppt/theme/theme1.xml':themeCT,
+    ...(noteCount?{'ppt/notesMasters/notesMaster1.xml':notesMasterCT}:{})
   };
   files['ppt/presentation.xml']='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
     '<p:presentation '+prefix+'><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst>'+
     '<p:sldIdLst>'+file.slides.map((_,i)=>'<p:sldId id="'+(256+i)+'" r:id="rId'+(i+2)+'"/>').join('')+
-    '</p:sldIdLst><p:sldSz cx="12192000" cy="6858000" type="screen16x9"/>'+
+    '</p:sldIdLst>'+
+    (noteCount?'<p:notesMasterIdLst><p:notesMasterId r:id="rId'+(file.slides.length+2)+
+      '"/></p:notesMasterIdLst>':'')+
+    '<p:sldSz cx="12192000" cy="6858000" type="screen16x9"/>'+
     '<p:notesSz cx="6858000" cy="9144000"/></p:presentation>';
   files['ppt/_rels/presentation.xml.rels']='<?xml version="1.0" encoding="UTF-8"?>'+
     '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
     '<Relationship Id="rId1" Type="'+rootRel+'slideMaster" Target="slideMasters/slideMaster1.xml"/>'+
     file.slides.map((_,i)=>'<Relationship Id="rId'+(i+2)+'" Type="'+rootRel+'slide" Target="slides/slide'+(i+1)+'.xml"/>').join('')+
+    (noteCount?'<Relationship Id="rId'+(file.slides.length+2)+'" Type="'+rootRel+
+      'notesMaster" Target="notesMasters/notesMaster1.xml"/>':'')+
     '</Relationships>';
   files['ppt/slideMasters/slideMaster1.xml']=masterXML();
   files['ppt/slideMasters/_rels/slideMaster1.xml.rels']=
@@ -122,16 +158,36 @@ export function createPPTX(file){
     '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
     '<Relationship Id="rId1" Type="'+rootRel+'slideMaster" Target="../slideMasters/slideMaster1.xml"/></Relationships>';
   files['ppt/theme/theme1.xml']=themeXML();
+  if(noteCount){
+    files['ppt/notesMasters/notesMaster1.xml']=notesMasterXML();
+    files['ppt/notesMasters/_rels/notesMaster1.xml.rels']=
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+      '<Relationship Id="rId1" Type="'+rootRel+'theme" Target="../theme/theme1.xml"/>'+
+      '</Relationships>';
+  }
   file.slides.forEach((slide,i)=>{
     const slidePath='ppt/slides/slide'+(i+1)+'.xml';
     files[slidePath]=slideXML(slide);overrides[slidePath]=slideCT;
     files['ppt/slides/_rels/slide'+(i+1)+'.xml.rels']=
       '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
-      '<Relationship Id="rId1" Type="'+rootRel+'slideLayout" Target="../slideLayouts/slideLayout1.xml"/></Relationships>';
+      '<Relationship Id="rId1" Type="'+rootRel+'slideLayout" Target="../slideLayouts/slideLayout1.xml"/>'+
+      (noted[i]?'<Relationship Id="rId2" Type="'+rootRel+
+        'notesSlide" Target="../notesSlides/notesSlide'+(i+1)+'.xml"/>':'')+
+      '</Relationships>';
+    if(noted[i]){
+      const notesPath='ppt/notesSlides/notesSlide'+(i+1)+'.xml';
+      files[notesPath]=notesXML(slide.notes);
+      overrides[notesPath]=notesSlideCT;
+      files['ppt/notesSlides/_rels/notesSlide'+(i+1)+'.xml.rels']=
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+        '<Relationship Id="rId1" Type="'+rootRel+'notesMaster" Target="../notesMasters/notesMaster1.xml"/>'+
+        '<Relationship Id="rId2" Type="'+rootRel+'slide" Target="../slides/slide'+(i+1)+'.xml"/>'+
+        '</Relationships>';
+    }
   });
   files['[Content_Types].xml']=typesXML(overrides);
   return {bytes:makeZip(files),warnings:[
-    'Editable MySoft rectangles, ellipses and text boxes are exported; other Office objects, pictures, animations and speaker notes are not preserved.',
+    'Supported MySoft text and shapes are exported, along with plain-text speaker notes; embedded pictures, external objects and animations are not preserved.',
     'Slide layouts and theme details may differ from Microsoft PowerPoint.'
   ]};
 }
@@ -184,12 +240,25 @@ export async function importPPTX(buffer){
       else body.push(text);
     }
     if(!title&&body.length)title=body.shift();
+    let notes='';
+    const notesPath=Object.values(relationships(files,part))
+      .find(value=>/^ppt\/notesSlides\/[^/]+\.xml$/.test(value));
+    if(notesPath&&files[notesPath]){
+      const notesXml=parseXML(files[notesPath]);
+      for(const shape of descendants(notesXml,'sp')){
+        const ph=first(shape,'ph');
+        if(ph?.getAttribute('type')==='body'){
+          notes=shapeText(shape).slice(0,20000);
+          break;
+        }
+      }
+    }else if(notesPath)warnings.push('Some speaker-note parts could not be loaded.');
     if(descendants(xml,'pic').length||descendants(xml,'graphicFrame').length||descendants(xml,'cxnSp').length)
       warnings.push('Some pictures, charts, tables, or unsupported shapes were not imported.');
-    slides.push({title:title.slice(0,500)||'Untitled slide',body:body.join('\n').slice(0,20000),theme:'violet',objects});
+    slides.push({title:title.slice(0,500)||'Untitled slide',body:body.join('\n').slice(0,20000),notes,theme:'violet',objects});
   }
-  if(Object.keys(files).some(p=>/ppt\/(media|notesSlides|charts|embeddings)/.test(p)))
-    warnings.push('Media, speaker notes, charts and embedded objects were not preserved.');
+  if(Object.keys(files).some(p=>/ppt\/(media|charts|embeddings)/.test(p)))
+    warnings.push('Media, complex charts and embedded objects were not preserved.');
   warnings.push('MySoft text boxes and simple shapes are supported; complex slide layouts, external shapes and animations may be flattened or omitted.');
   return {type:'slides',slides,warnings:[...new Set(warnings)]};
 }
