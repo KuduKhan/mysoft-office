@@ -5,6 +5,7 @@ test('Docs inserts a reference to another MySoft file and resolves backlinks',as
  await page.locator('[data-create="notes"]').first().click();
  const notesId=await page.locator('#rich-content').getAttribute('data-file-id');
  await page.locator('[data-action="close-editor"]').click();
+ await page.locator('.sidebar [data-nav="home"]').click();
  await page.locator('[data-create="docs"]').first().click();
  await page.locator('[data-ot-tab="Tools"]').click();
  await page.locator('[data-capability-action="workspace-link"]').click();
