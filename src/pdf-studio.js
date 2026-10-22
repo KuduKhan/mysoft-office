@@ -83,6 +83,15 @@ export function createPDFStudio(ctx){
     const target=event.target.closest('[data-pdf-action]');if(!target)return;
     const action=target.dataset.pdfAction;
     if(action==='import'){ctx.importPDF();return;}
+    // Bookmarks appear before PDF.js has necessarily finished loading the document.
+    // Queue a requested page even during mount; mount will draw the selected page.
+    if(action==='bookmark-jump'&&currentFile){
+      const index=pdfOrder(currentFile).indexOf(Number(target.dataset.sourcePage));
+      if(index<0){ctx.toast('Source page omitted from current order.');return;}
+      pageNumber=index+1;
+      if(doc)void draw();
+      return;
+    }
     if(!doc||!currentFile)return;
     try{
     if(action==='bookmark-add'){
@@ -96,11 +105,6 @@ export function createPDFStudio(ctx){
       if(removePDFBookmark(currentFile,Number(target.dataset.sourcePage))){
         ctx.changed(currentFile);refreshBookmarks();ctx.toast('Bookmark removed');
       }return;
-    }
-    if(action==='bookmark-jump'){
-      const index=pdfOrder(currentFile).indexOf(Number(target.dataset.sourcePage));
-      if(index<0){ctx.toast('Source page omitted from current order.');return;}
-      pageNumber=index+1;void draw();return;
     }
     if(action==='find'){
       const query=document.getElementById('pdf-find').value.trim().toLocaleLowerCase(),results=document.getElementById('pdf-search-results'),token=generation,ownSearch=++searchGeneration,own=doc;
