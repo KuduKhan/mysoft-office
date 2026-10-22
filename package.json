@@ -9,6 +9,8 @@
   },
   "scripts": {
     "dev": "node scripts/server.mjs",
+    "sync": "node scripts/sync.mjs",
+    "preview": "node scripts/sync.mjs --preview",
     "test": "node --test tests/*.test.js",
     "build": "node scripts/build.mjs",
     "start": "node scripts/server.mjs"
