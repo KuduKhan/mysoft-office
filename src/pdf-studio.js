@@ -11,7 +11,7 @@ export function createPDFStudio(ctx){
       ?file.pdfBookmarks.map(b=>{const index=visible.indexOf(b.page);return '<div class="pdf-bookmark-row"><button type="button" data-pdf-action="bookmark-jump" data-source-page="'+b.page+'" '+(index<0?'disabled':'')+'>'+esc(b.label)+' · source '+b.page+(index<0?' (omitted)':'')+'</button><button type="button" data-pdf-action="bookmark-remove" data-source-page="'+b.page+'" aria-label="Remove bookmark">×</button></div>';}).join('')
       :'<p>No bookmarks. Save the current source page to return to it later.</p>';
   };
-  const bookmarkPanel=file=>'<details class="pdf-organize"><summary>MySoft bookmarks</summary><p>Saved in MySoft, not embedded in exported PDFs.</p><button type="button" class="btn btn-light btn-sm" data-pdf-action="bookmark-add">Bookmark current page</button><div id="pdf-bookmarks-list">'+bookmarkRows(file)+'</div></details>';
+  const bookmarkPanel=file=>'<details class="pdf-bookmarks-panel pdf-organize-style"><summary>MySoft bookmarks</summary><p>Saved in MySoft, not embedded in exported PDFs.</p><button type="button" class="btn btn-light btn-sm" data-pdf-action="bookmark-add">Bookmark current page</button><div id="pdf-bookmarks-list">'+bookmarkRows(file)+'</div></details>';
   const refreshBookmarks=()=>{const node=document.getElementById('pdf-bookmarks-list');if(node&&currentFile)node.innerHTML=bookmarkRows(currentFile);};
   const button=(action,label,ic)=>'<button type="button" class="btn btn-light btn-sm" data-pdf-action="'+action+'" aria-label="'+label+'" title="'+label+'">'+icon(ic,16)+'</button>';
   function markup(file){
