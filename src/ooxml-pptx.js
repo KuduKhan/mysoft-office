@@ -28,7 +28,7 @@ function slideShape(id,name,text,x,y,w,h,isTitle,accent){
     '<p:txBody><a:bodyPr wrap="square"/><a:lstStyle/>'+paragraphs+'</p:txBody></p:sp>';
 }
 function customObjectShape(object,index){
-  if(!['text','rect','ellipse','roundRect','triangle'].includes(object.kind))return '';
+  if(!['text','rect','ellipse','roundRect','triangle','diamond','hexagon'].includes(object.kind))return '';
   const n=value=>Number.isFinite(Number(value))?Number(value):0;
   const x=Math.round(Math.max(0,Math.min(100,n(object.x)))*121920);
   const y=Math.round(Math.max(0,Math.min(100,n(object.y)))*68580);
@@ -36,7 +36,7 @@ function customObjectShape(object,index){
   const h=Math.max(1,Math.round(Math.min(100-n(object.y),Math.max(5,n(object.h)))*68580));
   const hex=value=>/^#[0-9a-f]{6}$/i.test(value||'')?value.slice(1).toUpperCase():'EA4C24';
   const fill=hex(object.fill),color=hex(object.color);
-  const kind=['ellipse','roundRect','triangle'].includes(object.kind)?object.kind:'rect';
+  const kind=['ellipse','roundRect','triangle','diamond','hexagon'].includes(object.kind)?object.kind:'rect';
   const size=Math.round(Math.max(10,Math.min(56,n(object.fontSize)||22))*100);
   const paras=String(object.text||'').slice(0,600).split(/\r?\n/).map(line=>
     '<a:p><a:r><a:rPr lang="en-US" sz="'+size+'"><a:solidFill><a:srgbClr val="'+color+'"/></a:solidFill></a:rPr>'+
@@ -162,7 +162,7 @@ export async function importPPTX(buffer){
       if(name.startsWith('MySoft object ')){
         const props=first(shape,'spPr'),xf=first(props,'xfrm'),off=first(xf,'off'),ext=first(xf,'ext');
         const type=first(props,'prstGeom')?.getAttribute('prst');
-        const shapeKind=['ellipse','roundRect','triangle'].includes(type)?type:text?'text':'rect';
+        const shapeKind=['ellipse','roundRect','triangle','diamond','hexagon'].includes(type)?type:text?'text':'rect';
         if(off&&ext&&objects.length<40){
           const color=first(first(props,'solidFill'),'srgbClr')?.getAttribute('val')||'EA4C24';
           const textColor=first(first(first(shape,'txBody'),'rPr'),'srgbClr')?.getAttribute('val')||'202D48';

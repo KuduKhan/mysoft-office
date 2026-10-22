@@ -1,11 +1,12 @@
 import {icon} from './icons.js';
 import {editableBlocks,blockIndexFromSelection} from './doc-blocks.js';
+import {workspaceLinks} from './workspace-links.js';
 import {ensureWorkbook,addSheet} from './office-model.js';
 import {cleanCellWhitespace,transformedTable,slidesFromOutline,slideOutline,NOTE_TEMPLATES,noteLinkIds,paragraphOptions} from './capability-core.js';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const btn=(action,label,ic='plus')=>'<button type="button" class="ot-btn" data-capability-action="'+action+'">'+icon(ic,15)+'<span>'+label+'</span></button>';
 export function capabilityToolbar(file){
-  const sets={docs:[['paragraph','Paragraph settings','align-left'],['uppercase','Uppercase block','type'],['lowercase','Lowercase block','type'],['cleanup','Clean empty paragraphs','file-text']],sheets:[['trim-cells','Trim whitespace','table'],['unique','Unique rows to new sheet','table'],['split','Split text to new sheet','table']],slides:[['outline','Create from outline','presentation'],['reverse','Reverse slide order','rotate-ccw'],['copy-design','Copy current design to all','presentation'],['outline-export','Export speaker outline','download']],notes:[['note-link','Link another note','link'],['note-backlinks','Linked notes','link'],['note-tasks','Task dashboard','check'],['note-project','Project template','notebook'],['note-research','Research template','notebook']]};
+  const sets={docs:[['paragraph','Paragraph settings','align-left'],['uppercase','Uppercase block','type'],['lowercase','Lowercase block','type'],['cleanup','Clean empty paragraphs','file-text'],['workspace-link','Link a MySoft file','link'],['workspace-references','Linked files','list-tree']],sheets:[['trim-cells','Trim whitespace','table'],['unique','Unique rows to new sheet','table'],['split','Split text to new sheet','table']],slides:[['outline','Create from outline','presentation'],['reverse','Reverse slide order','rotate-ccw'],['copy-design','Copy current design to all','presentation'],['outline-export','Export speaker outline','download']],notes:[['note-link','Link another note','link'],['note-backlinks','Linked notes','link'],['note-tasks','Task dashboard','check'],['note-project','Project template','notebook'],['note-research','Research template','notebook'],['workspace-link','Link a MySoft file','link'],['workspace-references','Linked files','list-tree']]};
   return (sets[file.type]||[]).map(args=>btn(...args)).join('');
 }
 export function initializeCapabilityTools(ctx){
@@ -39,6 +40,25 @@ export function initializeCapabilityTools(ctx){
       if(action==='reverse'){const current=f.slides[ctx.getSlideIndex()];f.slides.reverse();ctx.setSlideIndex(f.slides.indexOf(current));save(f);return;}
       if(action==='copy-design'){const source=f.slides[ctx.getSlideIndex()];for(const slide of f.slides)for(const key of ['theme','studioPreset','layout','textScale','transition'])if(source[key]!==undefined)slide[key]=source[key];save(f);ctx.toast('Current design applied to all slides');return;}
       if(action==='outline-export'){ctx.download(slideOutline(f.slides),f.title.replace(/[^a-z0-9_-]+/gi,'-')+'-outline.md','text/markdown;charset=utf-8');return;}
+      if(action==='workspace-link'){
+        const choices=ctx.getFiles().filter(item=>item.id!==f.id).slice(0,500);
+        dialog('Link a MySoft file','<p>References stay local to this workspace and resolve by stable file ID.</p><div class="cap-results">'+
+          (choices.length?choices.map(item=>'<button class="cap-result" data-capability-action="workspace-link-insert" data-workspace-target="'+esc(item.id)+'">'+esc(item.title)+'<small>'+esc(item.type)+'</small></button>').join(''):'<p>Create another MySoft file to link it.</p>')+'</div>');return;
+      }
+      if(action==='workspace-link-insert'){
+        if(!['docs','notes'].includes(f.type))throw Error('Open Docs or Notes to insert a link.');
+        const linked=ctx.getFiles().find(item=>item.id===target.dataset.workspaceTarget&&item.id!==f.id);
+        if(!linked)return;
+        f.body=ctx.sanitize((f.body||'')+'<p><a href="#/file/'+esc(linked.id)+'">'+esc(linked.title)+'</a></p>');
+        close();save(f);ctx.toast('Local file reference inserted');return;
+      }
+      if(action==='workspace-references'){
+        const refs=workspaceLinks(ctx.getFiles(),f.id);
+        const links=items=>items.length?items.map(item=>'<button class="cap-result" data-capability-open="'+esc(item.id)+'">'+esc(item.title)+'<small>'+esc(item.type)+'</small></button>').join(''):'<p>No references.</p>';
+        dialog('Linked MySoft files','<h3>Links from this file</h3><div class="cap-results">'+links(refs.outgoing)+'</div>'+
+          '<h3>Files linking here</h3><div class="cap-results">'+links(refs.incoming)+'</div>'+
+          (refs.missing.length?'<p>'+refs.missing.length+' referenced file(s) are missing or in Trash.</p>':''));return;
+      }
       if(action==='note-link'){dialog('Link another note','<div class="cap-results">'+notes().filter(n=>n.id!==f.id).map(n=>'<button class="cap-result" data-capability-action="note-link-insert" data-note-target="'+esc(n.id)+'">'+esc(n.title)+'</button>').join('')+'</div>');return;}
       if(action==='note-link-insert'){const note=notes().find(n=>n.id===target.dataset.noteTarget);if(!note)return;f.body=ctx.sanitize((f.body||'')+'<p><a href="#/file/'+esc(note.id)+'">'+esc(note.title)+'</a></p>');close();save(f);return;}
       if(action==='note-backlinks'){const ids=noteLinkIds(f.body),linked=notes().filter(n=>ids.includes(n.id)),back=notes().filter(n=>n.id!==f.id&&noteLinkIds(n.body).includes(f.id));const list=items=>items.length?items.map(n=>'<button class="cap-result" data-capability-open="'+esc(n.id)+'">'+esc(n.title)+'</button>').join(''):'<p>No linked notes yet.</p>';dialog('Linked notes','<h3>Links from this note</h3><div class="cap-results">'+list(linked)+'</div><h3>Notes linking here</h3><div class="cap-results">'+list(back)+'</div>');return;}

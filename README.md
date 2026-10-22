@@ -1,5 +1,12 @@
 # MySoft Office
 
+## v0.7.1 — Calculation correctness, cross-app links and PPTX shapes
+
+- Numeric IF, AND and OR formulas now avoid executing unselected expressions. Syntax remains validated, while selected errors such as division by zero are still reported.
+- Docs and Notes Tools add stable, local file links and outgoing/incoming reference discovery across MySoft files. Links can target Sheets, Slides, PDF and Media files, but do not embed their content or update automatically.
+- Slides adds editable diamond and hexagon objects, with CSS silhouettes and supported DrawingML preset-geometry import/export; triangle and rounded rectangle rendering are refined.
+- Unit and Chromium regression tests cover formula short-circuiting, local links and native PPTX shapes.
+
 ## v0.7.0 — Incremental local persistence foundation
 
 - Workspace saves now patch only changed IndexedDB file/trash/revision records while keeping the same atomic read/write transaction and committed-revision conflict detection. Previously each save cleared and rewrote every collection.

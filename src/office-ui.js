@@ -170,7 +170,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         choice('Text size',[['normal','Normal'],['large','Large'],['compact','Compact']],slide.textScale||'normal')+
         button('Apply theme to all','theme-all');
     } else if(active==='Shapes'){
-      body=button('Text box','shape-text')+button('Rectangle','shape-rect')+button('Ellipse','shape-ellipse')+button('Rounded','shape-roundRect')+button('Triangle','shape-triangle')+
+      body=button('Text box','shape-text')+button('Rectangle','shape-rect')+button('Ellipse','shape-ellipse')+button('Rounded','shape-roundRect')+button('Triangle','shape-triangle')+button('Diamond','shape-diamond')+button('Hexagon','shape-hexagon')+
         color('Fill','shape-fill','#ea4c24')+color('Text','shape-color','#202d48')+
         button('Text A+','shape-font-up')+button('Text A−','shape-font-down')+
         button('Align left','shape-align-left')+button('Center','shape-align-center')+
@@ -196,7 +196,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
   }
   const sheetTabs=file.type==='sheets'?'<div class="ot-sheet-tabs">'+(file.worksheets||[{name:'Sheet 1'}]).map((sh,i)=>'<button class="ot-sheet-tab '+((file.activeSheetIndex||0)===i?'active':'')+'" data-ot-sheet="'+i+'">'+escapeHTML(sh.name)+'</button>').join('')+'<button class="ot-sheet-tab" data-ot-action="sheet-add" title="Add worksheet" aria-label="Add worksheet">'+icon('plus',15)+'</button></div>':'';
   return '<section class="ot-ribbon'+(ribbonCollapsed?' collapsed':'')+'" aria-label="Editing tools"><div class="ot-ribbon-top"><div class="ot-ribbon-tabs" role="tablist" aria-label="Editor tool categories">'+tabs+'</div>'+
-    '<div class="ot-ribbon-meta"><span class="ot-ribbon-version">MySoft Studio · 0.7.0</span>'+
+    '<div class="ot-ribbon-meta"><span class="ot-ribbon-version">MySoft Studio · 0.7.1</span>'+
     button(ribbonCollapsed?'Show tools ▾':'Hide tools ▴','ribbon-toggle')+'</div></div>'+
     '<div class="ot-ribbon-tools">'+body+'</div>'+sheetTabs+'</section>';
 }
@@ -716,9 +716,9 @@ export function initializeOfficeTools(ctx){
           resizeSlideObject(slide,id,Number(width),Number(height));
         }else alignSlideObject(slide,id,action.slice('shape-align-'.length));
         ctx.touch(f);ctx.persist();ctx.render();return;
-      } else if(['shape-text','shape-rect','shape-ellipse','shape-roundRect','shape-triangle'].includes(action)){
+      } else if(['shape-text','shape-rect','shape-ellipse','shape-roundRect','shape-triangle','shape-diamond','shape-hexagon'].includes(action)){
         if(f.type!=='slides')return;
-        const kind={'shape-text':'text','shape-rect':'rect','shape-ellipse':'ellipse','shape-roundRect':'roundRect','shape-triangle':'triangle'}[action];
+        const kind={'shape-text':'text','shape-rect':'rect','shape-ellipse':'ellipse','shape-roundRect':'roundRect','shape-triangle':'triangle','shape-diamond':'diamond','shape-hexagon':'hexagon'}[action];
         const item=addSlideObject(f.slides[ctx.getSlideIndex()],kind);
         ctx.setSlideObjectId(item.id);ctx.touch(f);ctx.persist();ctx.render();return;
       } else if(['shape-left','shape-right','shape-up','shape-down','shape-duplicate','shape-delete','shape-font-up','shape-font-down'].includes(action)){

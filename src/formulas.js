@@ -60,54 +60,62 @@ export function evaluateCell(reference, cells, stack = new Set()) {
       const number=Number(value);
       return Number.isFinite(number) ? number : 0;
     };
-    const refValue=(name)=>{
+    const refValue=(name,active)=>{
+      if(!active)return 0; // Parse inactive IF/AND/OR branches without resolving their references.
       const value=evaluateCell(name,cells,next);
       return numeric(value);
     };
-    const expression=()=>{
-      let value=additive();
+    const expression=(active=true)=>{
+      let value=additive(active);
       if(['>','<','>=','<=','=','<>'].includes(peek())){
-        const op=take(),other=additive();
+        const op=take(),other=additive(active);
         value=Number(op==='>'?value>other:op==='<'?value<other:
           op==='>='?value>=other:op==='<='?value<=other:
           op==='='?value===other:value!==other);
       }
       return value;
     };
-    const additive=()=>{
-      let value=term();
+    const additive=(active=true)=>{
+      let value=term(active);
       while(peek()==='+' || peek()==='-') {
-        const op=take(),right=term();
+        const op=take(),right=term(active);
         value=op==='+' ? value+right : value-right;
       }
       return value;
     };
-    const term=()=>{
-      let value=factor();
+    const term=(active=true)=>{
+      let value=factor(active);
       while(peek()==='*' || peek()==='/') {
-        const op=take(),right=factor();
-        if(op==='/' && right===0) throw Error('#DIV/0!');
+        const op=take(),right=factor(active);
+        if(active && op==='/' && right===0) throw Error('#DIV/0!');
         value=op==='*' ? value*right : value/right;
       }
       return value;
     };
-    const factor=()=>{
+    const factor=(active=true)=>{
       const token=take();
-      if(token==='-') return -factor();
-      if(token==='+') return factor();
+      if(token==='-') return -factor(active);
+      if(token==='+') return factor(active);
       if(token==='(') {
-        const value=expression();
+        const value=expression(active);
         if(take()!==')') throw Error('Missing closing parenthesis');
         return value;
       }
       if(!token) throw Error('Missing value');
-      if(/^\d|^\./.test(token)) return Number(token);
-      if(/^[A-Z]+[1-9][0-9]*$/.test(token)) return refValue(token);
+      if(/^\d|^\./.test(token)) return active?Number(token):0;
+      if(/^[A-Z]+[1-9][0-9]*$/.test(token)) return refValue(token,active);
       if(['SUM','AVERAGE','MIN','MAX','COUNT','COUNTA','PRODUCT','MEDIAN','ROUND','ABS','SQRT','POWER','MOD','INT','CEILING','FLOOR','SUMSQ','STDEV','VAR','SIGN','IF','AND','OR','NOT'].includes(token) && take()==='(') {
         const values=[];
+        let argumentIndex=0;
+        // Do not evaluate unselected conditional branches, but still check their syntax.
+        const evaluateArgument=()=>active && (token==='IF'
+          ? argumentIndex===0 || (argumentIndex===1 ? values[0]!==0 : values[0]===0)
+          : token==='AND' ? values.every(value=>value!==0)
+          : token==='OR' ? !values.some(value=>value!==0) : true);
         // COUNT counts numeric values; COUNTA counts every nonempty cell,
         // including text and formulas. Both skip empty cells in ranges.
         const addCell=(ref)=>{
+          if(!active)return;
           const raw=String(cells[ref]??'');
           if(raw.trim()==='')return;
           if(token==='COUNTA'){values.push(1);return;}
@@ -128,12 +136,14 @@ export function evaluateCell(reference, cells, stack = new Set()) {
               /^[A-Z]+[1-9][0-9]*$/.test(peek()||'') &&
               [',',')'].includes(tokens[position+1])){
               addCell(take());
-            } else values.push(expression());
+            } else values.push(expression(evaluateArgument()));
+            argumentIndex++;
             if(peek()!==',') break;
             take();
           } while(position<tokens.length);
         }
         if(take()!==')') throw Error('Missing function parenthesis');
+        if(!active)return 0;
         if(token==='IF'){
           if(values.length<2||values.length>3)throw Error('IF expects condition and branches');
           return values[0]!==0?values[1]:values[2]??0;
