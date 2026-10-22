@@ -51,3 +51,8 @@ html[data-mode] .app-card .app-icon.pdf,html[data-mode] .file-icon.pdf{backgroun
 .pdf-bookmark-row button:first-child{flex:1;text-align:left}
 .pdf-bookmark-row button:disabled{opacity:.6;cursor:not-allowed}
 .pdf-bookmark-row button:focus-visible{outline:2px solid var(--pdf-ink)}
+
+.pdf-bookmarks-panel{padding:7px 0 2px}
+.pdf-bookmarks-panel summary{cursor:pointer;color:var(--pdf-ink);font-weight:600}
+.pdf-bookmarks-panel p{line-height:1.6;color:var(--studio-muted);margin:9px 0}
+.pdf-bookmarks-panel .btn{font-size:10px}
