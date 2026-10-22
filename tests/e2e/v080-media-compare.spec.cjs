@@ -10,7 +10,7 @@ test('Media compares original to non-destructive edits without changing saved se
  await page.locator('#media-upload').setInputFiles({name:'Compare.png',mimeType:'image/png',buffer:Buffer.from(data,'base64')});
  await expect(page.locator('#media-status')).toContainText('200 × 120');
  const brightness=page.getByLabel('Brightness',{exact:true});
- await brightness.fill('140');await brightness.dispatchEvent('change');
+ await brightness.evaluate(input=>{input.value='140';input.dispatchEvent(new Event('change',{bubbles:true}));});
  const compare=page.locator('[data-media-action="compare"]');
  await expect(compare).toHaveAttribute('aria-pressed','false');
  await compare.click();await expect(compare).toHaveAttribute('aria-pressed','true');
