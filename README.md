@@ -1,3 +1,5 @@
+# MySoft Office
+
 ## v0.8.1 — Office fidelity and PDF navigation reliability (scoped release)
 
 - **DOCX:** Safe HTTP(S) hyperlinks now export as proper Word relationship targets and import back as editable links, including links inside table cells. Unsupported schemes and MySoft-local links remain visible text with explicit conversion warnings. Strike, superscript and subscript runs round-trip for the supported inline subset.
@@ -5,8 +7,6 @@
 - **PDF:** Clicking a saved source-page bookmark during an asynchronous PDF load queues the correct destination instead of silently ignoring the click.
 - **Testing:** Browser-level DOCX/PPTX round trips, external Office fixture imports, independent python-docx/python-pptx validation, plus the existing storage and editor regression gates.
 - **Scope:** Still not Word/PowerPoint parity, automatic PDF embedding of internal bookmarks, full XLSX formula fidelity, or production-grade multi-user synchronization.
-
-# MySoft Office
 
 ## v0.8.0 — Professional editing workflows (bounded preview)
 
