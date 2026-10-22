@@ -65,3 +65,10 @@ Replace the contenteditable editor with a structured editing model, expand workb
 - PPTX: Diamond and hexagon objects round-trip for supported MySoft preset geometry; images, complex charts, masters and animations remain incomplete.
 - PDF: MySoft source-page bookmarks are workspace metadata, **not** embedded PDF bookmarks, annotations or cryptographic signatures.
 - Media: Compare original is a transient preview-only mode that never overwrites the source or current edit settings.
+
+
+## v0.8.1 — Safe links and speaker notes
+- DOCX export uses external hyperlink relationships for valid HTTP(S) URLs only (up to 250 unique links), including hyperlinks in simple tables. DOCX import resolves external hyperlink relationship IDs and retains supported inline bold/italic/underline/strike/superscript/subscript runs. Local MySoft links, internal Word anchors, complex hyperlink fields, untrusted schemes and advanced run properties are **not** preserved; link text remains visible with warnings.
+- PPTX export writes plain-text speaker notes as Notes Slide parts and their associated Notes Master relationship. Import restores text from related notes body placeholders, including third-party PPTX notes. Note formatting, images, complex text frames and theme fidelity remain outside the supported subset.
+- PPTX export explicitly rejects packages over the safe importer limit of 180 parts; this can constrain large slide decks, especially with speaker notes.
+- PDF bookmarks clicked before PDF.js completes opening now select the desired source page upon load. Bookmark data still remains inside MySoft workspace/backup files, not PDF exports.
