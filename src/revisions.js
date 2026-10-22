@@ -22,7 +22,7 @@ export function versionContent(file) {
     }
   }
   if (file.type==='slides') version.slides=structuredClone(file.slides||[]);
-  if(file.type==='pdf'){version.pdfRotations=structuredClone(file.pdfRotations||{});if(file.pdfPageOrder)version.pdfPageOrder=structuredClone(file.pdfPageOrder);}
+  if(file.type==='pdf'){version.pdfRotations=structuredClone(file.pdfRotations||{});if(file.pdfPageOrder)version.pdfPageOrder=structuredClone(file.pdfPageOrder);version.pdfBookmarks=structuredClone(file.pdfBookmarks||[]);}
   if(file.type==='media'){version.mediaEdits=structuredClone(file.mediaEdits);version.mediaLayers=structuredClone(file.mediaLayers);}
   return version;
 }
@@ -64,7 +64,7 @@ export function restoreRevision(file,revision) {
     }
   }
   if(file.type==='slides') copy.slides=data.slides;
-  if(file.type==='pdf'){copy.pdfRotations=data.pdfRotations||{};if(data.pdfPageOrder)copy.pdfPageOrder=data.pdfPageOrder;else delete copy.pdfPageOrder;}
+  if(file.type==='pdf'){copy.pdfRotations=data.pdfRotations||{};if(data.pdfPageOrder)copy.pdfPageOrder=data.pdfPageOrder;else delete copy.pdfPageOrder;copy.pdfBookmarks=data.pdfBookmarks||[];}
   if(file.type==='media'){copy.mediaEdits=data.mediaEdits;copy.mediaLayers=data.mediaLayers;}
   copy.updatedAt=Date.now();
   return copy;

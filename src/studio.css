@@ -435,3 +435,11 @@ html[data-mode="dark"] .studio-pin-btn{background:#263551;color:#c5cde0}
 @media(prefers-reduced-motion:reduce){
  .studio-command-item,.studio-command-trigger,.studio-pin-btn{transition:none}
 }
+
+/* v0.7.1 — shape silhouettes without clipping focus and drag handles. */
+.studio-shape-roundRect{border-radius:18%}
+.studio-shape-triangle,.studio-shape-diamond,.studio-shape-hexagon{background:transparent!important;border-color:transparent}
+.studio-shape-triangle::before,.studio-shape-diamond::before,.studio-shape-hexagon::before{content:"";position:absolute;inset:0;background:var(--shape-fill,#ea4c24);pointer-events:none}
+.studio-shape-triangle::before{clip-path:polygon(50% 0,100% 100%,0 100%)}
+.studio-shape-diamond::before{clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
+.studio-shape-hexagon::before{clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%)}

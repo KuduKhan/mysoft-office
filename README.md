@@ -1,5 +1,26 @@
 # MySoft Office
 
+## v0.8.0 — Professional editing workflows (bounded preview)
+
+- Docs can refresh an existing manually inserted heading contents list from H1–H3, with explicit user action. This is not real page-aware TOC automation.
+- Sheets adds **Copy to…** with transactional preflight, relative A1 formula shifts and cell style preservation. Absolute and cross-sheet references remain unsupported, as do destinations beyond Z1000.
+- PDF source-page bookmarks are included in the local MySoft file/revision/backup models and are not embedded in PDF exports. Media image/video editors add an unsaved, non-destructive Compare original preview toggle. See release tests and Office compatibility documentation.
+- The v0.7.0 data safety and v0.7.1 conditional formulas, local cross-app links and Slides shapes remain in effect.
+
+## v0.7.1 — Calculation correctness, cross-app links and PPTX shapes
+
+- Numeric IF, AND and OR formulas now avoid executing unselected expressions. Syntax remains validated, while selected errors such as division by zero are still reported.
+- Docs and Notes Tools add stable, local file links and outgoing/incoming reference discovery across MySoft files. Links can target Sheets, Slides, PDF and Media files, but do not embed their content or update automatically.
+- Slides adds editable diamond and hexagon objects, with CSS silhouettes and supported DrawingML preset-geometry import/export; triangle and rounded rectangle rendering are refined.
+- Unit and Chromium regression tests cover formula short-circuiting, local links and native PPTX shapes.
+
+## v0.7.0 — Incremental local persistence foundation
+
+- Workspace saves now patch only changed IndexedDB file/trash/revision records while keeping the same atomic read/write transaction and committed-revision conflict detection. Previously each save cleared and rewrote every collection.
+- A pure change planner is tested for edits, source-to-trash moves, revision updates, and same-metadata content changes. The full saved workspace remains the authoritative data model; this is **not** cloud collaboration or automatic conflict merging.
+- Existing browser workspaces, legacy migration, JSON backups and recovery journal compatibility remain unchanged.
+
+
 **Your work. Your space.**
 
 Interface icons use locally bundled [Lucide](https://lucide.dev) SVGs (v0.468.0), with consistent strokes, accessible control labels, and no runtime icon service. The license is retained in `assets/lucide-license.txt`.

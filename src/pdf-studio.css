@@ -44,3 +44,15 @@ html[data-mode] .app-card .app-icon.pdf,html[data-mode] .file-icon.pdf{backgroun
   .sidebar .sidebar-nav .nav-caption{margin-top:7px;margin-bottom:3px}
   .shell .sidebar .sidebar-nav .nav-link{min-height:29px;padding-block:4px}
 }
+
+/* Local PDF bookmarks, explicit source-page navigation. */
+.pdf-bookmark-row{display:flex;align-items:center;gap:6px;margin-top:5px}
+.pdf-bookmark-row button{min-width:0;color:var(--studio-text);background:var(--ui-field);border:1px solid var(--studio-line);border-radius:7px;padding:7px 9px;font-size:11px;overflow-wrap:anywhere}
+.pdf-bookmark-row button:first-child{flex:1;text-align:left}
+.pdf-bookmark-row button:disabled{opacity:.6;cursor:not-allowed}
+.pdf-bookmark-row button:focus-visible{outline:2px solid var(--pdf-ink)}
+
+.pdf-bookmarks-panel{padding:7px 0 2px}
+.pdf-bookmarks-panel summary{cursor:pointer;color:var(--pdf-ink);font-weight:600}
+.pdf-bookmarks-panel p{line-height:1.6;color:var(--studio-muted);margin:9px 0}
+.pdf-bookmarks-panel .btn{font-size:10px}
