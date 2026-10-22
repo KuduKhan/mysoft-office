@@ -43,7 +43,7 @@ Navigation uses compact app names and a two-column backup/import area. The heade
 
 Interface finishing includes softer surface depth, consistent system typography, quieter desktop row actions, keyboard-accessible file titles, and labeled dialogs with contained focus and focus restoration.
 
-MySoft Office is an independent, local-first productivity suite with Docs, Sheets, Slides, Notes, PDF and Media. Version **0.6.2 Editor Depth & Reliability Preview** retains native DOCX/XLSX/PPTX support and adds a redesigned, responsive workspace, denser editing ribbons and functional commands. Consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for the capability inventory and compatibility limits.
+MySoft Office is an independent, local-first productivity suite with Docs, Sheets, Slides, Notes, PDF and Media. Version **0.8.1 Office Fidelity & Reliability Preview** retains native DOCX/XLSX/PPTX support and adds a redesigned, responsive workspace, denser editing ribbons and functional commands. Consult [OFFICE_PARITY_ROADMAP.md](OFFICE_PARITY_ROADMAP.md) for the capability inventory and compatibility limits.
 
 ## Expanded editor tools
 
