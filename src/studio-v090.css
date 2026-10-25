@@ -1,0 +1,99 @@
+/* MySoft Studio 2.0 — v0.9.0. Loaded after all existing editor styles.
+   Additive visual refinement: no document data, layout model or conversion changes. */
+:root{--s2-shadow:0 2px 8px #17243a0a,0 12px 28px #17243a10;--s2-focus:var(--studio-accent)}
+.shell{isolation:isolate}
+.shell :is(.main,.content,.editor-shell){min-width:0}
+.shell>.sidebar .brand{padding-bottom:16px}
+.shell>.sidebar .nav-link{border-radius:10px;line-height:1.45}
+.shell>.sidebar .nav-link:is(:hover,:focus-visible){background:#ffffff16;color:#fff}
+.shell>.sidebar .nav-link.active{box-shadow:inset 3px 0 var(--ui-on-nav,#e7efff)}
+.shell .sidebar-nav{scrollbar-width:thin;scrollbar-color:#62718c transparent}
+.shell .topbar{border-bottom:1px solid var(--studio-line);background:var(--studio-surface)}
+.shell .searchbox{min-width:0;border-radius:11px}
+.shell .searchbox:focus-within{border-color:var(--studio-accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--studio-accent) 20%,transparent)}
+.shell .studio-breadcrumb{min-width:0;overflow-wrap:anywhere}
+.shell :is(.app-card[data-create],.template-card){border-radius:16px;transition:box-shadow .16s,border-color .16s,transform .16s}
+.shell :is(.app-card[data-create],.template-card):hover{border-color:color-mix(in srgb,var(--studio-accent) 30%,var(--studio-line));box-shadow:var(--s2-shadow)}
+.shell .file-open{overflow-wrap:anywhere}
+.shell .data-table :is(td,th){vertical-align:middle}
+.shell .editor-shell{min-height:0;background:var(--ui-canvas)}
+.shell .editor-head{position:relative;z-index:2;background:var(--studio-surface);border-bottom:1px solid var(--studio-line)}
+.shell .editor-head .doc-title{min-width:0;text-overflow:ellipsis}
+.shell .studio-file-tabs{display:flex;min-width:0;max-width:100%;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;scroll-snap-type:x proximity;overscroll-behavior-inline:contain;background:var(--studio-surface);border-bottom:1px solid var(--studio-line)}
+.shell .studio-file-tab{flex:0 0 auto;min-width:0;scroll-snap-align:start;border-radius:8px 8px 4px 4px}
+.shell .studio-file-tab.active{background:var(--studio-accent-soft);color:var(--studio-text);box-shadow:inset 0 -2px var(--studio-accent)}
+.shell .studio-file-tab-name{min-width:0;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}
+.shell .ot-ribbon{background:var(--studio-surface);border-bottom:1px solid var(--studio-line)}
+.shell .ot-ribbon-top{min-width:0;overflow:hidden}
+.shell :is(.ot-ribbon-tabs,.ot-ribbon-tools,.native-ribbon-stage){scrollbar-width:thin;overscroll-behavior:contain}
+.shell .ot-ribbon-tabs{scroll-padding-inline:8px}
+.shell .ot-tab{flex:0 0 auto}
+.shell .ot-tab[aria-selected=true]{color:var(--studio-accent);border-bottom-color:var(--studio-accent)}
+.shell .ribbon-navigation{height:auto;min-height:35px;padding:3px 10px;gap:6px}
+.shell .ribbon-navigation button{min-height:30px;min-width:30px;width:30px;height:30px;border:1px solid var(--studio-line);border-radius:7px}
+.shell .ribbon-navigation select{min-height:30px;height:30px;font-size:11px;border-radius:7px}
+.shell :is(.studio-file-tab,.ot-btn,.ot-tab,.icon-btn,.btn,.nav-link,input,select,textarea,[contenteditable]):focus-visible{outline:2px solid var(--s2-focus);outline-offset:2px}
+.shell .ribbon-navigation button:focus-visible,.shell .studio-file-tab:focus-visible{outline-offset:-2px}
+.shell .document-paper{border:1px solid var(--studio-line);box-shadow:var(--s2-shadow)}
+.shell :is(.doc-canvas,.doc-edit-layout,.note-layout,.sheet-layout,.slide-layout,.media-workspace,.pdf-layout){min-width:0;min-height:0}
+.shell :is(.doc-outline,.note-list,.slide-list,.media-inspector,.pdf-sidebar){overscroll-behavior:contain}
+.shell .studio-statusbar{background:var(--studio-surface);border-top:1px solid var(--studio-line);min-width:0}
+.shell .studio-statusbar :is(.studio-status-left,.studio-status-right){min-width:0}
+.shell #studio-storage-status{overflow-wrap:anywhere}
+.shell .modal{max-height:min(92dvh,800px);overflow-y:auto;overscroll-behavior:contain}
+html[data-mode=dark]{--s2-shadow:0 3px 12px #02081250,0 12px 36px #02081250}
+html[data-mode=dark] .shell .studio-file-tab.active{background:color-mix(in srgb,var(--studio-accent) 17%,var(--studio-surface));color:var(--studio-text)}
+html[data-mode=dark] .shell .document-paper{border-color:#42516b}
+@media(max-width:860px){
+ .shell .topbar{padding-inline:12px}
+ .shell>.sidebar .sidebar-nav .nav-link{min-height:40px}
+ .shell .editor-head{min-height:44px}
+ .shell .studio-file-tabs{min-height:38px}
+ .shell .studio-file-tab{min-height:32px}
+ .shell .ribbon-navigation{min-height:40px;padding:4px 6px}
+ .shell .ribbon-navigation button{min-width:34px;min-height:34px;width:34px;height:34px}
+ .shell .ribbon-navigation select{height:34px;min-height:34px;max-width:100%}
+ .shell .ribbon-density-label{flex:0 1 auto;min-width:0}
+ .shell .ot-ribbon-tabs{scroll-snap-type:x proximity}
+ .shell .ot-tab{scroll-snap-align:start}
+ .shell .ot-btn,.shell .native-tool-group .btn{touch-action:manipulation}
+}
+@media(max-width:590px){
+ .shell .content{padding-inline:max(12px,env(safe-area-inset-left))}
+ .shell .topbar{padding-left:max(10px,env(safe-area-inset-left));padding-right:max(10px,env(safe-area-inset-right))}
+ .shell .editor-head{flex-wrap:wrap;align-content:center;row-gap:4px}
+ .shell .editor-head .doc-title{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+ .shell .studio-file-tabs{padding-inline:8px}
+ .shell .studio-file-tab{max-width:155px}
+ .shell .studio-statusbar{padding-bottom:max(5px,env(safe-area-inset-bottom));column-gap:6px}
+ .shell .studio-shortcut{display:none}
+ .shell .ribbon-navigation{gap:4px}
+ .shell .ribbon-navigation [data-ribbon-group]{min-width:0}
+ .shell .ribbon-density-label select{max-width:86px}
+ .shell .doc-edit-layout{padding:8px}
+ .shell .note-editor{min-width:0}
+ .shell .modal{max-height:calc(100dvh - 18px)}
+}
+@media(max-width:360px){
+ .shell .studio-status-left{max-width:48%}
+ .shell .studio-file-tab{max-width:136px}
+ .shell .ribbon-navigation [data-ribbon-group]{flex:1 1 90px;width:auto}
+}
+@media(pointer:coarse){
+ .shell :is(.studio-file-tab,.ot-tab,.sidebar-nav .nav-link){min-height:40px}
+ .shell .ribbon-navigation :is(button,select){min-height:40px;height:40px}
+ .shell .native-tool-group .btn,.shell .ot-ribbon-tools .ot-btn{min-height:40px}
+}
+@media(prefers-reduced-motion:reduce){
+ .shell *, .shell *::before,.shell *::after{scroll-behavior:auto!important;transition-duration:0.01ms!important;animation-duration:0.01ms!important}
+}
+@media(forced-colors:active){
+ .shell :is(.studio-file-tab.active,.nav-link.active,.ot-tab[aria-selected=true]){outline:2px solid Highlight;outline-offset:-2px}
+ .shell :is(button,input,select,textarea,[contenteditable]):focus-visible{outline:2px solid Highlight;outline-offset:2px}
+ .shell :is(.document-paper,.editor-head,.ot-ribbon){border:1px solid CanvasText}
+}
+@media print{
+ .shell .studio-file-tabs,.shell .studio-statusbar{display:none!important}
+ .shell .document-paper{border:0!important;box-shadow:none!important}
+ .shell .editor-shell{background:transparent}
+}
