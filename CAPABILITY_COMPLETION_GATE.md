@@ -14,9 +14,11 @@
 
 **Implemented in this tranche:** inspect/edit native AcroForm text and checkbox values without modifying the source bytes; preserve interactive fields in ordinary-order PDF export, including form-edit undo/redo. Unsupported form types are displayed as such; reordering/merging with modified form fields is refused rather than silently losing user data. Forms with >100 fields or values >2,000 characters are rejected.
 
+**Additional integration work:** Knowledge Studio relationship health and project history, revision snapshots for knowledge links/forms/annotations, bounded native PDF Text and Highlight object export with reader controls, and an RGB Media histogram. This does not close any full-capability gate.
+
 **Not implemented / NOT approved for production claims:**
 - Original-text and embedded-image editing with faithful retained PDF text layout
-- Structured highlight, ink, sticky-note and drawing annotations with interoperable native PDF export
+- Advanced ink, text-selection and drawing annotations, beyond bounded native sticky-note and rectangular-highlight support, plus full third-party interoperability
 - Full AcroForm/XFA fidelity, field appearances and third-party validation beyond the bounded text/checkbox subset
 - Searchable OCR for scanned PDFs and quality evaluation across languages/script types
 - Native embedded outline bookmarks, structured document comparison or tracked changes

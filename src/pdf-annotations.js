@@ -17,7 +17,7 @@ export function deleteAnnotation(file,id){
  return prev.length!==file.pdfAnnotations.length;
 }
 export function embedAnnotations(doc,pages,order,all,lib){
- if(!validAnnotations(all,Math.max(...order)))throw Error('Invalid exported annotations.');
+ if(!validAnnotations(all,Math.max(...order,...all.map(item=>item.page))))throw Error('Invalid exported annotations.');
  const {PDFName,PDFArray,PDFHexString}=lib;
  for(const [index,sourcePage] of order.entries()){
   const items=all.filter(a=>a.page===sourcePage),page=pages[index];

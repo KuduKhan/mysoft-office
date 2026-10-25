@@ -28,3 +28,13 @@ test('export produces native PDF Text and Highlight annotations, preserving orig
  assert.equal(f.pdfData,raw);
  const h=new PDFEditHistory(f);deleteAnnotation(f,'two');h.checkpoint(f);assert.ok(h.undo(f));assert.equal(f.pdfAnnotations.length,2);
 });
+
+test('page extraction deliberately excludes annotations from omitted pages',async()=>{
+ const d=await PDFDocument.create();d.addPage([200,200]);d.addPage([200,200]);
+ const raw=encodePDF(await d.save()),f={pdfData:raw,pdfPageCount:2,pdfRotations:{},pdfAnnotations:[]};
+ addAnnotation(f,{id:'second',kind:'note',page:2,rect:[10,10,28,28],text:'Only page 2'});
+ const output=await PDFDocument.load(await exportPDF({...f,pdfPageOrder:[1]}));
+ assert.equal(output.getPageCount(),1);
+ assert.equal(output.getPage(0).node.lookupMaybe(PDFName.of('Annots'),PDFArray),undefined);
+ assert.equal(f.pdfAnnotations.length,1);
+});
