@@ -1,4 +1,5 @@
-// Bounded editor commands shared by MySoft's v0.5.1 studio ribbon.
+// Bounded editor commands shared by the MySoft studio ribbon.
+import {shiftRelativeFormula} from './sheet-range.js';
 export const STUDIO_ACCENTS=[
   {name:'Indigo',value:'#4f46e5',soft:'#eef2ff'},
   {name:'Orangered',value:'#ea4c24',soft:'#fff0e9'},
@@ -40,16 +41,32 @@ export function replaceSheetValues(cells,needle,replacement,{matchCase=false,inc
   }
   return changed;
 }
-export function fillDown(cells,address,count=5){
+// Fill literal cells and supported relative formulas together, without
+// modifying a single cell when reference translation fails midway.
+export function fillDown(cells,address,count=5,styles=null){
   const match=/^([A-Z])([1-9]\d{0,2}|1000)$/.exec(address);
   if(!match)throw Error('Choose a valid cell first.');
-  const row=Number(match[2]);
-  const value=String(cells[address]??'');
+  if(!cells||typeof cells!=='object'||Array.isArray(cells))throw Error('Worksheet unavailable.');
+  if(!Number.isInteger(count)||count<1||count>50)throw Error('Fill count must be between 1 and 50.');
+  const row=Number(match[2]),value=String(cells[address]??'');
   if(!value)throw Error('Selected cell is empty.');
-  if(value.startsWith('='))throw Error('Fill down of formulas needs reference translation and is not supported yet.');
-  const limit=Math.min(50,Math.max(1,Math.floor(count)),1000-row);
-  for(let i=1;i<=limit;i++)cells[match[1]+(row+i)]=value;
-  return limit;
+  const limit=Math.min(count,1000-row),writes=[];
+  const sourceStyle=styles?.[address];
+  for(let i=1;i<=limit;i++){
+    const ref=match[1]+(row+i);
+    const raw=value.startsWith('=')?shiftRelativeFormula(value,i,0):value;
+    const style=sourceStyle===undefined?undefined:structuredClone(sourceStyle);
+    writes.push({ref,raw,style});
+  }
+  // All values and styles have been computed/validated before committing.
+  for(const {ref,raw,style} of writes){
+    cells[ref]=raw;
+    if(styles){
+      if(style===undefined)delete styles[ref];
+      else styles[ref]=style;
+    }
+  }
+  return writes.length;
 }
 export function clearCell(cells,styles,address){
   if(!/^[A-Z](?:[1-9]\d{0,2}|1000)$/.test(address))throw Error('Invalid selected cell.');

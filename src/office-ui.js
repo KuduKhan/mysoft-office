@@ -156,7 +156,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0,category=null){
         '<span class="ot-metric">'+count+' conditional rules on this worksheet. Maximum 25.</span>';
     } else if(active==='Data'){
       body=button('Find / Replace','sheet-find-replace')+
-        button('Fill down 5','sheet-fill-down')+button('Clear cell','sheet-clear-cell')+
+        button('Fill down (values + formulas)','sheet-fill-down')+button('Clear cell','sheet-clear-cell')+
         button('Sort A → Z','sort-asc')+button('Sort Z → A','sort-desc')+
         button('Auto SUM','insert-sum')+button('Auto AVERAGE','insert-avg')+button('Auto MIN','insert-min')+button('Auto MAX','insert-max')+button('Auto COUNT','insert-count')+
         button('Audit formulas','sheet-audit')+button('Trace cell','sheet-trace')+
@@ -698,7 +698,7 @@ export function initializeOfficeTools(ctx){
       if(action==='sheet-fill-down'){
         const amount=Number(prompt('Fill the selected value downward across how many rows? (1–50)','5'));
         if(!Number.isInteger(amount)||amount<1||amount>50)throw Error('Enter a number from 1 to 50');
-        const count=fillDown(f.cells,ctx.getSelectedCell(),amount);
+        const count=fillDown(f.cells,ctx.getSelectedCell(),amount,f.cellStyles);
         ctx.toast(count+' cells filled');syncSheet(ctx,f);return;
       }
       if(action==='sheet-clear-cell'){

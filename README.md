@@ -1,5 +1,9 @@
 # MySoft Office
 
+## v0.10.0 — Professional editor foundations
+
+Docs block heading promotion/demotion now preserves supported paragraph formatting and rejects list/table conversions without modifying the document. Sheets **Data → Fill down** now copies relative formulas and cell styles with prevalidation, including safe boundary and reference-limit refusal. Slides shape property edits and resizes now commit atomically after validation, rather than leaving partially modified geometry after an error. These features work with the existing file model and do not claim a complete rich-text engine, new spreadsheet formula grammar, or unrestricted PPTX object fidelity. See [v0.10.0 release notes](RELEASE_0_10_0.md).
+
 ## v0.9.0 — Studio 2.0
 
 Premium visual refinements across all six editors include a clear recent-file tab strip, consistent focus outlines, light/dark surfaces, responsive ribbon targets, reduced-motion alternatives and high-contrast support. ArrowLeft, ArrowRight, Home and End navigate recent-file buttons by focus only; Enter or Space activates the file. The file model and Office compatibility scope remain unchanged. See [v0.9.0 release notes](RELEASE_0_9_0.md).

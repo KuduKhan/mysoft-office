@@ -22,7 +22,9 @@ test('fill down and clear are bounded and formula safe',()=>{
   assert.equal(fillDown(cells,'A998',10),2);
   assert.equal(cells.A1000,'Text');
   cells.B2='=A2*2';
-  assert.throws(()=>fillDown(cells,'B2',5));
+  assert.equal(fillDown(cells,'B2',5),5);
+  assert.equal(cells.B3,'=A3*2');
+  assert.equal(cells.B7,'=A7*2');
   const styles={A999:{bold:true}};
   clearCell(cells,styles,'A999');
   assert.equal(cells.A999,undefined);
