@@ -4,6 +4,7 @@ import {createRequire} from 'node:module';
 import {encodePDF,exportPDF,validatePDFRecord} from '../src/pdf-model.js';
 import {addAnnotation,deleteAnnotation,validAnnotations} from '../src/pdf-annotations.js';
 import {PDFEditHistory} from '../src/pdf-edits.js';
+globalThis.self=globalThis;
 const require=createRequire(import.meta.url);
 const {PDFDocument,PDFName,PDFArray}=require('../vendor/pdf-lib.min.js');
 test('PDF annotation data is bounded and duplicate IDs are refused',()=>{
