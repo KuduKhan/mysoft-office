@@ -1,4 +1,4 @@
-# MySoft Office v0.2 — Cloud snapshot setup
+# MySoft Office v0.12 — Optional cloud snapshot setup
 
 **Current status:** optional infrastructure only. Cloud snapshots are disabled until configured. Never reuse the KHANIVERSITY database for MySoft Office.
 
@@ -25,9 +25,9 @@ Note: the Supabase client is loaded from a version-pinned external ESM endpoint 
 
 ## 4. Use snapshots
 
-Select **Cloud snapshots** in the sidebar, create an account or sign in, then choose **Upload snapshot**. On another browser, sign in and choose **Download snapshot**. Downloading **replaces** local files after confirmation. Always export a local JSON backup first.
+Select **Cloud snapshots**, sign in and choose **Review cloud and local files**. The comparison displays local-only, remote-only and differing files. After explicitly confirming, upload with an atomic `updated_at` compare-and-swap guard, or restore the cloud snapshot only after checking that the cloud revision has not changed. Restoring downloads a local JSON backup before replacing IndexedDB files. You can also export the remote JSON snapshot without altering local files. Concurrent remote writes cause a conflict rather than silently replacing new data. Always independently preserve an offline backup.
 
-This is manual one-snapshot-at-a-time transfer; it is **not** automatic cloud save, merging, cross-device real-time collaboration or encryption of end-user document content. Both browser storage and cloud content remain inappropriate for classified/sensitive material.
+This is a manual, single-snapshot transfer workflow with revision-checked writes. It is **not** live continuous synchronization, automated two-way merging, per-file conflict reconciliation, collaboration or end-to-end encryption. The `updated_at` token changes on accepted client writes; maintain it for all database writers and never bypass these checks with a privileged backend. Create and test on a **dedicated** Supabase project, not an existing unrelated workspace. Both browser storage and cloud content remain inappropriate for classified/sensitive material.
 
 ## 5. Verification checklist
 
@@ -36,4 +36,7 @@ This is manual one-snapshot-at-a-time transfer; it is **not** automatic cloud sa
 - [ ] User B cannot read or modify user A's snapshot
 - [ ] Sign out and confirm cloud actions are blocked
 - [ ] Backup and restore both v0.1 and v0.2 workspaces
+- [ ] Race two browser sessions against the same cloud revision; only the first upload succeeds
+- [ ] Simulate a newer cloud snapshot before restore; confirm the outdated restore is blocked
+- [ ] Verify downloading the local backup before applying a reviewed cloud snapshot
 - [ ] Verify deploy preview and project origin before enabling configuration
