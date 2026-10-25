@@ -6,7 +6,8 @@ import {addAnnotation,deleteAnnotation,validAnnotations} from '../src/pdf-annota
 import {PDFEditHistory} from '../src/pdf-edits.js';
 globalThis.self=globalThis;
 const require=createRequire(import.meta.url);
-const {PDFDocument,PDFName,PDFArray}=require('../vendor/pdf-lib.min.js');
+const loaded=require('../vendor/pdf-lib.min.js');
+const {PDFDocument,PDFName,PDFArray}=loaded.PDFDocument?loaded:globalThis.PDFLib;
 test('PDF annotation data is bounded and duplicate IDs are refused',()=>{
  const f={pdfPageCount:2,pdfAnnotations:[]},a={id:'one',kind:'note',page:1,rect:[5,10,23,28],text:'Check'};
  addAnnotation(f,a);assert.equal(validAnnotations(f.pdfAnnotations,2),true);
