@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {setPDFFormValue,validPDFFormValues} from '../src/pdf-forms.js';
 import {encodePDF,exportPDF,validatePDFRecord} from '../src/pdf-model.js';
+globalThis.self=globalThis;
 const lib=createRequire(import.meta.url)('../vendor/pdf-lib.min.js');
 test('PDF native form fields remain interactive and source bytes unchanged after export',async()=>{
  const doc=await lib.PDFDocument.create(),page=doc.addPage([400,400]),form=doc.getForm();
