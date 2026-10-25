@@ -1,4 +1,5 @@
 const {test,expect}=require('@playwright/test');
+globalThis.self=globalThis;
 const fs=require('node:fs/promises'),{PDFDocument}=require('../../vendor/pdf-lib.min.js');
 test('PDF native form value saves and exports as editable field',async({page})=>{
  const doc=await PDFDocument.create(),sheet=doc.addPage([400,400]);
