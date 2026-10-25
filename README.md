@@ -1,5 +1,9 @@
 # MySoft Office
 
+## v0.9.0 — Studio 2.0
+
+Premium visual refinements across all six editors include a clear recent-file tab strip, consistent focus outlines, light/dark surfaces, responsive ribbon targets, reduced-motion alternatives and high-contrast support. ArrowLeft, ArrowRight, Home and End navigate recent-file buttons by focus only; Enter or Space activates the file. The file model and Office compatibility scope remain unchanged. See [v0.9.0 release notes](RELEASE_0_9_0.md).
+
 ## v0.8.2 — Reliability and release quality
 
 This stabilization release removes an accidental nested `mysoft-office` Git gitlink with no matching `.gitmodules` entry that prevented GitHub Actions checkout on 25 October 2026. The Git tree keeps all the real `src/`, `tests/`, `assets/`, `vendor/` and `scripts/` content. A new `npm run check:repo` gate verifies checked-in repository structure and literal local module imports. CI uses it before running the full unit and browser/Office-format suites. See [the v0.8.2 release checklist](RELEASE_0_8_2.md).

@@ -1,4 +1,5 @@
 import {initializeRibbonWorkbench} from './ribbon-workbench.js';
+import {adjacentFileTabIndex} from './studio-layout.js';
 import {filePreviewCards} from './mo-file-previews.js';
 import {noteCanvasStyle} from './mo-workbench.js';
 import {icon} from './icons.js';
@@ -1085,6 +1086,17 @@ document.addEventListener('keydown',event=>{
       const index=event.key==='Home'?0:event.key==='End'?items.length-1:
         (position+(event.key==='ArrowUp'?-1:1)+items.length)%items.length;
       items[index]?.focus();return;
+    }
+  }
+  // Focus-only file-tab traversal: activation remains an explicit click or Enter.
+  if(!event.ctrlKey&&!event.altKey&&!event.metaKey&&event.target.closest('.studio-file-tab')){
+    const tabs=[...document.querySelectorAll('.studio-file-tabs .studio-file-tab')].filter(el=>el.getClientRects().length);
+    const next=adjacentFileTabIndex(tabs.length,tabs.indexOf(event.target.closest('.studio-file-tab')),event.key);
+    if(next!==null){
+      event.preventDefault();
+      tabs[next].focus({preventScroll:true});
+      tabs[next].scrollIntoView({block:'nearest',inline:'nearest'});
+      return;
     }
   }
   const shortcut=studioShortcut(event);
