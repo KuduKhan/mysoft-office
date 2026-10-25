@@ -1,5 +1,11 @@
 # MySoft Office
 
+## v0.8.2 — Reliability and release quality
+
+This stabilization release removes an accidental nested `mysoft-office` Git gitlink with no matching `.gitmodules` entry that prevented GitHub Actions checkout on 25 October 2026. The Git tree keeps all the real `src/`, `tests/`, `assets/`, `vendor/` and `scripts/` content. A new `npm run check:repo` gate verifies checked-in repository structure and literal local module imports. CI uses it before running the full unit and browser/Office-format suites. See [the v0.8.2 release checklist](RELEASE_0_8_2.md).
+
+**Release policy:** A completed checkout is not a test pass. Do not merge or deploy while either required workflow is failing; verify data-preservation and backup/restore behavior before production use. No storage schema migration is included.
+
 ## Advanced Studio
 
 Docs adds previewed case-aware/whole-word text replacement. Sheets adds Goal Seek with a preview and guarded apply. Slides creates editable roadmap cards. Notes combines full source notes into a separate saved note. PDF standardizes pages to A4/Letter with rotation-aware vector fitting. Media distributes visible drawing layers with equal gaps, undo and saved geometry. Open **Tools → Advanced studio**, **Resize PDF pages**, or **Media → Layers**. [Supported behavior and limits](EDITOR_UPGRADE_NOTES.md) remain explicit.
