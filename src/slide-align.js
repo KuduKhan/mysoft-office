@@ -16,8 +16,8 @@ export function resizeSlideObject(slide,id,width,height){
   const w=Number(width),h=Number(height);
   if(!Number.isFinite(w)||!Number.isFinite(h)||w<5||h<5||w>100||h>100)
     throw Error('Width and height must be between 5 and 100 percent.');
-  // Normalize position first so the selected size fits entirely on the stage.
-  object.x=Math.min(object.x,100-w);
-  object.y=Math.min(object.y,100-h);
-  return updateSlideObject(slide,id,{w,h});
+  // Compute geometry without moving the real object until validation passes.
+  // Preserve the current center as much as the normalized slide permits.
+  const x=Math.min(object.x,100-w),y=Math.min(object.y,100-h);
+  return updateSlideObject(slide,id,{x,y,w,h});
 }

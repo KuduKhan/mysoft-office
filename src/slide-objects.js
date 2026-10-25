@@ -26,28 +26,33 @@ export function addSlideObject(slide,kind='text'){
 export function getSlideObject(slide,id){
   return slideObjects(slide).find(x=>x.id===id)||null;
 }
+// Validate a proposed edit in isolation, then commit it atomically to retain
+// object identity for renderer selections and undo checkpoints.
 export function updateSlideObject(slide,id,patch){
   const o=getSlideObject(slide,id);
   if(!o)throw Error('Slide object not found');
+  if(!patch||typeof patch!=='object'||Array.isArray(patch))throw Error('Invalid shape update');
+  const draft={...o};
   for(const [k,v]of Object.entries(patch)){
     if(['x','y','w','h'].includes(k)){
-      if(!Number.isFinite(Number(v)))throw Error('Invalid object geometry');
+      if(v===null||v===''||!Number.isFinite(Number(v)))throw Error('Invalid object geometry');
       const n=Number(v);
-      if(k==='x')o.x=clamp(n,0,100-o.w);
-      if(k==='y')o.y=clamp(n,0,100-o.h);
-      if(k==='w')o.w=clamp(n,5,100-o.x);
-      if(k==='h')o.h=clamp(n,5,100-o.y);
+      if(k==='x')draft.x=clamp(n,0,100-draft.w);
+      if(k==='y')draft.y=clamp(n,0,100-draft.h);
+      if(k==='w')draft.w=clamp(n,5,100-draft.x);
+      if(k==='h')draft.h=clamp(n,5,100-draft.y);
     }else if(k==='text'){
-      o.text=String(v??'').slice(0,600);
+      draft.text=String(v??'').slice(0,600);
     }else if(['fill','color'].includes(k)){
       if(!safeColor(v))throw Error('Use a six-digit hex color');
-      o[k]=v;
+      draft[k]=v;
     }else if(k==='fontSize'){
       const size=Number(v);
       if(!Number.isInteger(size)||size<10||size>56)throw Error('Text size must be 10–56');
-      o.fontSize=size;
+      draft.fontSize=size;
     }else throw Error('Unsupported shape property');
   }
+  Object.assign(o,draft);
   return o;
 }
 export function moveSlideObject(slide,id,dx,dy){

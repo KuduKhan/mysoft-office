@@ -13,6 +13,9 @@ export function blockIndexFromSelection(root,selection){
 export function applyDocumentBlockAction(root,action,index=0){
   if(!ACTIONS.has(action)||!root)throw Error('Unsupported document operation.');
   const blocks=editableBlocks(root);
+  // Validate the target before wrapping orphan text nodes. Invalid selection
+  // must not mutate the authoring DOM.
+  if(!blocks.length&&index!==0)throw Error('Select a document paragraph first.');
   if(!blocks.length){
     const para=root.ownerDocument.createElement('p');
     // Browsers can create plain text nodes at the root of a contenteditable;
@@ -32,10 +35,16 @@ export function applyDocumentBlockAction(root,action,index=0){
   }
   if(action==='heading-up'||action==='heading-down'){
     const tags=['P','H3','H2','H1'];
-    const level=tags.indexOf(current.tagName),old=level<0?0:level;
+    const old=tags.indexOf(current.tagName);
+    if(old<0)throw Error('Select a paragraph or heading; tables and lists cannot become headings.');
     const updated=action==='heading-up'?Math.min(old+1,3):Math.max(old-1,0);
     if(updated===old)return {changed:false,index};
     const replacement=root.ownerDocument.createElement(tags[updated].toLowerCase());
+    // Retain the supported paragraph-level presentation and accessibility
+    // attributes; do not carry event handlers or arbitrary DOM attributes.
+    for(const attr of ['style','class','id','dir','lang','title']){
+      if(current.hasAttribute(attr))replacement.setAttribute(attr,current.getAttribute(attr));
+    }
     while(current.firstChild)replacement.appendChild(current.firstChild);
     root.replaceChild(replacement,current);
     return {changed:true,index};
