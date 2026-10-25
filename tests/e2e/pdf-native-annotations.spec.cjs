@@ -1,0 +1,20 @@
+const {test,expect}=require('@playwright/test');
+const fs=require('node:fs/promises');
+const {PDFDocument,PDFName,PDFArray}=require('../../vendor/pdf-lib.min.js');
+test('PDF note is saved and exported as a real annotation',async({page})=>{
+ const d=await PDFDocument.create(),sheet=d.addPage([400,420]);sheet.drawText('Review',{x:50,y:300,size:12});
+ await page.goto('/');
+ await page.locator('#pdf-upload').setInputFiles({name:'review.pdf',mimeType:'application/pdf',buffer:Buffer.from(await d.save())});
+ await expect(page.locator('#pdf-status')).toContainText('Page 1 of 1');
+ await page.locator('[data-pdf-action="mark-note"]').click();
+ page.once('dialog',dialog=>dialog.accept('QA review'));
+ const c=await page.locator('#pdf-canvas').boundingBox();
+ await page.mouse.click(c.x+c.width*.4,c.y+c.height*.4);
+ await expect(page.locator('#pdf-mark-list')).toContainText('QA review');
+ await page.keyboard.press('Control+s');await page.reload();
+ await expect(page.locator('#pdf-mark-list')).toContainText('QA review');
+ const downloaded=page.waitForEvent('download');
+ await page.locator('[data-action="export"]').click();
+ const file=await downloaded,result=await PDFDocument.load(await fs.readFile(await file.path()));
+ expect(result.getPage(0).node.lookup(PDFName.of('Annots'),PDFArray).size()).toBe(1);
+});

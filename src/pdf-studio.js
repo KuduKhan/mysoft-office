@@ -1,12 +1,13 @@
 import {exportPDFHandout,exportResizedPDF} from './pdf-handout.js';
 import {icon} from './icons.js';
+import {addAnnotation,deleteAnnotation} from './pdf-annotations.js';
 import {inspectPDFForms,setPDFFormValue} from './pdf-forms.js';
 import {PDFEditHistory,orderedPDFText} from './pdf-edits.js';
 import {loadPDF,closePDF,rotatePDFPage,pdfOrder,parsePDFPages,exportPDF,mergePDF,setPDFBookmark,removePDFBookmark} from './pdf-model.js';
 
 export function createPDFStudio(ctx){
   let doc=null,currentFile=null,generation=0,drawGeneration=0,renderTask=null,pageNumber=1,zoom='fit',searchGeneration=0;
-  let edits=null,viewportObserver=null,formFields=[];
+  let edits=null,viewportObserver=null,formFields=[],markMode='',markViewport=null,markStart=null;
   function refreshHistory(){for(const action of ['undo','redo']){const control=document.querySelector('[data-pdf-action="'+action+'"]');if(control)control.disabled=!edits?.[action==='undo'?'canUndo':'canRedo'];}}
   function commitChange(){if(!currentFile)return;if(edits?.checkpoint(currentFile))ctx.changed(currentFile);refreshHistory();}
 
@@ -23,18 +24,22 @@ export function createPDFStudio(ctx){
     '<div class="pdf-bookmark-row"><span>'+esc(field.name)+' · '+field.kind+' · '+esc(field.kind==='checkbox'?(field.value?'Checked':'Unchecked'):String(field.value??'').slice(0,80))+'</span>'+
     (field.kind!=='unsupported'?'<button class="btn btn-light btn-sm" data-pdf-action="form-edit" data-pdf-field="'+esc(field.name)+'">Edit field</button>':'')+'</div>').join(''):
     '<p>No supported fillable text or checkbox fields were found.</p>';
+  const markRows=file=>(file.pdfAnnotations||[]).length?file.pdfAnnotations.map(a=>
+    '<div class="pdf-bookmark-row"><button data-pdf-action="mark-jump" data-source-page="'+a.page+'">'+esc(a.kind)+' · page '+a.page+' · '+esc(a.text.slice(0,60))+'</button><button data-pdf-action="mark-remove" data-mark-id="'+esc(a.id)+'">Delete</button></div>').join(''):
+    '<p>Use Note or Highlight, then click or drag on the PDF page.</p>';
+  const updateMarks=()=>{const el=document.getElementById('pdf-mark-list');if(el&&currentFile)el.innerHTML=markRows(currentFile);};
   const button=(action,label,ic)=>'<button type="button" class="btn btn-light btn-sm" data-pdf-action="'+action+'" aria-label="'+label+'" title="'+label+'">'+icon(ic,16)+'</button>';
   function markup(file){
     if(!file.pdfData)return '<section class="pdf-empty editor-body"><div class="pdf-empty-icon">'+icon('file-text',38)+'</div><h2>MySoft PDF</h2><p>Read, rotate and export PDFs in your workspace.</p><button class="btn btn-primary" data-pdf-action="import">'+icon('upload',17)+' Open PDF</button><small>Up to 8 MB · 500 pages · Stored on this device</small></section>';
     return '<section class="pdf-layout"><div class="pdf-toolbar" aria-label="PDF tools"><div class="pdf-tool-group">'+button('first','First PDF page','chevrons-left')+button('previous','Previous page','arrow-left')+
       '<label class="pdf-page-label">Page <input id="pdf-page-number" type="number" min="1" max="'+file.pdfPageCount+'" value="1" aria-label="PDF page number"></label><span class="pdf-page-total">of '+file.pdfPageCount+'</span>'+button('next','Next page','arrow-right')+button('last','Last PDF page','chevrons-right')+'</div>'+
-      '<label class="pdf-zoom-label">Zoom <select id="pdf-zoom" aria-label="PDF zoom"><option value="fit">Fit width</option><option value="height">Fit height</option>'+[50,75,100,125,150,200].map(n=>'<option value="'+n+'">'+n+'%</option>').join('')+'</select></label>'+button('zoom-out','Decrease PDF zoom','minus')+button('zoom-in','Increase PDF zoom','plus')+'<div class="pdf-tool-group">'+button('undo','Undo PDF edit','undo-2')+button('redo','Redo PDF edit','redo-2')+button('rotate-left','Rotate page left','rotate-ccw')+button('rotate-right','Rotate page right','rotate-cw')+'<button class="btn btn-light btn-sm" data-pdf-action="reset">Reset rotations</button></div>'+button('export-text','Export PDF text','file-text')+button('stamp-dialog','Watermark and page numbers','type')+button('merge','Merge PDFs and export','copy')+button('crop-dialog','Crop PDF pages','crop')+button('handout-dialog','PDF handout','grid')+button('size-dialog','Resize PDF pages','sliders-horizontal')+'<button class="btn btn-light btn-sm" data-pdf-action="import">'+icon('upload',15)+'<span>Open PDF</span></button></div>'+
-      '<div class="pdf-extra-tools"><div class="pdf-search-row"><input id="pdf-find" type="search" maxlength="120" aria-label="Find in PDF" placeholder="Find throughout this PDF"><button class="btn btn-light btn-sm" data-pdf-action="find">Search</button></div><div id="pdf-search-results" class="pdf-search-results" role="status"></div><details class="pdf-organize"><summary>Organize &amp; extract pages</summary><p>Use original source page numbers. Repeat pages to duplicate them, omit pages to remove them, or change their order. Original bytes stay intact.</p><label>Source pages<input id="pdf-page-order" aria-label="Source page order" maxlength="3000" value="'+pdfOrder(file).join(',')+'" placeholder="3,1-2"></label><div class="pdf-tool-group"><button class="btn btn-light btn-sm" data-pdf-action="order">Apply page order</button><button class="btn btn-light btn-sm" data-pdf-action="extract">Export these pages</button><button class="btn btn-light btn-sm" data-pdf-action="reset-order">Restore original order</button><button class="btn btn-light btn-sm" data-pdf-action="reverse-order">Reverse order</button><button class="btn btn-light btn-sm" data-pdf-action="duplicate-page">Duplicate current page</button><button class="btn btn-light btn-sm" data-pdf-action="remove-page">Remove current page</button></div></details>'+bookmarkPanel(file)+'<details class="pdf-organize-style pdf-forms-panel"><summary>Fillable forms</summary><p>Changes are saved locally. Export preserves native text and checkbox fields when the original page order is retained.</p><div id="pdf-form-fields">Inspecting fields…</div></details></div><div id="pdf-status" class="pdf-status" role="status">Opening PDF…</div><div id="pdf-viewport" class="pdf-viewport" aria-busy="true"><canvas id="pdf-canvas" role="img" aria-label="PDF page"></canvas></div><details class="pdf-text-panel"><summary>Page text</summary><pre id="pdf-page-text">Loading page text…</pre></details><input id="pdf-merge-input" type="file" accept="application/pdf,.pdf" multiple hidden aria-label="PDFs to append"></section>';
+      '<label class="pdf-zoom-label">Zoom <select id="pdf-zoom" aria-label="PDF zoom"><option value="fit">Fit width</option><option value="height">Fit height</option>'+[50,75,100,125,150,200].map(n=>'<option value="'+n+'">'+n+'%</option>').join('')+'</select></label>'+button('zoom-out','Decrease PDF zoom','minus')+button('zoom-in','Increase PDF zoom','plus')+'<div class="pdf-tool-group">'+button('undo','Undo PDF edit','undo-2')+button('redo','Redo PDF edit','redo-2')+button('rotate-left','Rotate page left','rotate-ccw')+button('rotate-right','Rotate page right','rotate-cw')+'<button class="btn btn-light btn-sm" data-pdf-action="reset">Reset rotations</button></div>'+button('export-text','Export PDF text','file-text')+button('mark-note','Add PDF sticky note','message-square')+button('mark-highlight','Highlight PDF rectangle','highlighter')+button('stamp-dialog','Watermark and page numbers','type')+button('merge','Merge PDFs and export','copy')+button('crop-dialog','Crop PDF pages','crop')+button('handout-dialog','PDF handout','grid')+button('size-dialog','Resize PDF pages','sliders-horizontal')+'<button class="btn btn-light btn-sm" data-pdf-action="import">'+icon('upload',15)+'<span>Open PDF</span></button></div>'+
+      '<div class="pdf-extra-tools"><div class="pdf-search-row"><input id="pdf-find" type="search" maxlength="120" aria-label="Find in PDF" placeholder="Find throughout this PDF"><button class="btn btn-light btn-sm" data-pdf-action="find">Search</button></div><div id="pdf-search-results" class="pdf-search-results" role="status"></div><details class="pdf-organize"><summary>Organize &amp; extract pages</summary><p>Use original source page numbers. Repeat pages to duplicate them, omit pages to remove them, or change their order. Original bytes stay intact.</p><label>Source pages<input id="pdf-page-order" aria-label="Source page order" maxlength="3000" value="'+pdfOrder(file).join(',')+'" placeholder="3,1-2"></label><div class="pdf-tool-group"><button class="btn btn-light btn-sm" data-pdf-action="order">Apply page order</button><button class="btn btn-light btn-sm" data-pdf-action="extract">Export these pages</button><button class="btn btn-light btn-sm" data-pdf-action="reset-order">Restore original order</button><button class="btn btn-light btn-sm" data-pdf-action="reverse-order">Reverse order</button><button class="btn btn-light btn-sm" data-pdf-action="duplicate-page">Duplicate current page</button><button class="btn btn-light btn-sm" data-pdf-action="remove-page">Remove current page</button></div></details>'+bookmarkPanel(file)+'<details class="pdf-organize-style pdf-forms-panel"><summary>Fillable forms</summary><p>Changes are saved locally. Export preserves native text and checkbox fields when the original page order is retained.</p><div id="pdf-form-fields">Inspecting fields…</div></details><details class="pdf-organize-style"><summary>PDF notes and highlights</summary><p>Native PDF annotations, not redactions or digital signatures.</p><div id="pdf-mark-list">'+markRows(file)+'</div></details></div><div id="pdf-status" class="pdf-status" role="status">Opening PDF…</div><div id="pdf-viewport" class="pdf-viewport" aria-busy="true"><canvas id="pdf-canvas" role="img" aria-label="PDF page"></canvas></div><details class="pdf-text-panel"><summary>Page text</summary><pre id="pdf-page-text">Loading page text…</pre></details><input id="pdf-merge-input" type="file" accept="application/pdf,.pdf" multiple hidden aria-label="PDFs to append"></section>';
   }
   function unmount(){
     viewportObserver?.disconnect();viewportObserver=null;clearTimeout(resizeTimer);
     generation++;drawGeneration++;searchGeneration++;renderTask?.cancel();renderTask=null;
-    const old=doc;doc=null;currentFile=null;edits=null;formFields=[];
+    const old=doc;doc=null;currentFile=null;edits=null;formFields=[];markMode='';markStart=null;markViewport=null;
     if(old)void closePDF(old).catch(()=>{});
   }
   async function draw(){
@@ -53,6 +58,7 @@ export function createPDFStudio(ctx){
       const base=page.getViewport({scale:1,rotation});
       const scale=zoom==='fit'?Math.min(3,Math.max(.05,(viewportNode.clientWidth-32)/base.width)):zoom==='height'?Math.min(3,Math.max(.05,(viewportNode.clientHeight-32)/base.height)):Number(zoom)/100;
       const viewport=page.getViewport({scale,rotation});
+      markViewport={viewport,sourcePage};
       if(viewport.width>8000||viewport.height>16000)throw Error('This page is too large at this zoom. Choose Fit width.');
       const ratio=Math.min(devicePixelRatio||1,2,Math.sqrt(16000000/(viewport.width*viewport.height)));
       canvas.width=Math.max(1,Math.floor(viewport.width*ratio));canvas.height=Math.max(1,Math.floor(viewport.height*ratio));
@@ -64,6 +70,14 @@ export function createPDFStudio(ctx){
       renderTask=page.render({canvasContext:canvas.getContext('2d'),viewport,transform:ratio===1?null:[ratio,0,0,ratio,0,0]});
       await renderTask.promise;
       if(token!==drawGeneration||!canvas.isConnected)return;
+      const pen=canvas.getContext('2d');pen.save();pen.scale(ratio,ratio);
+      for(const a of file.pdfAnnotations||[]){
+        if(a.page!==sourcePage)continue;
+        const p=viewport.convertToViewportPoint(a.rect[0],a.rect[1]),q=viewport.convertToViewportPoint(a.rect[2],a.rect[3]);
+        pen.fillStyle=a.kind==='highlight'?'rgba(255,206,35,.32)':'rgba(252,165,45,.82)';
+        pen.fillRect(Math.min(p[0],q[0]),Math.min(p[1],q[1]),Math.abs(p[0]-q[0]),Math.abs(p[1]-q[1]));
+      }
+      pen.restore();
       const text=await page.getTextContent();
       if(token!==drawGeneration||!canvas.isConnected)return;
       document.getElementById('pdf-page-text').textContent=text.items.map(item=>(item.str||'')+(item.hasEOL?'\n':' ')).join('').slice(0,100000)||'No extractable text on this page. Scanned pages require OCR, which is not included.';
@@ -110,7 +124,7 @@ export function createPDFStudio(ctx){
     if(!doc||!currentFile)return;
     try{
     if(action==='undo'||action==='redo'){
-      if(edits?.[action](currentFile)){ctx.changed(currentFile);searchGeneration++;document.getElementById('pdf-search-results').textContent='';pageNumber=Math.min(pageNumber,pdfOrder(currentFile).length);document.getElementById('pdf-page-order').value=pdfOrder(currentFile).join(',');refreshBookmarks();formFields.forEach(f=>{if(Object.hasOwn(currentFile.pdfFormValues||{},f.name))f.value=currentFile.pdfFormValues[f.name];});const list=document.getElementById('pdf-form-fields');if(list)list.innerHTML=formRows();refreshHistory();void draw();}return;
+      if(edits?.[action](currentFile)){ctx.changed(currentFile);searchGeneration++;document.getElementById('pdf-search-results').textContent='';pageNumber=Math.min(pageNumber,pdfOrder(currentFile).length);document.getElementById('pdf-page-order').value=pdfOrder(currentFile).join(',');refreshBookmarks();updateMarks();formFields.forEach(f=>{if(Object.hasOwn(currentFile.pdfFormValues||{},f.name))f.value=currentFile.pdfFormValues[f.name];});const list=document.getElementById('pdf-form-fields');if(list)list.innerHTML=formRows();refreshHistory();void draw();}return;
     }
     if(action==='form-edit'){
       const field=formFields.find(f=>f.name===target.dataset.pdfField);
@@ -121,6 +135,14 @@ export function createPDFStudio(ctx){
       setPDFFormValue(currentFile,field.name,value);field.value=value;commitChange();
       const list=document.getElementById('pdf-form-fields');if(list)list.innerHTML=formRows();return;
     }
+    if(action==='mark-note'||action==='mark-highlight'){
+      markMode=markMode===action.slice(5)?'':action.slice(5);
+      document.getElementById('pdf-canvas').style.cursor=markMode?'crosshair':'';
+      for(const control of document.querySelectorAll('[data-pdf-action="mark-note"],[data-pdf-action="mark-highlight"]'))control.setAttribute('aria-pressed',String(control.dataset.pdfAction==='mark-'+markMode));
+      ctx.toast(markMode==='note'?'Click the page to place a note.':markMode==='highlight'?'Drag over an area to highlight.':'Annotation mode canceled.');return;
+    }
+    if(action==='mark-jump'){const index=pdfOrder(currentFile).indexOf(Number(target.dataset.sourcePage));if(index<0)throw Error('This source page was omitted.');pageNumber=index+1;void draw();return;}
+    if(action==='mark-remove'){if(deleteAnnotation(currentFile,target.dataset.markId)){commitChange();updateMarks();void draw();}return;}
     if(action==='merge'){document.getElementById('pdf-merge-input').click();return;}
     if(action==='size-dialog'){
       document.getElementById('modal-root').innerHTML='<div class="modal-backdrop"><section class="modal cap-modal workflow-dialog advanced-dialog"><div class="workflow-kicker">MYSOFT / ADVANCED STUDIO</div><h2>Resize PDF pages</h2><p>Export up to 200 standardized sheets, one per output page, fitting vector content inside your chosen paper and margins. Rotations and crop boxes are respected. Interactive annotations and form fields are not copied.</p><div class="cap-form"><label class="cap-field">Paper size<select id="advanced-pdf-paper" aria-label="Resize paper size"><option>A4</option><option>Letter</option></select></label><label class="cap-field">Orientation<select id="advanced-pdf-orientation" aria-label="Resize orientation"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label><label class="cap-field">Margin (pt)<input id="advanced-pdf-margin" aria-label="Resize margin (pt)" type="number" min="12" max="60" value="24"></label></div><div class="modal-actions"><button class="btn btn-light" data-pdf-action="stamp-close">Cancel</button><button class="btn btn-primary" data-pdf-action="size-export">Export resized PDF</button></div></section></div>';return;
@@ -196,6 +218,35 @@ export function createPDFStudio(ctx){
     if(action==='reset'){currentFile.pdfRotations={};commitChange();}
     void draw();
     }catch(error){ctx.toast(String(error.message||error).slice(0,160));}
+  });
+  document.addEventListener('pointerdown',event=>{
+    if(!markMode||!doc||!currentFile||event.target.id!=='pdf-canvas'||event.button!==0||!markViewport)return;
+    event.preventDefault();
+    const rect=event.target.getBoundingClientRect(),{viewport,sourcePage}=markViewport;
+    markStart={viewport,sourcePage,token:drawGeneration,
+      x:Math.max(0,Math.min(viewport.width,(event.clientX-rect.left)*viewport.width/rect.width)),
+      y:Math.max(0,Math.min(viewport.height,(event.clientY-rect.top)*viewport.height/rect.height))};
+    event.target.setPointerCapture(event.pointerId);
+  });
+  document.addEventListener('pointerup',event=>{
+    if(!markStart||event.target.id!=='pdf-canvas'||!currentFile)return;
+    const start=markStart;markStart=null;
+    if(start.token!==drawGeneration||start.sourcePage!==markViewport?.sourcePage)return;
+    const box=event.target.getBoundingClientRect(),vp=start.viewport;
+    const x=Math.max(0,Math.min(vp.width,(event.clientX-box.left)*vp.width/box.width));
+    const y=Math.max(0,Math.min(vp.height,(event.clientY-box.top)*vp.height/box.height));
+    const p=vp.convertToPdfPoint(start.x,start.y),q=vp.convertToPdfPoint(x,y);
+    const rect=markMode==='note'?[p[0],p[1],p[0]+18,p[1]+18]:
+      [Math.min(p[0],q[0]),Math.min(p[1],q[1]),Math.max(p[0],q[0]),Math.max(p[1],q[1])];
+    if(markMode==='highlight'&&(Math.abs(x-start.x)<8||Math.abs(y-start.y)<8)){ctx.toast('Drag a larger area to highlight.');return;}
+    const comment=prompt(markMode==='note'?'Sticky note (up to 1000 characters):':'Highlight comment (optional):','');
+    if(comment===null)return;
+    try{
+      addAnnotation(currentFile,{id:crypto.randomUUID(),kind:markMode,page:start.sourcePage,rect,text:comment.slice(0,1000)});
+      commitChange();updateMarks();markMode='';document.getElementById('pdf-canvas').style.cursor='';
+      for(const control of document.querySelectorAll('[data-pdf-action="mark-note"],[data-pdf-action="mark-highlight"]'))control.setAttribute('aria-pressed','false');
+      void draw();
+    }catch(error){ctx.toast(error.message);}
   });
   let mergeBusy=false;
   document.addEventListener('change',async event=>{
