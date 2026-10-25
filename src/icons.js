@@ -1,5 +1,6 @@
 // Lucide 0.468.0. ISC license: assets/lucide-license.txt. Bundled for offline use.
 const paths={
+  "lock": '<rect width="14" height="11" x="5" y="11" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
   "chevrons-left": '<path d="m11 17-5-5 5-5m7 10-5-5 5-5"/>',
   "chevrons-right": '<path d="m6 17 5-5-5-5m7 10 5-5-5-5"/>',
   "align-justify": '<path d="M3 6h18M3 10h18M3 14h18M3 18h18"/>',

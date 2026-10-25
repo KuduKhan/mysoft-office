@@ -35,6 +35,10 @@ export function validateWorkspace(workspace) {
       throw new Error('Invalid or duplicate file record');
     }
     ids.add(entry.id);
+    if(entry.linkedFileIds!==undefined&&(!Array.isArray(entry.linkedFileIds)||
+      entry.linkedFileIds.length>50||new Set(entry.linkedFileIds).size!==entry.linkedFileIds.length||
+      entry.linkedFileIds.some(id=>typeof id!=='string'||!(/^[A-Za-z0-9_-]{1,200}$/).test(id)||id===entry.id)))
+      throw new Error('Invalid knowledge links');
     if(entry.type==='media'&&!validateMediaRecord(entry))throw new Error('Invalid media record');
     if(entry.type==='pdf'&&!validatePDFRecord(entry))throw new Error('Invalid PDF record');
   }

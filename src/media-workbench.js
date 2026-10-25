@@ -8,6 +8,7 @@ export function constrainShape(start,end,width,height,enabled){
 }
 export function transformMediaDrawing(file,action){
   if(!['rotate','flip','flip-v'].includes(action))throw Error('Unsupported canvas transform.');
+  if(file.mediaLayers.some(layer=>layer.locked))throw Error('Unlock drawing layers before rotating or flipping the entire canvas.');
   const layers=file.mediaLayers.map(layer=>({...layer,points:layer.points.map(([x,y])=>action==='rotate'?[1-y,x]:action==='flip'?[1-x,y]:[x,1-y])}));
   if(action==='rotate'){file.mediaEdits.rotation=(file.mediaEdits.rotation+90)%360;[file.mediaEdits.outputWidth,file.mediaEdits.outputHeight]=[file.mediaEdits.outputHeight,file.mediaEdits.outputWidth];}
   else file.mediaEdits[action==='flip'?'flipH':'flipV']=!file.mediaEdits[action==='flip'?'flipH':'flipV'];
@@ -15,7 +16,9 @@ export function transformMediaDrawing(file,action){
 }
 export function updateLayerAppearance(file,index,patch){
   if(!Number.isInteger(index)||!file.mediaLayers[index])throw Error('Select a drawing layer first.');
-  if(Object.keys(patch).some(k=>!['opacity','hidden','dash','color','width','fill'].includes(k)))throw Error('Unsupported layer property.');
+  if(Object.keys(patch).some(k=>!['opacity','hidden','dash','color','width','fill','locked'].includes(k)))throw Error('Unsupported layer property.');
+  if(file.mediaLayers[index].locked&&!(Object.keys(patch).length===1&&patch.locked===false))throw Error('Unlock the layer before editing.');
+  if(patch.locked!==undefined&&typeof patch.locked!=='boolean')throw Error('Invalid layer lock.');
   if(patch.opacity!==undefined&&(!Number.isFinite(patch.opacity)||patch.opacity<.1||patch.opacity>1))throw Error('Layer opacity must be between 10% and 100%.');
   if(patch.hidden!==undefined&&typeof patch.hidden!=='boolean')throw Error('Invalid visibility.');
   if(patch.dash!==undefined&&!['solid','dashed','dotted'].includes(patch.dash))throw Error('Choose a supported stroke style.');
