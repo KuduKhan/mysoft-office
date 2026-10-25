@@ -41,6 +41,8 @@ test('mobile ribbon group controls are usable with keyboard focus',async({page})
  expect(await buttons.count()).toBeGreaterThan(0);
  const box=await buttons.first().boundingBox();
  expect(box.height).toBeGreaterThanOrEqual(30);
- await buttons.first().focus();
- await expect(buttons.first()).toBeFocused();
+ const selector=page.locator('.ribbon-navigation [data-ribbon-group]');
+ await expect(selector).toBeEnabled();
+ await selector.focus();
+ await expect(selector).toBeFocused();
 });
