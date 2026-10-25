@@ -1,6 +1,8 @@
 const {test,expect}=require('@playwright/test');
 globalThis.self=globalThis;
-const fs=require('node:fs/promises'),{PDFDocument}=require('../../vendor/pdf-lib.min.js');
+const fs=require('node:fs/promises');
+const loaded=require('../../vendor/pdf-lib.min.js');
+const {PDFDocument}=loaded.PDFDocument?loaded:globalThis.PDFLib;
 test('PDF native form value saves and exports as editable field',async({page})=>{
  const doc=await PDFDocument.create(),sheet=doc.addPage([400,400]);
  doc.getForm().createTextField('Name').addToPage(sheet,{x:20,y:240,width:200,height:24});
