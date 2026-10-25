@@ -1,5 +1,9 @@
 // Lucide 0.468.0. ISC license: assets/lucide-license.txt. Bundled for offline use.
 const paths={
+  "chevrons-left": '<path d="m11 17-5-5 5-5m7 10-5-5 5-5"/>',
+  "chevrons-right": '<path d="m6 17 5-5-5-5m7 10 5-5-5-5"/>',
+  "align-justify": '<path d="M3 6h18M3 10h18M3 14h18M3 18h18"/>',
+  "crop": '<path d="M6 3v12a3 3 0 0 0 3 3h12M3 6h12a3 3 0 0 1 3 3v12"/><path d="M18 3v3M3 18h3"/>',
   "house": "<path d=\"M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8\" />\n  <path d=\"M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\" />",
   "folder-open": "<path d=\"m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2\" />",
   "star": "<path d=\"M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z\" />",
@@ -117,6 +121,31 @@ const paths={
   "undo-2": "<path d=\"M9 14 4 9l5-5\" />\n  <path d=\"M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11\" />",
   "redo-2": "<path d=\"m15 14 5-5-5-5\" />\n  <path d=\"M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13\" />"
 };
+// Additional geometric symbols share the same stroke and optical grid.
+const extraPaths={
+  'list-filter':'<path d="M4 6h16M7 12h10m-7 6h4"/>',
+  'grip-vertical':'<circle cx="9" cy="5" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="19" r="1"/>',
+  'square-check':'<rect x="3" y="3" width="18" height="18" rx="3"/><path d="m7 12 3 3 7-7"/>',
+  'eye':'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
+  'eye-off':'<path d="m3 3 18 18M10.6 5.1A12 12 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.1 3.9M6.2 6.2A18 18 0 0 0 2 12s3.5 7 10 7a12 12 0 0 0 5.8-1.7M10 10a3 3 0 0 0 4 4"/>',
+  'mouse-pointer-2':'<path d="m4 3 16 8-7 2-3 7-6-17Z"/>',
+  'file-scan':'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z"/><path d="M14 2v6h6M8 12v-1h2m4 0h2v1m0 4v1h-2m-4 0H8v-1"/>',
+  'clapperboard':'<rect x="3" y="8" width="18" height="13" rx="2"/><path d="m3 8-1-4 18-3 1 7M7 3l3 5m4-6 3 6"/><path d="m10 12 5 3-5 3v-6Z"/>',
+  'waveform':'<path d="M2 10v4m4-7v10m4-14v18m4-14v10m4-12v14m4-9v4"/>',
+  'film':'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 3v18M17 3v18M3 8h4m-4 8h4m10-8h4m-4 8h4M7 12h10"/>',
+  'pen-tool':'<path d="m12 3 8 8-7 9-9-1-1-9 9-7Z"/><path d="m3 3 6 6m7-8 7 7"/><circle cx="11" cy="11" r="2"/>',
+  'bookmark':'<path d="M6 4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17l-6-4-6 4V4Z"/>',
+  'book-open':'<path d="M12 5v16M3 3h5a4 4 0 0 1 4 2 4 4 0 0 1 4-2h5v16h-5a4 4 0 0 0-4 2 4 4 0 0 0-4-2H3V3Z"/>',
+  'circle-help':'<circle cx="12" cy="12" r="9"/><path d="M9.2 9a3 3 0 0 1 5.7 1c0 2-3 2-3 4m.1 3h.01"/>',
+  'message-square-text':'<path d="M21 14a3 3 0 0 1-3 3H8l-5 4V5a2 2 0 0 1 2-2h13a3 3 0 0 1 3 3v8Z"/><path d="M7 8h10M7 12h6"/>',
+  'align-horizontal-distribute-center':'<path d="M4 3v18M20 3v18M12 2v4m0 12v4"/><rect x="9" y="8" width="6" height="8" rx="1"/>',
+  'align-vertical-distribute-center':'<path d="M3 4h18M3 20h18M2 12h4m12 0h4"/><rect x="8" y="9" width="8" height="6" rx="1"/>',
+  'flip-vertical-2':'<path d="m7 3 5 5 5-5H7Zm0 18 5-5 5 5H7ZM2 12h2m4 0h2m4 0h2m4 0h2"/>',
+  'paintbrush':'<path d="m14 4 6-2 2 6-10 8-4-4 6-8Z"/><path d="M8 12c-4-1-6 2-5 5 1 2 0 4-1 5 5 0 10-2 10-6"/>',
+  'case-sensitive':'<path d="m2 19 6-14 6 14M4 14h8"/><circle cx="19" cy="16" r="3"/><path d="M22 13v6"/>',
+  'file-check-2':'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z"/><path d="M14 2v6h6m-12 7 3 3 5-6"/>'
+};
+const glyphs={...paths,...extraPaths};
 const aliases={
   "home": "house",
   "folder": "folder-open",
@@ -150,6 +179,7 @@ const aliases={
   "import": "file-up"
 };
 export const actionIcons={
+ 'align-justify':'align-justify','paragraph-indent':'arrow-right','paragraph-outdent':'arrow-left','style-h3':'type','cell-general':'table','insert-min':'arrow-down','insert-max':'arrow-up','insert-count':'table','slide-first':'chevrons-left','slide-last':'chevrons-right','present-first':'play',
   "text-bold": "bold",
   "text-italic": "italic",
   "text-underline": "underline",
@@ -235,6 +265,7 @@ export const actionIcons={
   "shape-ellipse": "circle",
   "shape-roundRect": "square",
   "shape-triangle": "triangle",
+  "shape-label": "type",
   "shape-font-up": "a-arrow-up",
   "shape-font-down": "a-arrow-down",
   "shape-align-left": "align-start-vertical",
@@ -264,9 +295,12 @@ export const actionIcons={
   "slide-remove": "trash-2",
   "slide-find-replace": "replace",
   "present": "play",
+  "mo-paragraph-apply":"check",
+  "mo-paragraph-reset":"rotate-ccw",
   "ribbon-toggle": "chevrons-up-down"
 };
+export const ICON_NAMES=Object.freeze([...new Set([...Object.keys(glyphs),...Object.keys(aliases)])]);
 export function icon(name,size=18){
- const key=aliases[name]||name;
- return '<svg class="ui-icon" xmlns="http://www.w3.org/2000/svg" width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">'+(paths[key]||paths['layout-grid'])+'</svg>';
+ const requested=aliases[name]||name,key=Object.hasOwn(glyphs,requested)?requested:'circle-help';
+ return '<svg class="ui-icon" data-icon="'+key+'" xmlns="http://www.w3.org/2000/svg" width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">'+glyphs[key]+'</svg>';
 }

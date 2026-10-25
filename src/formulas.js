@@ -29,14 +29,16 @@ export function cellRange(from, to) {
 }
 
 function scan(source) {
+  if(source.length>10000)throw Error('Formula too long');
+  source=source.trimEnd();
   const tokens=[];
-  const regex=/\s*(>=|<=|<>|[A-Z]+[1-9][0-9]*|[A-Z]+|(?:\d+(?:\.\d*)?|\.\d+)|[()+\-*/:,<>=])/gy;
+  const regex=/\s*("(?:""|[^"])*"|>=|<=|<>|[A-Z]+[1-9][0-9]*|[A-Z]+|(?:\d+(?:\.\d*)?|\.\d+)|[()+\-*/:,<>=&])/giy;
   let index=0;
   while (index<source.length) {
     regex.lastIndex=index;
     const match=regex.exec(source);
     if(!match) throw Error('Invalid expression');
-    tokens.push(match[1]);
+    tokens.push(match[1].startsWith('"')?match[1]:match[1].toUpperCase());
     index=regex.lastIndex;
   }
   return tokens;
@@ -50,7 +52,7 @@ export function evaluateCell(reference, cells, stack = new Set()) {
   const next=new Set(stack);
   next.add(key);
   try {
-    const tokens=scan(raw.slice(1).toUpperCase());
+    const tokens=scan(raw.slice(1));
     if(!tokens.length || tokens.length>1000) throw Error('Formula too long');
     let position=0;
     const peek=()=>tokens[position];
@@ -63,23 +65,30 @@ export function evaluateCell(reference, cells, stack = new Set()) {
     const refValue=(name,active=true)=>{
       if(!active)return 0; // Parse inactive IF/AND/OR branches without resolving their references.
       const value=evaluateCell(name,cells,next);
-      return numeric(value);
+      if(typeof value==='string'&&value.startsWith('#'))throw Error(value);
+      return String(value).trim()===''?0:Number.isFinite(Number(value))?Number(value):value;
     };
     const expression=(active=true)=>{
-      let value=additive(active);
+      let value=concatenation(active);
       if(['>','<','>=','<=','=','<>'].includes(peek())){
-        const op=take(),other=additive(active);
+        const op=take();let other=concatenation(active);
+        if(typeof value==='string'&&typeof other==='string'){value=value.toLocaleLowerCase();other=other.toLocaleLowerCase();}
         value=Number(op==='>'?value>other:op==='<'?value<other:
           op==='>='?value>=other:op==='<='?value<=other:
           op==='='?value===other:value!==other);
       }
       return value;
     };
+    const concatenation=(active=true)=>{
+      let value=additive(active);
+      while(peek()==='&'){take();value=String(value)+String(additive(active));if(value.length>100000)throw Error('Text result too long');}
+      return value;
+    };
     const additive=(active=true)=>{
       let value=term(active);
       while(peek()==='+' || peek()==='-') {
         const op=take(),right=term(active);
-        value=op==='+' ? value+right : value-right;
+        value=op==='+' ? numeric(value)+numeric(right) : numeric(value)-numeric(right);
       }
       return value;
     };
@@ -87,42 +96,44 @@ export function evaluateCell(reference, cells, stack = new Set()) {
       let value=factor(active);
       while(peek()==='*' || peek()==='/') {
         const op=take(),right=factor(active);
-        if(active && op==='/' && right===0) throw Error('#DIV/0!');
-        value=op==='*' ? value*right : value/right;
+        if(active && op==='/' && numeric(right)===0) throw Error('#DIV/0!');
+        value=op==='*' ? numeric(value)*numeric(right) : numeric(value)/numeric(right);
       }
       return value;
     };
     const factor=(active=true)=>{
       const token=take();
-      if(token==='-') return -factor(active);
-      if(token==='+') return factor(active);
+      if(token==='-') return -numeric(factor(active));
+      if(token==='+') return numeric(factor(active));
       if(token==='(') {
         const value=expression(active);
         if(take()!==')') throw Error('Missing closing parenthesis');
         return value;
       }
       if(!token) throw Error('Missing value');
+      if(token.startsWith('"'))return active?token.slice(1,-1).replace(/""/g,'"'):0;
       if(/^\d|^\./.test(token)) return active?Number(token):0;
       if(/^[A-Z]+[1-9][0-9]*$/.test(token)) return refValue(token,active);
-      if(['SUM','AVERAGE','MIN','MAX','COUNT','COUNTA','PRODUCT','MEDIAN','ROUND','ABS','SQRT','POWER','MOD','INT','CEILING','FLOOR','SUMSQ','STDEV','VAR','SIGN','IF','AND','OR','NOT'].includes(token) && take()==='(') {
+      if(['SUM','AVERAGE','MIN','MAX','COUNT','COUNTA','PRODUCT','MEDIAN','ROUND','ABS','SQRT','POWER','MOD','INT','CEILING','FLOOR','SUMSQ','STDEV','VAR','SIGN','IF','AND','OR','NOT','LEN','TRIM','UPPER','LOWER','CONCAT','LEFT','RIGHT'].includes(token) && take()==='(') {
         const values=[];
         let argumentIndex=0;
         // Do not evaluate unselected conditional branches, but still check their syntax.
         const evaluateArgument=()=>active && (token==='IF'
-          ? argumentIndex===0 || (argumentIndex===1 ? values[0]!==0 : values[0]===0)
-          : token==='AND' ? values.every(value=>value!==0)
-          : token==='OR' ? !values.some(value=>value!==0) : true);
+          ? argumentIndex===0 || (argumentIndex===1 ? numeric(values[0])!==0 : numeric(values[0])===0)
+          : token==='AND' ? values.every(value=>numeric(value)!==0)
+          : token==='OR' ? !values.some(value=>numeric(value)!==0) : true);
         // COUNT counts numeric values; COUNTA counts every nonempty cell,
         // including text and formulas. Both skip empty cells in ranges.
         const addCell=(ref)=>{
           if(!active)return;
           const raw=String(cells[ref]??'');
           if(raw.trim()==='')return;
+          if(token==='CONCAT'){const value=evaluateCell(ref,cells,next);if(typeof value==='string'&&value.startsWith('#'))throw Error(value);values.push(String(value));return;}
           if(token==='COUNTA'){values.push(1);return;}
           if(token==='COUNT'){
             const calculated=raw.startsWith('=')?evaluateCell(ref,cells,next):raw;
             if(typeof calculated==='string'&&calculated.startsWith('#'))throw Error(calculated);
-            if(Number.isFinite(Number(calculated)))values.push(Number(calculated));
+            if(String(calculated).trim()!==''&&Number.isFinite(Number(calculated)))values.push(Number(calculated));
             return;
           }
           values.push(refValue(ref));
@@ -132,6 +143,8 @@ export function evaluateCell(reference, cells, stack = new Set()) {
             if(/^[A-Z]+[1-9][0-9]*$/.test(peek()||'') && tokens[position+1]===':') {
               const start=take();take();const end=take();
               for(const ref of cellRange(start,end)) addCell(ref);
+            } else if(['LEN','TRIM','UPPER','LOWER','LEFT','RIGHT','CONCAT'].includes(token)&&/^[A-Z]+[1-9][0-9]*$/.test(peek()||'')&&[',',')'].includes(tokens[position+1])){
+              const ref=take(),value=active?evaluateCell(ref,cells,next):0;if(active&&typeof value==='string'&&value.startsWith('#'))throw Error(value);values.push(value);
             } else if(['COUNT','COUNTA'].includes(token) &&
               /^[A-Z]+[1-9][0-9]*$/.test(peek()||'') &&
               [',',')'].includes(tokens[position+1])){
@@ -144,16 +157,25 @@ export function evaluateCell(reference, cells, stack = new Set()) {
         }
         if(take()!==')') throw Error('Missing function parenthesis');
         if(!active)return 0;
+        if(['LEN','TRIM','UPPER','LOWER','CONCAT','LEFT','RIGHT'].includes(token)){
+          if(token==='CONCAT'){const strings=values.map(String);if(!strings.length||strings.reduce((n,s)=>n+s.length,0)>100000)throw Error('Choose a smaller text range.');return strings.join('');}
+          const slices=['LEFT','RIGHT'].includes(token);if(values.length<1||values.length>(slices?2:1))throw Error('Invalid text function arguments');const value=String(values[0]);if(value.length>100000)throw Error('Text value too long');
+          if(token==='LEN')return value.length;if(token==='TRIM')return value.trim().replace(/\s+/g,' ');if(token==='UPPER')return value.toUpperCase();if(token==='LOWER')return value.toLowerCase();
+          const count=values.length===2?Number(values[1]):1;if(!Number.isInteger(count)||count<0||count>100000)throw Error('Choose a nonnegative text length.');return count===0?'':token==='LEFT'?value.slice(0,count):value.slice(-count);
+        }
         if(token==='IF'){
           if(values.length<2||values.length>3)throw Error('IF expects condition and branches');
-          return values[0]!==0?values[1]:values[2]??0;
+          return numeric(values[0])!==0?values[1]:values[2]??0;
         }
-        if(token==='AND')return values.every(value=>value!==0)?1:0;
-        if(token==='OR')return values.some(value=>value!==0)?1:0;
+        if(token==='AND')return values.every(value=>numeric(value)!==0)?1:0;
+        if(token==='OR')return values.some(value=>numeric(value)!==0)?1:0;
         if(token==='NOT'){
           if(values.length!==1)throw Error('NOT expects one argument');
-          return values[0]===0?1:0;
+          return numeric(values[0])===0?1:0;
         }
+        if(token==='COUNTA')return values.length;
+        if(token==='COUNT')return values.filter(v=>String(v).trim()!==''&&Number.isFinite(Number(v))).length;
+        for(let i=0;i<values.length;i++)values[i]=numeric(values[i]);
         if(token==='SUM') return values.reduce((a,b)=>a+b,0);
         if(token==='AVERAGE') return values.length ? values.reduce((a,b)=>a+b,0)/values.length : 0;
         if(token==='MIN') return values.length ? Math.min(...values) : 0;
@@ -206,7 +228,9 @@ export function evaluateCell(reference, cells, stack = new Set()) {
       throw Error('Unknown token');
     };
     const result=expression();
-    if(position!==tokens.length || !Number.isFinite(result)) throw Error('Invalid result');
+    if(position!==tokens.length)throw Error('Invalid result');
+    if(typeof result==='string'){if(result.length>100000)throw Error('Text result too long');return result;}
+    if(!Number.isFinite(result)) throw Error('Invalid result');
     return Math.round((result+Number.EPSILON)*1e8)/1e8;
   } catch(error) {
     if(error.message==='#CYCLE!' || error.message==='#DIV/0!') return error.message;

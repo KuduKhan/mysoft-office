@@ -1,0 +1,123 @@
+/* Shared workbench: keep controls compact and leave the document in charge. */
+.shell:has(.editor-shell) .topbar{min-height:48px;padding-block:6px}
+.editor-shell .editor-head{gap:5px;padding:6px 12px;min-height:44px}
+.editor-head .btn{min-height:30px;padding:5px 8px;gap:5px}
+.editor-head .file-icon{width:30px;height:30px;flex:none}
+.editor-head .doc-title{min-width:95px;font-size:15px}
+.editor-head .save-mark{font-size:10px}
+.editor-shell .studio-file-tabs{padding:3px 12px;gap:4px;min-height:32px}
+.editor-shell .studio-file-tab{padding:5px 9px;min-height:26px;max-width:200px}
+.editor-shell .ot-ribbon-top{padding:3px 12px;gap:6px;min-height:34px}
+.editor-shell .ot-tab{padding:6px 10px;min-height:29px;white-space:nowrap}
+.editor-shell .ot-ribbon-meta{flex:none;margin-left:auto}
+.editor-shell .ot-ribbon-meta .ot-btn{min-height:28px;padding:4px 7px}
+.editor-shell .ot-ribbon-tools{padding:6px 12px;gap:5px;min-height:44px;max-height:min(126px,19dvh);align-items:center;scrollbar-width:thin}
+.editor-shell .ot-btn{min-height:30px;padding:5px 8px;gap:4px}
+.editor-shell .ot-select-label{font-size:11px;gap:5px;line-height:1.4;margin:0}
+.editor-shell .ot-select-label,.editor-shell .ot-select-label :is(select,input){font-family:Inter,"Segoe UI",system-ui,sans-serif}
+.editor-shell .ot-select-label :is(select,input){min-height:30px;height:30px;padding-block:4px}
+.editor-shell .ot-select-label input[type=color]{width:32px;padding:3px}
+.editor-shell .ot-metric{font-size:10px;line-height:1.5}
+.editor-shell .toolbar{min-height:34px;padding:3px 12px;gap:5px}
+.editor-shell .toolbar .sheet-hint{display:none}
+.editor-shell .toolbar :is(.tool,select){height:28px;min-height:28px}
+.editor-shell .ot-sheet-tabs{padding-block:3px;min-height:30px}
+.editor-shell .studio-statusbar{padding:4px 12px;min-height:27px;gap:6px}
+.editor-shell .doc-edit-layout{gap:12px;padding:12px}
+.editor-shell .doc-outline{padding:10px;min-width:0}
+.editor-shell .slide-layout{grid-template-columns:146px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+.editor-shell .slide-list{grid-column:1;grid-row:1/3;padding:10px;min-height:0;overflow:auto}
+.editor-shell .slide-stage-wrap{grid-column:2;grid-row:2;padding:14px;min-height:0}
+.editor-shell .slide-controls{grid-column:2;grid-row:1;display:flex;flex-wrap:wrap;gap:5px;align-items:center;padding:6px 12px;border-left:0;border-bottom:1px solid var(--studio-line);min-width:0}
+.editor-shell .slide-controls h3{display:none}
+.editor-shell .slide-controls .theme-choice{width:auto;min-height:29px;margin:0;padding:4px 8px;gap:5px;font-size:11px}
+.editor-shell .slide-controls>.btn{width:auto!important;margin:0!important;min-height:29px;padding:4px 8px}
+.editor-shell .studio-shape:not(.studio-shape-text)>.studio-shape-text{display:flex;align-items:center;justify-content:center;text-align:center;padding:8px}
+.editor-shell .note-layout{grid-template-columns:210px minmax(0,1fr)}
+.editor-shell .note-editor{padding:16px 22px;min-width:0}
+.editor-shell .studio-note-organizer{padding:8px;gap:8px;margin-block:8px}
+.editor-shell .note-title{margin-block:6px}
+.editor-shell .note-meta{margin-bottom:12px}
+.editor-shell .studio-notebook-group[hidden]{display:none!important}
+.editor-shell .media-toolbar{min-height:42px;padding:5px 12px}
+.editor-shell .media-panel-tabs{padding:6px;gap:3px}
+.editor-shell .media-workspace{grid-template-columns:minmax(0,1fr) 280px}
+.editor-shell .media-tool-panel .media-fields{gap:10px}
+.editor-shell .media-inspector-scroll{padding:2px 12px 12px}
+.editor-shell .media-panel-help{line-height:1.5}
+.editor-shell .media-stage{padding:12px}
+.editor-shell .pdf-toolbar{padding-block:5px;min-height:42px}
+.editor-shell .pdf-extra-tools{padding-block:4px}
+.editor-shell[data-panels-hidden=true] :is(.doc-outline,.note-list,.slide-controls,.media-inspector,.pdf-extra-tools){display:none!important}
+.editor-shell[data-panels-hidden=true] :is(.doc-edit-layout,.note-layout,.media-workspace){grid-template-columns:minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr)!important}
+.editor-shell[data-panels-hidden=true] .slide-layout{grid-template-rows:minmax(0,1fr)}
+.editor-shell[data-panels-hidden=true] .slide-stage-wrap{grid-row:1}
+.editor-shell[data-panels-hidden=true] .slide-list{grid-row:1}
+.ot-settings-modal .workspace-settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px;margin-block:16px}
+.ot-settings-modal .workspace-setting{display:flex;flex-direction:column;gap:5px;min-width:0;font-size:12px}
+.ot-settings-modal .workspace-setting select{margin:0;width:100%;min-width:0}
+.ot-settings-modal .studio-swatches{grid-template-columns:repeat(auto-fit,minmax(54px,1fr));gap:5px}
+.ot-settings-modal .studio-customize-nav{padding:10px;margin-block:12px}
+.ot-settings-modal .studio-customize-nav p{margin:5px 0 8px}
+.ot-settings-modal .studio-settings-tip{font-size:11px;line-height:1.6}
+@media(max-width:1100px){
+ .editor-head .editor-tool-search span,.editor-head .editor-panels-toggle span{display:none}
+ .editor-head :is(.editor-tool-search,.editor-panels-toggle){width:31px;padding:6px;justify-content:center}
+ .editor-shell .media-workspace{grid-template-columns:minmax(0,1fr) 250px}
+}
+@media(max-width:860px){
+ .shell:has(.editor-shell) .topbar{min-height:44px;padding:5px 10px}
+ .editor-shell .editor-head{padding:5px 10px;gap:4px}
+ .editor-shell .ot-ribbon-top{padding-inline:8px}
+ .editor-shell .ot-ribbon-tools{padding:5px 8px;max-height:min(112px,19dvh)}
+ .editor-shell .ot-ribbon-meta .ot-btn span{display:none}
+ .editor-shell .ot-tab{padding:6px 8px}
+ .editor-shell .ot-ribbon-tabs{flex:1 1 0;min-width:0}
+ .editor-shell .slide-layout{grid-template-columns:minmax(0,1fr);grid-template-rows:70px auto minmax(0,1fr)}
+ .editor-shell .slide-list{grid-column:1;grid-row:1;display:flex;padding:5px 8px;gap:6px;max-height:70px}
+ .editor-shell .slide-list>.btn{width:78px!important;flex:none;margin-bottom:0!important}
+ .editor-shell .slide-list .slide-item{width:116px;min-width:116px;margin:0}
+ .editor-shell .slide-controls{grid-column:1;grid-row:2;padding:4px 8px}
+ .editor-shell .slide-stage-wrap{grid-column:1;grid-row:3;padding:8px}
+ .editor-shell[data-panels-hidden=true] .slide-layout{grid-template-rows:70px minmax(0,1fr)}
+ .editor-shell[data-panels-hidden=true] .slide-stage-wrap{grid-row:2}
+ .editor-shell .note-layout{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(60px,80px) minmax(0,1fr)!important}
+ .editor-shell .note-editor{padding:12px 14px}
+ .editor-shell .note-list{padding:5px 8px;overflow:hidden}
+ .editor-shell .note-list>.spread{display:none}
+ .editor-shell .studio-note-search{height:30px;margin:0 0 4px;padding:5px 8px;font-size:11px}
+ .editor-shell #note-tree{display:flex;gap:6px;overflow:auto;max-height:37px;scrollbar-width:thin}
+ .editor-shell .studio-notebook-group{display:contents}
+ .editor-shell .note-list :is(.studio-notebook-title,.studio-notebook-section){position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%)}
+ .editor-shell .note-list-item{flex:0 0 140px;margin:0;padding:6px 8px;min-height:32px;border:1px solid var(--studio-line)}
+ .editor-shell .note-list-item strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:0;font-size:11px}
+ .editor-shell .note-list-item>span{display:none}
+ .editor-shell #note-no-results{margin:5px 0;font-size:11px}
+ .editor-shell .doc-edit-layout{padding:8px;gap:7px}
+}
+@media(max-width:700px){
+ .editor-shell .media-workspace{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1.4fr) minmax(0,1fr)}
+ .editor-shell .media-panel-tabs{padding:4px 8px}
+ .editor-shell .media-tool-panel .media-fields{gap:9px 12px}
+ .editor-shell .media-inspector-scroll{padding-inline:10px}
+ .editor-shell .media-stage{padding:8px}
+ .editor-shell .media-panel-help{font-size:10px}
+}
+@media(max-width:590px){
+ .editor-head .doc-title{flex-basis:calc(100% - 78px);font-size:14px}
+ .editor-shell .editor-head .btn{min-height:32px;width:32px;padding:6px;font-size:0;gap:0;justify-content:center}
+ .editor-shell .editor-head .btn span{display:none}
+ .editor-shell .editor-head :is(.editor-tool-search,.editor-panels-toggle){width:32px}
+ .editor-shell .studio-file-tabs{padding:3px 8px}
+ .editor-shell .studio-file-tab{max-width:145px;padding:4px 7px}
+ .editor-shell .ot-btn{min-height:32px;font-size:11px;padding:5px 7px}
+ .editor-shell .ot-select-label :is(select,input){height:32px;min-height:32px}
+ .editor-shell .studio-statusbar{padding:4px 8px}
+ .editor-shell .ot-ribbon-meta .ot-btn{width:30px;justify-content:center}
+ .editor-shell .ot-ribbon-meta .ot-btn .ui-icon{display:block}
+ .editor-shell .ot-ribbon-tools{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;max-height:none;min-height:44px}
+ .editor-shell .ot-ribbon-tools textarea{max-height:48px}
+ .editor-shell .slide-controls{flex-wrap:nowrap;overflow-x:auto}
+ .editor-shell .slide-controls>*{flex:none}
+ .ot-settings-modal .workspace-settings-grid{gap:10px}
+}

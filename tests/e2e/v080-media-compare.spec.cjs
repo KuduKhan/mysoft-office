@@ -8,7 +8,8 @@ test('Media compares original to non-destructive edits without changing saved se
    return canvas.toDataURL('image/png').split(',')[1];
  });
  await page.locator('#media-upload').setInputFiles({name:'Compare.png',mimeType:'image/png',buffer:Buffer.from(data,'base64')});
- await expect(page.locator('#media-status')).toContainText('200 × 120');
+ await expect(page.locator('#media-canvas')).toHaveAttribute('width','200');
+ await expect(page.locator('#media-canvas')).toHaveAttribute('height','120');
  const brightness=page.getByLabel('Brightness',{exact:true});
  await brightness.evaluate(input=>{input.value='140';input.dispatchEvent(new Event('change',{bubbles:true}));});
  const compare=page.locator('[data-media-action="compare"]');

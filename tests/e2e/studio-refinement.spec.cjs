@@ -34,11 +34,11 @@ test('Focus Mode hides app chrome; Escape restores',async({page})=>{
   await page.locator('[data-create="docs"]').first().click();
   await page.locator('[data-action="focus-mode"]').click();
   await expect(page.locator('.shell')).toHaveClass(/focus-mode/);
-  await expect(page.locator('.topbar')).toBeHidden();
+  await expect(page.locator('.studio-file-tabs')).toBeHidden();
   await expect(page.locator('#rich-content')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('.shell')).not.toHaveClass(/focus-mode/);
-  await expect(page.locator('.topbar')).toBeVisible();
+  await expect(page.locator('.studio-file-tabs')).toBeVisible();
 });
 
 test('mobile navigation backdrop closes and slash focuses search',async({page})=>{

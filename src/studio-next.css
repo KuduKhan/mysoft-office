@@ -1,0 +1,37 @@
+/* A restrained future-facing finish; native app identities remain intact. */
+:root{--next-edge:color-mix(in srgb,var(--studio-accent) 12%,var(--studio-line))}
+.sidebar{background:radial-gradient(ellipse at 0 0,#314365 0,transparent 56%),linear-gradient(155deg,#19263e,#111d31)}
+.sidebar .brand .brand-symbol{width:40px;height:40px;flex-basis:40px;filter:drop-shadow(0 4px 7px #0004)}
+.brand .studio-brand-copy strong{font-size:16px;font-weight:740;letter-spacing:-.6px}
+.brand .studio-brand-copy strong span{font-weight:440}
+.editor-shell .editor-head{background:linear-gradient(105deg,var(--studio-surface),color-mix(in srgb,var(--studio-accent) 3%,var(--studio-surface)));border-bottom-color:var(--next-edge)}
+.editor-shell :is(.ot-btn,.btn,.ot-select-label select,.ot-select-label input,.media-field input,.media-field select){border-radius:8px}
+.editor-shell :is(.ot-btn,.btn):hover{border-color:color-mix(in srgb,var(--studio-accent) 30%,var(--studio-line));box-shadow:0 2px 8px #142a4510}
+.editor-shell :is(.ot-tab.active,.studio-file-tab.active){box-shadow:inset 0 -2px var(--studio-accent)}
+.editor-shell .ot-ribbon-top{background:var(--studio-surface)}
+.editor-shell .media-panel-tabs button[aria-selected=true]{box-shadow:inset 0 -2px var(--media-ink)}
+.editor-shell :is(.doc-canvas,.slide-stage-wrap){background-image:radial-gradient(color-mix(in srgb,var(--studio-muted) 16%,transparent) .6px,transparent .6px);background-size:18px 18px}
+.editor-shell .document-paper{box-shadow:0 10px 32px #182a4210}
+.editor-shell .slide-stage{box-shadow:0 12px 32px #182a421b}
+.modal{border:1px solid var(--next-edge);box-shadow:0 24px 90px #091b3933;border-radius:18px}
+.cap-modal :is(input:not([type=checkbox]),select,textarea){width:100%;min-width:0;border:1px solid var(--studio-line);background:var(--ui-field);color:var(--studio-text);border-radius:8px;padding:8px;font:inherit}
+.cap-modal textarea{resize:vertical;max-height:35dvh}
+.cap-modal .cap-field{min-width:0;gap:6px;font-size:12px}
+.cap-modal .cap-form{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-block:14px;align-items:start}
+.cap-modal .cap-form>.cap-field{margin:0}
+.cap-modal .cap-result{display:flex;align-items:center;gap:9px;min-width:0;overflow-wrap:anywhere}
+.cap-modal .cap-result[hidden]{display:none!important}
+.cap-modal .cap-result small{margin-left:auto;max-width:38%;overflow-wrap:anywhere}
+.pro-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:16px 0}
+.pro-metrics>div{padding:12px 9px;border:1px solid var(--studio-line);border-radius:10px;background:var(--ui-field)}
+.pro-metrics strong{display:block;font-size:22px;letter-spacing:-.7px;color:var(--studio-text)}
+.pro-metrics span{display:block;margin-top:4px;font-size:10px;color:var(--studio-muted)}
+.cap-modal .muted{font-size:11px;line-height:1.6}
+.studio-command-item:focus-visible{outline:2px solid var(--studio-accent);outline-offset:-2px;background:var(--studio-accent-soft)}
+.studio-command-results{scroll-padding:8px}
+.studio-command-item{gap:12px;transition:background .14s,border-color .14s}
+.studio-command-item>span{min-width:0;overflow-wrap:anywhere}
+.studio-command-item small{border:1px solid var(--studio-line);padding:3px 6px;border-radius:6px;max-width:45%;white-space:normal;text-align:right}
+html[data-mode=dark] .editor-shell :is(.document-paper,.slide-stage){box-shadow:0 12px 32px #0003}
+@media(max-width:590px){.cap-modal .cap-form{gap:10px}.pro-metrics strong{font-size:19px}.cap-modal .cap-result{font-size:12px}.cap-modal .cap-result small{font-size:10px}}
+@media(prefers-reduced-motion:reduce){.editor-shell *{scroll-behavior:auto!important;transition:none!important}}

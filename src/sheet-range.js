@@ -117,9 +117,10 @@ export function transposeRange(file,source,destination){
 export function shiftRelativeFormula(formula,rowOffset,colOffset){
   const text=String(formula??'');
   if(!text.startsWith('='))return text;
-  if(/\$[A-Za-z]+\d|[A-Za-z]+\$\d/.test(text))
+  if(/\$[A-Za-z]+\d|[A-Za-z]+\$\d/.test(text.replace(/"(?:""|[^"])*"/g,'')))
     throw Error('Absolute references are not supported in this calculation engine.');
-  return text.replace(/\b([A-Za-z]+)([1-9]\d{0,3})\b/g,(match,letters,digits)=>{
+  return text.replace(/"(?:""|[^"])*"|\b([A-Za-z]+)([1-9]\d{0,3})\b/g,(match,letters,digits)=>{
+    if(!letters)return match;
     const col=letters.toUpperCase(),row=Number(digits);
     if(col.length!==1||col<'A'||col>'Z'||row>LIMIT_ROWS)throw Error('Formula reference outside A1:Z1000.');
     const newCol=col.charCodeAt(0)-65+colOffset,newRow=row+rowOffset;

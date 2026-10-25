@@ -1,0 +1,26 @@
+import {auditSheet} from './sheet-audit.js';
+import {validatePDFRecord,pdfOrder} from './pdf-model.js';
+import {validateMediaRecord,trimBounds} from './media-model.js';
+const text=html=>String(html||'').replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();
+export function inspectWorkingFile(file){
+  if(!file||!['docs','sheets','slides','notes','pdf','media'].includes(file.type))throw Error('Open a supported file first.');
+  const checks=[],add=(label,ok,detail)=>checks.push({label,status:ok?'ready':'review',detail});
+  add('File name',Boolean(file.title?.trim())&&!/^Untitled\b/i.test(file.title),file.title?.trim()||'Give this file a useful name.');
+  if(file.type==='docs'||file.type==='notes'){
+    const value=text(file.body),words=value.split(/\s+/).filter(Boolean).length;add('Content',words>0,words+' words in the current file.');
+    if(file.type==='docs'){const fields=[...value.matchAll(/\{\{([A-Za-z][A-Za-z0-9_.-]{0,39})\}\}/g)];if(fields.length)add('Template fields',false,fields.length+' unfilled fields. Use Tools → Fill template fields before sharing.');}
+    if(file.type==='docs'){const headings=(String(file.body).match(/<h[1-3]\b/gi)||[]).length;add('Structure',headings>0,headings+' headings available in the document outline.');const open=(file.comments||[]).filter(c=>!c.resolved).length;add('Review comments',open===0,open?open+' unresolved comments to review.':'No unresolved review comments.');}
+    else{const open=(value.match(/☐/g)||[]).length,done=(value.match(/☑/g)||[]).length;add('Action items',open===0,open+' open and '+done+' completed checklist items.');add('Organization',Boolean(file.notebook?.trim()&&file.section?.trim()),(file.notebook||'Personal')+' / '+(file.section||'General'));}
+  }else if(file.type==='sheets'){
+    const sheets=file.worksheets?.length?file.worksheets.map((s,i)=>({...s,cells:i===(file.activeSheetIndex||0)?file.cells:s.cells})):[{name:'Sheet 1',cells:file.cells||{}}];
+    const populated=sheets.reduce((n,s)=>n+Object.values(s.cells||{}).filter(v=>String(v).length).length,0);add('Workbook content',populated>0,populated+' populated cells across '+sheets.length+' worksheets.');
+    for(const s of sheets){try{const audit=auditSheet(s.cells,{limit:3000});add('Formulas / '+s.name,audit.errorCount===0,audit.errorCount?audit.errorCount+' formula errors: '+audit.errors.slice(0,4).map(e=>e.cell+' '+e.result).join(', '):audit.formulaCount+' formulas checked; no calculation errors found.');}catch(error){add('Formulas / '+s.name,false,error.message);}}
+  }else if(file.type==='slides'){
+    const slides=file.slides||[];add('Deck content',slides.length>0,slides.length+' slides in this presentation.');const blanks=slides.map((s,i)=>!s.title?.trim()||!s.body?.trim()&&!(s.objects||[]).some(o=>o.text?.trim())?i+1:null).filter(Boolean);add('Slide messages',!blanks.length,blanks.length?'Review title or content on slides '+blanks.slice(0,12).join(', ')+'.':'Every slide has a title and content.');const notes=slides.filter(s=>s.notes?.trim()).length;add('Speaker preparation',notes===slides.length,notes+' of '+slides.length+' slides include speaker notes.');const objects=slides.flatMap(s=>s.objects||[]);const outside=objects.filter(o=>!Number.isFinite(o.x)||!Number.isFinite(o.y)||!Number.isFinite(o.w)||!Number.isFinite(o.h)||o.w<=0||o.h<=0||o.x<0||o.y<0||o.x+o.w>100||o.y+o.h>100).length;add('Object placement',!outside,outside?outside+' objects extend outside the slide or have invalid dimensions.':objects.length+' editable objects fit within the slide bounds.');
+  }else if(file.type==='pdf'){
+    const valid=validatePDFRecord(file)&&Boolean(file.pdfData);add('PDF source',valid,valid?file.pdfPageCount+' original pages available.':'Open a valid PDF before exporting.');if(valid){const order=pdfOrder(file),unique=new Set(order);add('Output pages',true,order.length+' pages will export; '+(file.pdfPageCount-unique.size)+' original pages omitted and '+(order.length-unique.size)+' repeated.');const omitted=(file.pdfBookmarks||[]).filter(b=>!unique.has(b.page));add('Bookmark destinations',!omitted.length,omitted.length?omitted.length+' bookmarks point to omitted source pages.':'All local bookmark destinations are in the current output.');}
+  }else{
+    const valid=validateMediaRecord(file)&&file.mediaKind!=='empty';add('Media source',valid,valid?file.mediaKind+' project is ready for editing.':'Open media or start a drawing before exporting.');if(valid){add('Output canvas',true,file.mediaEdits.outputWidth+' × '+file.mediaEdits.outputHeight+' pixels.');if(['audio','video'].includes(file.mediaKind)){try{const b=trimBounds(file);add('Clip range',true,b.duration.toFixed(2)+' seconds after trim and speed settings.');}catch(error){add('Clip range',false,error.message);}}else{const visible=file.mediaLayers.filter(l=>!l.hidden).length;add('Visible layers',true,visible+' visible and '+(file.mediaLayers.length-visible)+' hidden drawing layers.');add('Output format',true,file.mediaEdits.exportFormat.toUpperCase()+' export. Workspace backup preserves layers and adjustments.');}}
+  }
+  return {type:file.type,title:file.title,reviewCount:checks.filter(c=>c.status==='review').length,checks};
+}

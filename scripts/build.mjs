@@ -6,6 +6,9 @@ const check = (file) => {
 };
 for(const file of ['src/media-model.js','src/media-render.js','src/media-io.js','src/media-studio.js'])check(file);
 for(const file of ['src/capability-core.js','src/capability-ui.js','src/media-customize.js'])check(file);
+for(const file of ['src/media-workbench.js','src/media-inspector.js'])check(file);
+for(const file of ['src/template-catalog.js','src/template-library.js','src/file-check.js'])check(file);
+for(const file of ['src/editor-enhancements.js','src/pdf-edits.js','src/studio-pro-tools.js','src/media-vector.js','src/studio-expansion.js','src/studio-expansion-ui.js','src/mo-workbench.js','src/mo-file-previews.js','src/workflow-studio.js','src/workflow-studio-ui.js','src/production-tools.js','src/production-tools-ui.js','src/pdf-handout.js','src/ribbon-workbench.js','src/advanced-tools.js','src/advanced-tools-ui.js'])check(file);
 check('src/dialog-focus.js');
 check('src/pdf-model.js');
 check('src/pdf-studio.js');
