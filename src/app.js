@@ -29,7 +29,8 @@ import { createXLSX, importXLSX } from './ooxml-xlsx.js';
 import { createPPTX, importPPTX } from './ooxml-pptx.js';
 import { SLIDE_PRESETS } from './studio-tools.js';
 import {renderedSlideObjects,getSlideObject,updateSlideObject,moveSlideObject} from './slide-objects.js';
-import {organizeNotes,noteLocation,moveNote,renameNoteCollection} from './note-structure.js';
+import {organizeNotes,noteLocation,moveNote,renameNoteCollection,relocateNoteCollection} from './note-structure.js';
+import {workspaceLinks,setWorkspaceLink} from './workspace-links.js';
 import {docComments,toggleDocComment,deleteDocComment,commentSummary} from './doc-review.js';
 import {documentGeometry,normalizedPageSettings} from './doc-layout.js';
 import {noteSearchText} from './note-search.js';
@@ -296,7 +297,7 @@ function panelsHidden(type){
   return panelState[type];
 }
 function editorWorkspaceActions(f){
-  return '<button type="button" class="btn btn-light btn-sm mo-appearance" data-ot-action="preferences" title="Workspace appearance" aria-label="Customize workspace">'+icon('settings',15)+'</button>'+(['pdf','media'].includes(f.type)?'<button type="button" class="btn btn-light btn-sm mo-file-action" data-action="file-menu" aria-label="File actions" aria-haspopup="dialog">'+icon('folder',15)+'</button>':'')+'<button type="button" class="btn btn-light btn-sm editor-tool-search" data-action="commands" title="Find editor tools (Ctrl+K)" aria-label="Find editor tools">'+icon('search',15)+'<span>Find tools</span></button>'+(['docs','slides','notes','pdf','media'].includes(f.type)?'<button type="button" class="btn btn-light btn-sm editor-panels-toggle" data-action="editor-panels" aria-pressed="'+!panelsHidden(f.type)+'" aria-label="'+(panelsHidden(f.type)?'Show':'Hide')+' editor panels" title="Show or hide supporting panels">'+icon('panel-left',15)+'<span>Panels</span></button>':'');
+  return '<button type="button" class="btn btn-light btn-sm" data-action="knowledge-links" title="Linked files and backlinks" aria-label="Knowledge links">'+icon('link',15)+'<span>Links</span></button><button type="button" class="btn btn-light btn-sm mo-appearance" data-ot-action="preferences" title="Workspace appearance" aria-label="Customize workspace">'+icon('settings',15)+'</button>'+(['pdf','media'].includes(f.type)?'<button type="button" class="btn btn-light btn-sm mo-file-action" data-action="file-menu" aria-label="File actions" aria-haspopup="dialog">'+icon('folder',15)+'</button>':'')+'<button type="button" class="btn btn-light btn-sm editor-tool-search" data-action="commands" title="Find editor tools (Ctrl+K)" aria-label="Find editor tools">'+icon('search',15)+'<span>Find tools</span></button>'+(['docs','slides','notes','pdf','media'].includes(f.type)?'<button type="button" class="btn btn-light btn-sm editor-panels-toggle" data-action="editor-panels" aria-pressed="'+!panelsHidden(f.type)+'" aria-label="'+(panelsHidden(f.type)?'Show':'Hide')+' editor panels" title="Show or hide supporting panels">'+icon('panel-left',15)+'<span>Panels</span></button>':'');
 }
 function editorHead(f){
   return '<div class="editor-head"><button class="icon-btn" data-action="close-editor" title="Back to files">'+icon('back',19)+'</button><span class="file-icon '+f.type+'">'+icon(fileIcon(f),18)+'</span><input class="doc-title" id="document-title" aria-label="File title" value="'+esc(f.title)+'" maxlength="120"><div class="save-mark" id="save-status" role="status">'+esc(saveLabel())+'</div>'+editorWorkspaceActions(f)+templateLibrary.editorActions()+(['notes','pdf','media'].includes(f.type)?'':'<button class="btn btn-soft btn-sm" data-action="office-export">'+icon('download',15)+' '+({docs:'DOCX',sheets:'XLSX',slides:'PPTX'}[f.type])+'</button>')+'<button class="btn btn-light btn-sm" data-action="revisions">'+icon('clock',15)+' History</button><button class="btn btn-light btn-sm" data-action="export">'+icon('download',15)+' Export</button><button type="button" class="btn btn-light btn-sm studio-focus-toggle" data-action="focus-mode" aria-pressed="'+focusMode+'" title="'+(focusMode?'Exit':'Enter')+' focus mode">'+icon('focus',14)+'<span class="studio-focus-label">'+(focusMode?'Exit focus':'Focus')+'</span></button></div>';
@@ -353,7 +354,7 @@ function notesEditor(f){
     book.sections.map(sec=>'<div class="studio-notebook-section">'+esc(sec.title)+'</div>'+
       sec.notes.map(n=>'<button class="note-list-item '+(n.id===f.id?'active':'')+'" data-note-search-item="'+esc(noteSearchText(n).slice(0,3500))+'" data-open="'+esc(n.id)+'"><strong>'+esc(n.title)+'</strong><span>'+dateText(n.updatedAt)+'</span></button>').join('')
     ).join('')+'</div>').join('');
-  return '<div class="note-layout"><div class="note-list"><div class="spread"><h3>Notebooks</h3><button class="icon-btn" data-create="notes" title="New note">'+icon('plus',16)+'</button></div>'+'<input id="note-search" type="search" class="studio-note-search" aria-label="Search notebooks and notes" placeholder="Search title, tags, content…"><p id="note-no-results" class="studio-note-no-results" hidden>No matching notes.</p><div id="note-tree">'+tree+'</div></div>'+
+  return '<div class="note-layout"><div class="note-list"><div class="spread"><h3>Notebooks</h3><button class="icon-btn" data-action="note-bulk-move" title="Move current notebook or section" aria-label="Move notebook">'+icon('folder-input',16)+'</button><button class="icon-btn" data-create="notes" title="New note">'+icon('plus',16)+'</button></div>'+'<input id="note-search" type="search" class="studio-note-search" aria-label="Search notebooks and notes" placeholder="Search title, tags, content…"><p id="note-no-results" class="studio-note-no-results" hidden>No matching notes.</p><div id="note-tree">'+tree+'</div></div>'+
     '<div class="note-editor"'+(f.noteCanvas?' data-custom-canvas="true"':'')+' style="'+esc(noteCanvasStyle(f))+'"><div class="studio-note-heading"><div class="eyebrow">MY NOTES</div>'+
     '<button type="button" class="studio-pin-btn '+(f.pinned?'is-pinned':'')+'" data-note-pin="true" aria-pressed="'+Boolean(f.pinned)+'">'+icon('pin',14)+'<span>'+(f.pinned?'Pinned':'Pin note')+'</span></button></div><div class="studio-note-organizer">'+
     '<label>Notebook<input id="note-notebook" aria-label="Notebook" maxlength="40" value="'+esc(location.notebook)+'"></label>'+
@@ -471,6 +472,16 @@ function modal(kind,id){
     modalRoot.innerHTML='<div class="modal-backdrop"><form class="modal" id="new-form"><h2>Create a new file</h2><p>Choose an app and give your file a name.</p><label for="new-type">Application</label><select id="new-type" name="type">'+Object.keys(labels).map(t=>'<option value="'+t+'"'+(t===preferredType?' selected':'')+'>'+labels[t]+'</option>').join('')+'</select><label for="new-title">File name</label><input id="new-title" name="title" placeholder="Untitled file" maxlength="120" autofocus><div class="modal-actions"><button type="button" class="btn btn-light" data-template-browse="all">Explore templates</button><button type="button" class="btn btn-light" data-action="modal-close">Cancel</button><button class="btn btn-primary" type="submit">Create file</button></div></form></div>';
   } else if(kind==='delete'&&f){
     modalRoot.innerHTML='<div class="modal-backdrop"><div class="modal"><h2>Move to recycle bin?</h2><p><strong>'+esc(f.title)+'</strong> can be restored from your recycle bin.</p><div class="modal-actions"><button class="btn btn-light" data-action="modal-close">Cancel</button><button class="btn btn-dark" data-action="confirm-delete" data-id="'+esc(f.id)+'">Move to bin</button></div></div></div>';
+  } else if(kind==='knowledge-links'&&f){
+    const details=workspaceLinks(files,f.id);
+    const entry=(item,remove)=>'<div class="spread" style="padding:7px 0;gap:8px"><span>'+esc(({docs:'Docs',sheets:'Sheets',slides:'Slides',notes:'Notes',pdf:'PDF',media:'Media'}[item.type]||item.type)+' · '+item.title)+'</span><span><button class="btn btn-light btn-sm" data-action="knowledge-open" data-link-id="'+esc(item.id)+'">Open</button>'+(remove&&f.linkedFileIds?.includes(item.id)?'<button class="btn btn-light btn-sm" data-action="knowledge-remove" data-link-id="'+esc(item.id)+'">Unlink</button>':'')+'</span></div>';
+    const available=files.filter(item=>item.id!==f.id&&!details.outgoing.some(other=>other.id===item.id));
+    modalRoot.innerHTML='<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-label="Knowledge links"><h2>Knowledge links</h2><p>Stable file links and backlinks across Docs, Sheets, Slides, Notes, PDF and Media. Renaming or moving a file keeps its links. The links are included in local backups.</p>'+
+      '<h3>Linked from this file</h3>'+(details.outgoing.map(x=>entry(x,true)).join('')||'<p class="muted">No outgoing links yet.</p>')+
+      (details.missing.length?'<p class="muted">'+details.missing.length+' links refer to missing or deleted files.</p>':'')+
+      '<h3>Links pointing here</h3>'+(details.incoming.map(x=>entry(x,false)).join('')||'<p class="muted">No incoming links yet.</p>')+
+      '<label for="knowledge-target">Link another file</label><select id="knowledge-target" aria-label="Choose file to link">'+available.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.title+' ('+x.type+')')+'</option>').join('')+'</select>'+
+      '<div class="modal-actions"><button class="btn btn-primary" data-action="knowledge-add" '+(!available.length?'disabled':'')+'>Add link</button><button class="btn btn-light" data-action="modal-close">Close</button></div></section></div>';
   } else if(kind==='revisions'&&f){
     snapshot(f,true);persist();
     const entries=[...(revisions[f.id]||[])].reverse();
@@ -923,6 +934,26 @@ document.addEventListener('click',event=>{
     return;
   }
   const action=el.dataset.action;
+  if(action==='knowledge-links'){if(getActive())modal('knowledge-links',getActive().id);return;}
+  if(['knowledge-add','knowledge-remove','knowledge-open'].includes(action)){
+    const source=getActive();if(!source)return;
+    const target=action==='knowledge-add'?document.getElementById('knowledge-target')?.value:el.dataset.linkId;
+    if(action==='knowledge-open'){if(files.some(f=>f.id===target)){closeModal();openFile(target);}return;}
+    try{if(setWorkspaceLink(files,source.id,target,action==='knowledge-add')){touch(source);void persist();}
+      modal('knowledge-links',source.id);
+    }catch(error){toast(error.message);}
+    return;
+  }
+  if(action==='note-bulk-move'){
+    const f=getActive();if(f?.type!=='notes')return;
+    const location=noteLocation(f);
+    const scope=confirm('Move the ENTIRE notebook "'+location.notebook+'"? Choose Cancel to move only the current section.');
+    const destination=prompt('Destination notebook (all matching notes retain their original content):',location.notebook);
+    if(destination===null)return;
+    try{const updated=relocateNoteCollection(files,{notebook:location.notebook,section:scope?null:location.section,destinationNotebook:destination});
+      for(const item of updated)touch(item);void persist();render();toast(updated.length+' notes moved.');
+    }catch(error){toast(error.message);}return;
+  }
   if(action==='mobile'){setMobileNavigation(!mobileOpen);return;}
   if(action==='mobile-close'||action==='mobile-dismiss'){setMobileNavigation(false,true);return;}
   if(action==='nav-collapse'){setCollapsedSidebar(!navCollapsed);return;}

@@ -45,6 +45,7 @@ export function validateMediaRecord(file){
   let count=0;
   for(const layer of file.mediaLayers){
     if(!layer||!['pen','erase','rect','ellipse','line','arrow','triangle'].includes(layer.kind)||!hex(layer.color)||!finite(layer.width,.0001,.2)||typeof layer.fill!=='boolean'||!Array.isArray(layer.points)||!layer.points.length||layer.points.length>2000)return false;
+    if(layer.locked!==undefined&&typeof layer.locked!=='boolean')return false;
     if(layer.hidden!==undefined&&typeof layer.hidden!=='boolean'||layer.opacity!==undefined&&!finite(layer.opacity,.1,1)||layer.dash!==undefined&&!['solid','dashed','dotted'].includes(layer.dash))return false;
     count+=layer.points.length;
     if(layer.points.some(p=>!Array.isArray(p)||p.length!==2||!finite(p[0],0,1)||!finite(p[1],0,1)))return false;

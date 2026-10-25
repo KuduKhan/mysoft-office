@@ -74,3 +74,20 @@ export function tagNotebookNotes(files,notebook,tag){
   for(const {note,tags} of planned)note.tags=tags;
   return {matched:matched.length,changed:planned.map(entry=>entry.note)};
 }
+
+// Move a whole notebook or one section without changing note IDs or bodies.
+export function relocateNoteCollection(files,{notebook,section=null,destinationNotebook,destinationSection=null}={}){
+  if(!Array.isArray(files))throw Error('Notes collection is unavailable.');
+  const safeValue=(value,label)=>{const raw=String(value??'').trim();if(!raw||raw.length>40||/[<>]/.test(raw))throw Error(label+' must have 1–40 characters without angle brackets.');return safeCollectionName(raw);};
+  const sourceBook=safeValue(notebook,'Source notebook'),destBook=safeValue(destinationNotebook,'Destination notebook');
+  const sourceSection=section===null?null:safeValue(section,'Source section');
+  const destSection=destinationSection===null?null:safeValue(destinationSection,'Destination section');
+  const matched=files.filter(f=>f?.type==='notes'&&noteLocation(f).notebook===sourceBook&&
+    (sourceSection===null||noteLocation(f).section===sourceSection));
+  if(!matched.length||matched.length>500)throw Error('Select a notebook or section containing 1–500 notes.');
+  const plan=matched.map(file=>({
+    file,notebook:destBook,section:destSection||(sourceSection===null?noteLocation(file).section:sourceSection)
+  }));
+  for(const item of plan){item.file.notebook=item.notebook;item.file.section=item.section;}
+  return plan.map(item=>item.file);
+}

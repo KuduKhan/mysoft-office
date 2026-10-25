@@ -1,5 +1,9 @@
 # MySoft Office
 
+## Capability completion gate (in progress; no new release number)
+
+Cross-application knowledge links now persist as stable file-ID edges and show backlinks across all six editors; Notes supports whole-notebook or section moves without rewriting note bodies. Media drawing layers support persistent locks that prevent inadvertent edits, reorder, transforms or destructive clearing; WebM export now checks for a valid container header before delivering output. Additional PDF form and annotation reliability work is tracked separately. **These are scoped foundations, not a claim that the entire requested PDF and Media production suites are complete.**
+
 ## v0.12.0 — Conflict-aware cloud snapshots
 
 A dedicated **Review cloud and local files** screen now compares the current local workspace to the optional signed-in cloud snapshot before uploads or restores. Uploads use the cloud record's `updated_at` as a conditional compare-and-swap version, so a stale device cannot silently overwrite an intervening write. Initial creation is insert-only, not upsert. Restores recheck cloud freshness, require confirmation, download a local JSON backup, and preserve IndexedDB transaction safety. Remote snapshots can be exported without replacing local documents. This is **explicit, manual snapshot transfer**, not automatic/background sync or collaboration. The cloud feature remains disabled until a separate dedicated MySoft Supabase project is configured. See [v0.12.0 notes](RELEASE_0_12_0.md) and [cloud setup](CLOUD_SETUP.md).

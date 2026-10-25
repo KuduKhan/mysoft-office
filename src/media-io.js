@@ -78,7 +78,20 @@ export async function exportVideo(file,video,canvas,graph,{signal,onProgress}){
       if(recorder.state!=='inactive')recorder.stop();else cleanup();
     };
     const cancel=()=>stop(new DOMException('Export canceled','AbortError'));
-    const cleanup=()=>{signal.removeEventListener('abort',cancel);stream.getTracks().forEach(track=>track.stop());if(failure)reject(failure);else if(parts.length)resolve(new Blob(parts,{type:recorder.mimeType}));else reject(Error('Video encoder produced no output.'));};
+    const cleanup=async()=>{
+      signal.removeEventListener('abort',cancel);stream.getTracks().forEach(track=>track.stop());
+      if(failure){reject(failure);return;}
+      const output=new Blob(parts,{type:recorder.mimeType});
+      if(output.size<32||!/^video\/webm(?:;|$)/i.test(output.type)){
+        reject(Error('The browser did not produce a usable WebM file. Original media is unchanged.'));return;
+      }
+      try{
+        const header=new Uint8Array(await output.slice(0,4).arrayBuffer());
+        if(header[0]!==0x1a||header[1]!==0x45||header[2]!==0xdf||header[3]!==0xa3)
+          throw Error('Recorded video has an invalid WebM header; export canceled.');
+        resolve(output);
+      }catch(error){reject(error);}
+    };
     recorder.ondataavailable=event=>{if(event.data.size)parts.push(event.data);};
     recorder.onstop=cleanup;recorder.onerror=()=>stop(Error('Video encoding failed. Try a shorter clip or smaller output.'));
     const tick=()=>{

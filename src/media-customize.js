@@ -17,6 +17,7 @@ export function trimAudioSilence(channels,sampleRate,threshold=.01){
 export function editMediaLayer(file,index,action){
   if(!Number.isInteger(index)||index<0||index>=file.mediaLayers.length)throw Error('Choose a drawing layer first.');
   const layers=structuredClone(file.mediaLayers),layer=layers[index];let selected=index;
+  if(layer.locked)throw Error('Unlock the layer before editing or moving it.');
   if(action==='delete'){layers.splice(index,1);selected=Math.min(index,layers.length-1);}
   else if(action==='duplicate'){if(layers.length>=300||layers.reduce((n,l)=>n+l.points.length,0)+layer.points.length>20000)throw Error('Drawing layer limit reached.');layers.splice(index+1,0,structuredClone(layer));selected=index+1;}
   else if(action==='center'||action==='middle'){const xs=layer.points.map(p=>p[0]),ys=layer.points.map(p=>p[1]),dx=action==='center'?(1-Math.min(...xs)-Math.max(...xs))/2:0,dy=action==='middle'?(1-Math.min(...ys)-Math.max(...ys))/2:0;layer.points=layer.points.map(([x,y])=>[x+dx,y+dy]);}
