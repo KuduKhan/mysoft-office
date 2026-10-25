@@ -8,8 +8,16 @@ test('PDF note is saved and exported as a real annotation',async({page})=>{
  await expect(page.locator('#pdf-status')).toContainText('Page 1 of 1');
  await page.locator('[data-pdf-action="mark-note"]').click();
  page.once('dialog',dialog=>dialog.accept('QA review'));
- const c=await page.locator('#pdf-canvas').boundingBox();
- await page.mouse.click(c.x+c.width*.4,c.y+c.height*.4);
+ // PDF pages may extend below the scrollable viewport; click an actually visible
+ // part of the canvas rather than a point 40% down an off-screen PDF page.
+ await expect(page.locator('[data-pdf-action="mark-note"]')).toHaveAttribute('aria-pressed','true');
+ await page.locator('#pdf-viewport').evaluate(node=>{node.scrollTop=0;});
+ const canvas=await page.locator('#pdf-canvas').boundingBox();
+ const frame=await page.locator('#pdf-viewport').boundingBox();
+ const x=canvas.x+Math.min(55,canvas.width*.25);
+ const y=Math.max(frame.y+20,canvas.y+Math.min(38,canvas.height*.15));
+ expect(y).toBeLessThan(frame.y+frame.height-10);
+ await page.mouse.click(x,y);
  await expect(page.locator('#pdf-mark-list')).toContainText('QA review');
  await page.keyboard.press('Control+s');await page.reload();
  await expect(page.locator('#pdf-mark-list')).toContainText('QA review');
