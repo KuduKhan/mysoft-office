@@ -31,6 +31,7 @@ import { SLIDE_PRESETS } from './studio-tools.js';
 import {renderedSlideObjects,getSlideObject,updateSlideObject,moveSlideObject} from './slide-objects.js';
 import {organizeNotes,noteLocation,moveNote,renameNoteCollection,relocateNoteCollection} from './note-structure.js';
 import {workspaceLinks,setWorkspaceLink} from './workspace-links.js';
+import {auditWorkspace} from './workspace-audit.js';
 import {docComments,toggleDocComment,deleteDocComment,commentSummary} from './doc-review.js';
 import {documentGeometry,normalizedPageSettings} from './doc-layout.js';
 import {noteSearchText} from './note-search.js';
@@ -237,13 +238,13 @@ function sidebar(){
   const action=(id,title,ic,text=title)=>'<button type="button" class="nav-link" data-action="'+id+'" title="'+esc(title)+'" aria-label="'+esc(title)+'">'+icon(ic,17)+'<span class="nav-label">'+esc(text)+'</span></button>';
   return '<aside class="sidebar '+(mobileOpen?'open':'')+'" id="studio-sidebar" aria-label="Workspace navigation">'+
     '<div class="studio-sidebar-top"><div class="brand"><img class="brand-symbol" src="assets/mysoft-mark.svg" width="42" height="42" alt="" aria-hidden="true"><div class="studio-brand-copy"><strong>MySoft <span>Office</span></strong></div><button type="button" class="studio-nav-collapse" data-action="nav-collapse" title="'+(navCollapsed?'Expand':'Collapse')+' sidebar" aria-label="'+(navCollapsed?'Expand':'Collapse')+' sidebar" aria-pressed="'+navCollapsed+'">'+icon('menu',16)+'</button><button type="button" class="studio-sidebar-dismiss" data-action="mobile-dismiss" aria-label="Close navigation" title="Close navigation">'+icon('x',17)+'</button></div></div>'+
-    '<nav class="sidebar-nav" aria-label="Primary navigation"><div class="nav-caption">Workspace</div>'+nav('home','Overview','home')+nav('files','My files','folder','<span class="count">'+files.length+'</span>')+nav('starred','Starred','star')+nav('templates','Templates','grid')+nav('trash','Recycle bin','trash','<span class="count">'+trashFiles.length+'</span>')+
+    '<nav class="sidebar-nav" aria-label="Primary navigation"><div class="nav-caption">Workspace</div>'+nav('home','Overview','home')+nav('files','My files','folder','<span class="count">'+files.length+'</span>')+nav('starred','Starred','star')+nav('templates','Templates','grid')+nav('knowledge','Knowledge Studio','workflow')+nav('trash','Recycle bin','trash','<span class="count">'+trashFiles.length+'</span>')+
     '<div class="nav-caption">Applications</div>'+Object.keys(labels).map(t=>nav(t,labels[t],typeIcons[t],'',labels[t].replace('MySoft ',''))).join('')+'</nav>'+
     '<footer class="side-foot"><div class="storage-help">Files stay on this device.</div><div class="sidebar-utilities">'+
     action('cloud','Cloud snapshots','cloud','Cloud')+action('import-file','Import file','import')+action('backup','Export backup','download','Backup')+action('import','Import backup','upload','Restore')+'</div></footer></aside>';
 }
 function header(){
-  const current=view==='editor'?labels[getActive()?.type]||'Editor':({home:'Overview',files:'My files',starred:'Starred',templates:'Templates',trash:'Recycle bin'})[view]||labels[view]||'Workspace';
+  const current=view==='editor'?labels[getActive()?.type]||'Editor':({home:'Overview',files:'My files',starred:'Starred',templates:'Templates',knowledge:'Knowledge Studio',trash:'Recycle bin'})[view]||labels[view]||'Workspace';
   return '<header class="topbar"><div class="topbar-left"><button class="icon-btn mobile-menu" data-action="mobile" aria-label="Open navigation" aria-expanded="'+mobileOpen+'" aria-controls="studio-sidebar">'+icon('menu')+'</button><div class="studio-breadcrumb"><button data-nav="home">Workspace</button><span aria-hidden="true">/</span><strong>'+esc(current)+'</strong></div><div class="searchbox">'+icon('search',17)+'<input id="global-search" aria-label="Search filenames and content" placeholder="Search files and content  /" value="'+esc(query)+'"></div></div><div class="top-actions"><button class="btn btn-light studio-command-trigger" data-action="commands" title="Search commands (Ctrl+K)" aria-label="Search commands">'+icon('command',16)+'<span>Commands</span></button><button class="btn btn-light studio-customize" data-ot-action="preferences" title="Customize workspace" aria-label="Customize workspace">'+icon('settings',16)+'<span>Customize</span></button><button class="btn btn-primary" data-action="new">'+icon('plus',16)+'<span>New file</span></button><div class="avatar" title="Local workspace">MS</div></div></header>';
 }
 function appTiles(){
@@ -288,6 +289,21 @@ function filesPage(){
   return '<div class="content"><div class="spread page-heading"><div><h1>'+esc(title)+'</h1><p class="subtitle">'+(query.trim()?list.length+' results for “'+esc(query.trim().slice(0,128))+'”':list.length+' files · Saved in this browser')+'</p></div>'+(view!=='trash'?'<div class="mo-view-switch" role="group" aria-label="File display"><button type="button" data-action="files-list" aria-label="List view" aria-pressed="'+(fileDisplay==='list')+'">'+icon('list-tree',16)+'</button><button type="button" data-action="files-grid" aria-label="Grid view" aria-pressed="'+(fileDisplay==='grid')+'">'+icon('grid',16)+'</button></div>':'')+'</div>'+
     '<div class="spread file-filters"><label class="row"><span class="muted">File type</span><select id="file-filter" aria-label="Filter by file type"><option value="all">All types</option>'+Object.keys(labels).map(t=>'<option value="'+t+'" '+(fileFilter===t?'selected':'')+'>'+labels[t]+'</option>').join('')+'</select></label><span class="muted">Recently edited first</span></div>'+
     (fileDisplay==='grid'&&view!=='trash'&&list.length?previewCards(list):renderRows(list))+'</div>';
+}
+function knowledgePage(){
+  const report=auditWorkspace({files,trash:trashFiles,versions:revisions});
+  const metric=(value,label)=>'<div class="panel" style="padding:16px;min-width:130px;flex:1"><strong style="font-size:24px">'+value+'</strong><div class="muted">'+esc(label)+'</div></div>';
+  const items=files.filter(f=>f.title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())||f.type.includes(query.trim().toLocaleLowerCase()));
+  const card=f=>{
+    const connections=workspaceLinks(files,f.id);
+    return '<div class="panel" style="padding:14px;display:flex;gap:9px;align-items:center;justify-content:space-between;flex-wrap:wrap"><div><strong>'+esc(f.title)+'</strong><div class="muted">'+esc(typeNames[f.type])+' · '+connections.outgoing.length+' linked · '+connections.incoming.length+' backlinks'+(connections.missing.length?' · '+connections.missing.length+' unavailable':'')+'</div></div><button class="btn btn-light btn-sm" data-open="'+esc(f.id)+'">Open and manage links</button></div>';
+  };
+  const issue=({source,targetId,target})=>'<div class="panel" style="padding:10px"><button class="link-button" data-open="'+esc(source.id)+'">'+esc(source.title)+'</button> → '+esc(target?.title||targetId)+(target?' (recycle bin)':' (missing)')+'</div>';
+  return '<div class="content" style="display:grid;gap:16px"><div class="page-heading"><h1>Knowledge Studio</h1><p class="subtitle">Files, relationships and revision history across all six applications. This view is read-only; open a file to change its links.</p></div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:10px">'+metric(report.files,'Active files')+metric(report.linkedFiles,'Connected files')+metric(report.edges.length,'Active relationships')+metric(report.history.length,'Files with history')+'</div>'+
+    '<section><h2>Knowledge connections</h2><p class="muted">File names can change without breaking ID-based relationships. Content is never moved or deleted by the graph.</p><div style="display:grid;gap:8px">'+(items.length?items.map(card).join(''):'<p>No files match this search.</p>')+'</div></section>'+
+    '<section><h2>Link integrity</h2><p class="muted">Deleted targets are shown separately from files missing entirely. Restore deleted files from the recycle bin to recover their references.</p><div style="display:grid;gap:7px">'+(report.broken.length+report.recycledEdges.length?[...report.broken,...report.recycledEdges].map(issue).join(''):'<p>No missing or recycled link targets.</p>')+'</div></section>'+
+    '<section><h2>Project history</h2><p class="muted">The latest locally saved snapshots, with up to 12 entries per file.</p><div style="display:grid;gap:7px">'+(report.history.length?report.history.slice(0,30).map(item=>'<div class="panel" style="padding:12px"><button class="link-button" data-open="'+esc(item.file.id)+'">'+esc(item.file.title)+'</button> · '+item.count+' revisions · '+esc(dateText(item.latest))+'</div>').join(''):'<p>No revision snapshots yet.</p>')+'</div></section></div>';
 }
 function templatesPage(){return templateLibrary.gallery();}
 const panelState={};
@@ -377,7 +393,7 @@ function editor(){
 function render(){
   pdfStudio.unmount();mediaStudio.unmount();
   const nativeApp=view==='editor'?getActive()?.type:typeNames[view]?view:'workspace';
-  app.innerHTML='<div class="shell '+(navCollapsed?'nav-collapsed ':'')+(view==='editor'?'mo-editing ':'')+(focusMode&&view==='editor'?'focus-mode':'')+'">'+'<a class="studio-skip-link" href="#studio-main">Skip to main content</a>'+sidebar()+'<button type="button" class="studio-mobile-scrim" data-action="mobile-close" aria-label="Close navigation" hidden></button><main class="main" id="studio-main" data-app="'+(nativeApp||'workspace')+'" tabindex="-1">'+(view==='editor'?'':header())+(view==='editor'?editor():view==='home'?home():view==='templates'?templatesPage():filesPage())+'</main></div>';
+  app.innerHTML='<div class="shell '+(navCollapsed?'nav-collapsed ':'')+(view==='editor'?'mo-editing ':'')+(focusMode&&view==='editor'?'focus-mode':'')+'">'+'<a class="studio-skip-link" href="#studio-main">Skip to main content</a>'+sidebar()+'<button type="button" class="studio-mobile-scrim" data-action="mobile-close" aria-label="Close navigation" hidden></button><main class="main" id="studio-main" data-app="'+(nativeApp||'workspace')+'" tabindex="-1">'+(view==='editor'?'':header())+(view==='editor'?editor():view==='home'?home():view==='templates'?templatesPage():view==='knowledge'?knowledgePage():filesPage())+'</main></div>';
   syncSidebarAccess();
   updateSaveStatus(saveState);
   if(view==='editor'&&getActive()?.type==='pdf')void pdfStudio.mount(getActive());
@@ -457,7 +473,7 @@ function restoreRoute(){
     }catch{}
   }
   const page=route.startsWith('#/')?route.slice(2):'home';
-  if(['home','files','starred','templates','trash',...Object.keys(typeNames)].includes(page)){view=page;activeId=null;}
+  if(['home','files','starred','templates','knowledge','trash',...Object.keys(typeNames)].includes(page)){view=page;activeId=null;}
   else {view='home';activeId=null;}
 }
 function newFile(type,title){
@@ -503,7 +519,7 @@ function modal(kind,id){
       ['create:slides','New presentation','Slides'],['create:notes','New note','Notes'],
       ['create:pdf','Open PDF workspace','PDF'],['create:media','Open Media workspace','Media'],
       ['nav:home','Home dashboard','Workspace'],['nav:files','All files','Workspace'],
-      ['nav:templates','Browse app templates','Workspace'],['nav:starred','Starred files','Workspace'],['action:preferences','Appearance and colors','Settings'],
+      ['nav:templates','Browse app templates','Workspace'],['nav:knowledge','Knowledge Studio and project history','Workspace'],['nav:starred','Starred files','Workspace'],['action:preferences','Appearance and colors','Settings'],
       ['action:save','Save locally','File']
     ];
     if(view==='editor'&&getActive()){
@@ -850,7 +866,7 @@ document.addEventListener('click',event=>{
     if(id.startsWith('create:')){
       const type=id.slice(7);if(Object.hasOwn(typeNames,type))newFile(type,'Untitled '+typeNames[type]);
     }else if(id.startsWith('nav:')){
-      const dest=id.slice(4);if(['home','files','starred','templates'].includes(dest))navigate(dest);
+      const dest=id.slice(4);if(['home','files','starred','templates','knowledge'].includes(dest))navigate(dest);
     }else if(id.startsWith('file:')){
       const target=id.slice(5);if(files.some(f=>f.id===target))openFile(target);
     }else if(id.startsWith('tool:')){

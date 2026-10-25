@@ -4,7 +4,7 @@ const check = (file) => {
   const result = spawnSync(process.execPath, ['--check', file], { stdio: 'inherit' });
   if (result.status !== 0) process.exit(result.status || 1);
 };
-for(const file of ['src/media-model.js','src/media-render.js','src/media-io.js','src/media-studio.js'])check(file);
+for(const file of ['src/media-analysis.js','src/media-model.js','src/media-render.js','src/media-io.js','src/media-studio.js'])check(file);
 for(const file of ['src/capability-core.js','src/capability-ui.js','src/media-customize.js'])check(file);
 for(const file of ['src/media-workbench.js','src/media-inspector.js'])check(file);
 for(const file of ['src/template-catalog.js','src/template-library.js','src/file-check.js'])check(file);
@@ -12,8 +12,9 @@ for(const file of ['src/editor-enhancements.js','src/pdf-edits.js','src/studio-p
 check('src/dialog-focus.js');
 check('src/pdf-model.js');
 check('src/pdf-forms.js');
+check('src/pdf-annotations.js');
 check('src/pdf-studio.js');
-for (const file of ['src/icons.js', 'src/app.js', 'src/studio-workspace.js', 'src/workspace-search.js', 'src/editor-productivity.js', 'src/workspace-storage.js', 'src/workspace-diff.js', 'src/workspace-links.js', 'src/formulas.js', 'src/cloud-sync.js', 'src/revisions.js', 'src/file-formats.js', 'src/cloud.js', 'src/cloud-config.js', 'src/office-model.js', 'src/office-ui.js', 'src/sheet-window.js', 'src/sheet-grid.js', 'src/document-history.js', 'src/ooxml-zip.js', 'src/ooxml-docx.js', 'src/ooxml-xlsx.js', 'src/ooxml-pptx.js', 'src/studio-tools.js', 'src/studio-layout.js', 'src/sheet-range.js', 'src/slide-objects.js', 'src/slide-distribution.js', 'src/note-structure.js', 'src/doc-review.js', 'src/doc-layout.js', 'src/sheet-audit.js', 'src/slide-align.js', 'src/note-search.js', 'src/doc-blocks.js', 'src/sheet-recalc.js', 'src/slide-layers.js', 'src/sheet-rules.js', 'src/doc-find.js', 'src/note-pin.js', 'src/slide-transform.js', 'scripts/server.mjs', 'scripts/public-paths.mjs', 'scripts/security-headers.mjs']) check(file);
+for (const file of ['src/icons.js', 'src/app.js', 'src/studio-workspace.js', 'src/workspace-search.js', 'src/editor-productivity.js', 'src/workspace-storage.js', 'src/workspace-diff.js', 'src/workspace-links.js', 'src/workspace-audit.js', 'src/formulas.js', 'src/cloud-sync.js', 'src/revisions.js', 'src/file-formats.js', 'src/cloud.js', 'src/cloud-config.js', 'src/office-model.js', 'src/office-ui.js', 'src/sheet-window.js', 'src/sheet-grid.js', 'src/document-history.js', 'src/ooxml-zip.js', 'src/ooxml-docx.js', 'src/ooxml-xlsx.js', 'src/ooxml-pptx.js', 'src/studio-tools.js', 'src/studio-layout.js', 'src/sheet-range.js', 'src/slide-objects.js', 'src/slide-distribution.js', 'src/note-structure.js', 'src/doc-review.js', 'src/doc-layout.js', 'src/sheet-audit.js', 'src/slide-align.js', 'src/note-search.js', 'src/doc-blocks.js', 'src/sheet-recalc.js', 'src/slide-layers.js', 'src/sheet-rules.js', 'src/doc-find.js', 'src/note-pin.js', 'src/slide-transform.js', 'scripts/server.mjs', 'scripts/public-paths.mjs', 'scripts/security-headers.mjs']) check(file);
 await access('index.html');
 await rm('dist', { recursive: true, force: true });
 await mkdir('dist', { recursive: true });

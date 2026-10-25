@@ -5,7 +5,7 @@
 ## 1 — Notes and knowledge graph (highest priority)
 **Implemented in this tranche:** stable `linkedFileIds` for Docs, Sheets, Slides, Notes, PDF and Media; outgoing/incoming backlinks and broken-target counts; add/remove/open controls; id-based linking immune to renames; 50-link bounds; full-notebook or selected-section relocation without rewriting note content; IndexedDB/backup compatibility. Earlier note sections, tags, pinning, rename, search remain supported.
 
-**Still needed:** explicit notebook/section tree operations (including empty containers), editable collection metadata, large-library navigation and migration handling, cross-file search results with link previews, change tracking for links to trashed/restored files, two-tab conflict acceptance testing, and complete browser keyboard/mobile accessibility checks.
+**Additional foundations delivered:** a dedicated Knowledge Studio read-only integrity view with active links, missing/recycled targets and unified per-file revision timeline; shared revision snapshots now include file links, PDF forms and annotation metadata. **Still needed:** explicit notebook/section tree operations (including empty containers), editable collection metadata, large-library navigation and migration handling, cross-file search results with link previews, change tracking for links to trashed/restored files, two-tab conflict acceptance testing, and complete browser keyboard/mobile accessibility checks.
 
 **Acceptance:** two files from different apps can be linked, renamed, saved, reloaded, backed up/restored and opened by backlinks without losing identity or file contents. Reject self-links/duplicates and preserve unrelated records. Test interrupted saves and recovery journals.
 
@@ -14,9 +14,11 @@
 
 **Implemented in this tranche:** inspect/edit native AcroForm text and checkbox values without modifying the source bytes; preserve interactive fields in ordinary-order PDF export, including form-edit undo/redo. Unsupported form types are displayed as such; reordering/merging with modified form fields is refused rather than silently losing user data. Forms with >100 fields or values >2,000 characters are rejected.
 
+**Additional integration work:** Knowledge Studio relationship health and project history, revision snapshots for knowledge links/forms/annotations, bounded native PDF Text and Highlight object export with reader controls, and an RGB Media histogram. This does not close any full-capability gate.
+
 **Not implemented / NOT approved for production claims:**
 - Original-text and embedded-image editing with faithful retained PDF text layout
-- Structured highlight, ink, sticky-note and drawing annotations with interoperable native PDF export
+- Advanced ink, text-selection and drawing annotations, beyond bounded native sticky-note and rectangular-highlight support, plus full third-party interoperability
 - Full AcroForm/XFA fidelity, field appearances and third-party validation beyond the bounded text/checkbox subset
 - Searchable OCR for scanned PDFs and quality evaluation across languages/script types
 - Native embedded outline bookmarks, structured document comparison or tracked changes

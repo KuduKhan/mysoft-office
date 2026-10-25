@@ -1,5 +1,6 @@
 import {croppedBox} from './workflow-studio.js';
 import {validPDFFormValues,applyPDFFormValues} from './pdf-forms.js';
+import {validAnnotations,embedAnnotations} from './pdf-annotations.js';
 export const PDF_MAX_BYTES=8*1024*1024;
 export const PDF_MAX_PAGES=500;
 export function validatePDFRecord(file){
@@ -14,6 +15,7 @@ export function validatePDFRecord(file){
         item.label.length>80||/[\u0000-\u001f]/.test(item.label))||
       new Set(file.pdfBookmarks.map(item=>item.page)).size!==file.pdfBookmarks.length))return false;
   if(!validPDFFormValues(file.pdfFormValues))return false;
+  if(!validAnnotations(file.pdfAnnotations,file.pdfPageCount))return false;
   const rotations=file.pdfRotations||{};
   return typeof rotations==='object'&&!Array.isArray(rotations)&&
     Object.entries(rotations).every(([page,angle])=>/^[1-9]\d{0,2}$/.test(page)&&Number(page)<=file.pdfPageCount&&[0,90,180,270].includes(angle));
@@ -82,12 +84,12 @@ export function pdfStampOptions(input={}){
 }
 export async function exportPDF(file,options={}){
   if(!validatePDFRecord(file)||!file.pdfData)throw Error('Open a PDF first.');
-  const stamp=pdfStampOptions(options),decorated=stamp.pageNumbers||!!stamp.watermark,crop=options.crop,hasFormEdits=Object.keys(file.pdfFormValues||{}).length>0;
+  const stamp=pdfStampOptions(options),decorated=stamp.pageNumbers||!!stamp.watermark,crop=options.crop,hasFormEdits=Object.keys(file.pdfFormValues||{}).length>0,hasAnnotations=Boolean(file.pdfAnnotations?.length);
   if(crop)croppedBox({x:0,y:0,width:100,height:100},0,crop);
   const bytes=decodePDF(file.pdfData);
   const order=pdfOrder(file),originalOrder=order.length===file.pdfPageCount&&order.every((n,i)=>n===i+1);
   if(hasFormEdits&&!originalOrder)throw Error('Restore original page order before exporting interactive form edits.');
-  if(originalOrder&&!Object.values(file.pdfRotations||{}).some(Boolean)&&!decorated&&!crop&&!hasFormEdits)return bytes;
+  if(originalOrder&&!Object.values(file.pdfRotations||{}).some(Boolean)&&!decorated&&!crop&&!hasFormEdits&&!hasAnnotations)return bytes;
   if(!writerPromise)writerPromise=import('../vendor/pdf-lib.min.js').then(module=>module.default?.PDFDocument?module.default:globalThis.PDFLib).catch(error=>{writerPromise=null;throw error;});
   const {PDFDocument,degrees,StandardFonts,rgb}=await writerPromise;
   const source=await PDFDocument.load(bytes),doc=hasFormEdits?source:await PDFDocument.create();
@@ -102,12 +104,14 @@ export async function exportPDF(file,options={}){
     if(stamp.pageNumbers){const text=String(stamp.startNumber+index),size=Math.min(10,vw/12,vh/12),width=font.widthOfTextAtSize(text,size);page.drawText(text,{...point((vw-width)/2,Math.min(18,vh*.05)),font,size,color:rgb(.25,.29,.36),rotate:degrees(rotation)});}
     if(stamp.watermark){const text=stamp.watermark,base=Math.min(42,vh*.11),size=Math.min(base,vw*.7/font.widthOfTextAtSize(text,1)),width=font.widthOfTextAtSize(text,size),r=Math.PI/6;page.drawText(text,{...point(vw/2-width*Math.cos(r)/2+size*Math.sin(r)/2,vh/2-width*Math.sin(r)/2-size*Math.cos(r)/2),font,size,color:rgb(.28,.35,.46),opacity:.17,rotate:degrees(rotation+30)});}
   });
+  if(hasAnnotations)embedAnnotations(doc,pages,order,file.pdfAnnotations,await writerPromise);
   return doc.save();
 }
 
 // Merge output follows the current workspace page order, without changing source records.
 export async function mergePDF(file,additions,{isCanceled=()=>false}={}){
   if(!validatePDFRecord(file)||!file.pdfData)throw Error('Open a PDF before merging.');
+  if(file.pdfAnnotations?.length)throw Error('Merge would discard PDF annotations. Export them separately.');
   if(Object.keys(file.pdfFormValues||{}).length)throw Error('Merge would drop edited fillable form values; export the filled PDF separately.');
   if(!Array.isArray(additions)||!additions.length||additions.length>10)throw Error('Choose 1–10 PDFs to append.');
   if(additions.some(bytes=>!(bytes instanceof Uint8Array)||bytes.length>PDF_MAX_BYTES)||additions.reduce((sum,bytes)=>sum+bytes.length,decodePDF(file.pdfData).length)>32*1024*1024)throw Error('Use PDFs up to 8 MB each and 32 MB combined.');

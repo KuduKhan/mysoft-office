@@ -9,6 +9,7 @@ import {icon} from './icons.js';
 import {defaultMediaEdits,validateMediaRecord,decodeMedia,processAudio,encodeWAV,trimBounds,visualAspect,applyMediaPreset} from './media-model.js';
 import {loadVideo,decodeAudio,sourceBlob,canvasBlob,exportVideo,waitMedia} from './media-io.js';
 import {renderVisual,fitCanvas,drawWaveform} from './media-render.js';
+import {colorHistogram} from './media-analysis.js';
 
 const esc=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function createMediaStudio(ctx){
@@ -19,7 +20,7 @@ export function createMediaStudio(ctx){
   const button=mediaButton;
   const state=()=>structuredClone({mediaEdits:file.mediaEdits,mediaLayers:file.mediaLayers});
   function remember(){undo.push(state());if(undo.length>30)undo.shift();redo=[];}
-  function changed(){previewEdits=null;ctx.changed(file);refresh();}
+  function changed(){previewEdits=null;ctx.changed(file);refresh();if(!$('media-histogram-panel')?.hidden)updateHistogram();}
   function status(message){if($('media-status'))$('media-status').textContent=message;}
   function inspector(){return inspectorMarkup(file,{activePanel,color,brush,fill,opacity:inkOpacity,dash:strokeStyle});}
   function choosePanel(panel,focus=false){
@@ -28,10 +29,29 @@ export function createMediaStudio(ctx){
     document.querySelectorAll('.media-tool-panel').forEach(el=>el.hidden=el.id!=='media-panel-'+panel);
   }
   function setTool(value){if(!DRAWING_TOOLS.some(([id])=>id===value))return;tool=value;if($('media-tool'))$('media-tool').value=tool;const canvas=$('media-canvas');if(canvas){canvas.style.touchAction=tool==='view'?'auto':'none';canvas.style.cursor=tool==='view'?'default':'crosshair';}if(tool!=='view')choosePanel('draw');refresh();}
+  function updateHistogram(){
+    const panel=$('media-histogram-panel'),graph=$('media-histogram');
+    if(!panel||panel.hidden||!graph||!file||['audio','empty'].includes(file.mediaKind))return;
+    if(['image','video'].includes(file.mediaKind)&&!source)return;
+    const preview=document.createElement('canvas');
+    renderVisual(preview,source,file);
+    const sample=document.createElement('canvas');sample.width=320;sample.height=180;
+    const g=sample.getContext('2d',{willReadFrequently:true});
+    g.drawImage(preview,0,0,320,180);
+    const data=colorHistogram(g.getImageData(0,0,320,180).data);
+    const ctx=graph.getContext('2d'),w=graph.width,h=graph.height;
+    ctx.clearRect(0,0,w,h);ctx.fillStyle='#101827';ctx.fillRect(0,0,w,h);
+    const max=Math.max(1,...data.red,...data.green,...data.blue);
+    for(const [channel,color] of [['red','#ff6876'],['green','#64e4ac'],['blue','#7bb9ff']]){
+      ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.beginPath();
+      data[channel].forEach((value,i)=>{const x=i*(w-2)/63,y=h-5-value/max*(h-12);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();
+    }
+    $('media-histogram-count').textContent=data.count.toLocaleString()+' sampled non-transparent pixels · rendered composition';
+  }
   function markup(f){
     file=f;activePanel=f.mediaKind==='drawing'?'draw':f.mediaKind==='audio'?'sound':'adjust';tool=f.mediaKind==='drawing'?'pen':'view';f.mediaEdits={...defaultMediaEdits(f.mediaEdits.outputWidth,f.mediaEdits.outputHeight),...f.mediaEdits};
     if(f.mediaKind==='empty')return '<section class="media-empty editor-body"><span class="media-emblem">'+icon('image',38)+'</span><h2>MySoft Media</h2><p>Your creative space for images, audio and video.</p><div class="media-launch">'+[['image','Open image','image'],['audio','Open audio','waveform'],['video','Open video','film'],['drawing','New drawing','plus']].map(([k,t,i])=>button(k,t,i)).join('')+'</div><small>Local editing · Original files preserved · Up to 16 MB per file</small></section>';
-    return '<section class="media-layout"><div class="media-toolbar">'+button('open','Open media','upload')+button('undo','Undo','undo-2')+button('redo','Redo','redo-2')+button('preview-png','Save preview PNG','image')+button('reset-view','Reset canvas view','rotate-ccw')+button('canvas-zoom-out','Decrease canvas zoom','minus')+button('canvas-zoom-in','Increase canvas zoom','plus')+(f.mediaData?button('original','Original','download'):'')+(f.mediaKind==='video'?button('frame','Save frame','image')+button('storyboard','Storyboard','image'):'')+(['image','video'].includes(f.mediaKind)?button('compare','Compare original','eye'):'')+(f.mediaKind!=='audio'?toolPicker(tool):'')+'<label class="media-zoom-label">Zoom<select id="media-zoom" aria-label="Canvas zoom"><option value="fit">Fit</option>'+[25,50,75,100,150,200].map(n=>'<option value="'+n+'">'+n+'%</option>').join('')+'</select></label></div><div class="media-workspace"><div class="media-preview"><div id="media-stage" class="media-stage"><div id="media-canvas-wrap"><canvas id="media-canvas" aria-label="Media preview" tabindex="0"></canvas><div id="media-grid-overlay" aria-hidden="true" hidden></div></div></div><div id="media-playback" class="media-playback">'+(f.mediaKind==='video'?button('play','Play / pause','play')+'<input id="media-seek" aria-label="Video position" type="range" min="0" max="'+f.mediaDuration+'" step=".01" value="0">':'')+'</div><div id="media-status" class="media-status" role="status">Loading media…</div><div id="media-progress" class="media-progress" hidden><progress max="1" value="0" aria-label="Export progress"></progress>'+button('cancel','Cancel export')+'</div></div><aside id="media-inspector" class="media-inspector" aria-label="Media adjustments">'+inspector()+'</aside></div></section>';
+    return '<section class="media-layout"><div class="media-toolbar">'+button('open','Open media','upload')+button('undo','Undo','undo-2')+button('redo','Redo','redo-2')+button('preview-png','Save preview PNG','image')+(f.mediaKind!=='audio'?button('histogram','Color histogram','chart-column'):'')+button('reset-view','Reset canvas view','rotate-ccw')+button('canvas-zoom-out','Decrease canvas zoom','minus')+button('canvas-zoom-in','Increase canvas zoom','plus')+(f.mediaData?button('original','Original','download'):'')+(f.mediaKind==='video'?button('frame','Save frame','image')+button('storyboard','Storyboard','image'):'')+(['image','video'].includes(f.mediaKind)?button('compare','Compare original','eye'):'')+(f.mediaKind!=='audio'?toolPicker(tool):'')+'<label class="media-zoom-label">Zoom<select id="media-zoom" aria-label="Canvas zoom"><option value="fit">Fit</option>'+[25,50,75,100,150,200].map(n=>'<option value="'+n+'">'+n+'%</option>').join('')+'</select></label></div><div class="media-workspace"><div class="media-preview"><div id="media-stage" class="media-stage"><div id="media-canvas-wrap"><canvas id="media-canvas" aria-label="Media preview" tabindex="0"></canvas><div id="media-grid-overlay" aria-hidden="true" hidden></div></div></div><div id="media-playback" class="media-playback">'+(f.mediaKind==='video'?button('play','Play / pause','play')+'<input id="media-seek" aria-label="Video position" type="range" min="0" max="'+f.mediaDuration+'" step=".01" value="0">':'')+'</div><div id="media-status" class="media-status" role="status">Loading media…</div><div id="media-histogram-panel" hidden aria-label="Color histogram"><canvas id="media-histogram" width="256" height="105" role="img" aria-label="RGB channel histogram"></canvas><span id="media-histogram-count"></span></div><div id="media-progress" class="media-progress" hidden><progress max="1" value="0" aria-label="Export progress"></progress>'+button('cancel','Cancel export')+'</div></div><aside id="media-inspector" class="media-inspector" aria-label="Media adjustments">'+inspector()+'</aside></div></section>';
   }
   function paint(){if(!file||!$('media-canvas')||busy)return;if(file.mediaKind==='audio'){if(audio)drawWaveform($('media-canvas'),processedAudio?.channels||audio.channels);}else {
       const preview=compareOriginal?{...file,mediaEdits:defaultMediaEdits(file.mediaEdits.outputWidth,file.mediaEdits.outputHeight),mediaLayers:[]}:previewEdits?{...file,mediaEdits:previewEdits}:file;
@@ -100,6 +120,7 @@ export function createMediaStudio(ctx){
     const panel=event.target.closest('[data-media-panel]');if(panel&&!busy){choosePanel(panel.dataset.mediaPanel);return;}
     const action=event.target.closest('[data-media-action]')?.dataset.mediaAction;if(!action)return;
     if(action==='cancel'){controller?.abort();return;}if(busy)return;
+    if(action==='histogram'){const panel=$('media-histogram-panel');if(panel){panel.hidden=!panel.hidden;if(!panel.hidden)updateHistogram();}return;}
     if(['open','image','audio','video'].includes(action)){ctx.importMedia(action==='open'?'all':action);return;}if(action==='drawing'){ctx.newDrawing();return;}if(!file)return;
     try{
       if(action==='preview-png'){if(file.mediaKind==='audio'){const blob=await canvasBlob($('media-canvas'),'image/png',1);ctx.download(blob,(file.title.replace(/[^a-z0-9_-]+/gi,'-')||'audio')+'-waveform.png','image/png');ctx.toast('Waveform preview saved.');}else await exportCurrent(true);return;}
