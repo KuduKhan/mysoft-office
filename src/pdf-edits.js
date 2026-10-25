@@ -1,5 +1,5 @@
-const state=file=>structuredClone({pdfRotations:file.pdfRotations||{},pdfBookmarks:file.pdfBookmarks||[],pdfPageOrder:file.pdfPageOrder||null});
-const apply=(file,value)=>{file.pdfRotations=structuredClone(value.pdfRotations);file.pdfBookmarks=structuredClone(value.pdfBookmarks);if(value.pdfPageOrder)file.pdfPageOrder=structuredClone(value.pdfPageOrder);else delete file.pdfPageOrder;};
+const state=file=>structuredClone({pdfRotations:file.pdfRotations||{},pdfBookmarks:file.pdfBookmarks||[],pdfPageOrder:file.pdfPageOrder||null,pdfFormValues:file.pdfFormValues||{}});
+const apply=(file,value)=>{file.pdfRotations=structuredClone(value.pdfRotations);file.pdfBookmarks=structuredClone(value.pdfBookmarks);file.pdfFormValues=structuredClone(value.pdfFormValues||{});if(value.pdfPageOrder)file.pdfPageOrder=structuredClone(value.pdfPageOrder);else delete file.pdfPageOrder;};
 export class PDFEditHistory{
   constructor(file){this.last=state(file);this.past=[];this.future=[];}
   checkpoint(file){const next=state(file);if(JSON.stringify(next)===JSON.stringify(this.last))return false;this.past.push(this.last);if(this.past.length>30)this.past.shift();this.last=next;this.future=[];return true;}
