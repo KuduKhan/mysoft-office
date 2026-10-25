@@ -1,7 +1,7 @@
 // Incremental semantic block operations for the browser's current contenteditable document.
 // This is a stepping stone to a transactional rich-text engine, not full document pagination.
 const BLOCKS=new Set(['P','DIV','H1','H2','H3','UL','OL','BLOCKQUOTE','TABLE','HR']);
-const ACTIONS=new Set(['move-up','move-down','heading-up','heading-down','new-section','page-break']);
+const ACTIONS=new Set(['move-up','move-down','heading-up','heading-down','new-section','page-break','duplicate']);
 export function editableBlocks(root){return [...(root?.children||[])].filter(el=>BLOCKS.has(el.tagName));}
 export function blockIndexFromSelection(root,selection){
   if(!root||!selection?.anchorNode||!root.contains(selection.anchorNode))return null;
@@ -26,6 +26,20 @@ export function applyDocumentBlockAction(root,action,index=0){
   if(!Number.isInteger(index)||index<0||index>=blocks.length)
     throw Error('Select a document paragraph first.');
   const current=blocks[index];
+  if(action==='duplicate'){
+    if(blocks.length>=300)throw Error('This document has too many blocks to duplicate.');
+    if(!['P','DIV','H1','H2','H3','BLOCKQUOTE'].includes(current.tagName))
+      throw Error('Duplicate a paragraph, heading or quote. Tables and lists are not supported.');
+    if(current.outerHTML.length>100000)throw Error('This block is too large to duplicate.');
+    const copy=current.cloneNode(true);
+    // DOM ids must remain unique after duplication; strip executable attributes.
+    for(const element of [copy,...copy.querySelectorAll('*')]){
+      element.removeAttribute('id');
+      for(const {name} of [...element.attributes])if(name.toLowerCase().startsWith('on'))element.removeAttribute(name);
+    }
+    current.after(copy);
+    return {changed:true,index:index+1};
+  }
   if(action==='move-up'||action==='move-down'){
     const other=blocks[index+(action==='move-up'?-1:1)];
     if(!other)return {changed:false,index};

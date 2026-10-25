@@ -1,0 +1,66 @@
+const {test,expect}=require('@playwright/test');
+test('Docs duplicates a formatted paragraph with a fresh DOM identity and saves it',async({page})=>{
+ await page.goto('/');await page.locator('[data-create="docs"]').first().click();
+ await page.locator('#rich-content').evaluate(root=>{
+  root.innerHTML='<p id="unique-heading" style="margin-left: 18px">Launch <strong>readiness</strong></p><p>Next paragraph</p>';
+  root.dispatchEvent(new Event('input',{bubbles:true}));
+ });
+ await page.locator('[data-ot-tab="Structure"]').click();
+ await page.locator('[data-ot-action="block-duplicate"]').click();
+ await expect(page.locator('#rich-content p')).toHaveCount(3);
+ await expect(page.locator('#rich-content p').nth(1)).toContainText('Launch readiness');
+ await expect(page.locator('#rich-content p').nth(1)).toHaveCSS('margin-left','18px');
+ expect(await page.locator('#rich-content [id="unique-heading"]').count()).toBe(1);
+ await page.keyboard.press('Control+s');
+ await expect(page.locator('#save-status')).toHaveText('Saved on device');
+ await page.reload();
+ await expect(page.locator('#rich-content p')).toHaveCount(3);
+});
+test('Sheets Fill right saves translated formula results instead of reusing the source formula',async({page})=>{
+ await page.goto('/');await page.locator('[data-create="sheets"]').first().click();
+ await page.locator('[data-cell="A1"]').fill('3');
+ await page.locator('[data-cell="A1"]').press('Enter');
+ await page.locator('[data-cell="B1"]').fill('=A1*2');
+ await page.locator('[data-cell="B1"]').press('Enter');
+ await page.locator('[data-cell="B1"]').click();
+ await page.locator('[data-ot-tab="Data"]').click();
+ page.once('dialog',d=>d.accept('2'));
+ await page.locator('[data-ot-action="sheet-fill-right"]').click();
+ await page.locator('[data-cell="D1"]').click();
+ await expect(page.locator('#formula-input')).toHaveValue('=C1*2');
+ await page.locator('[data-cell="E2"]').click();
+ await expect(page.locator('[data-cell="D1"]')).toHaveValue('24');
+ await page.keyboard.press('Control+s');
+ await expect(page.locator('#save-status')).toHaveText('Saved on device');
+ await page.reload();
+ await expect(page.locator('[data-cell="D1"]')).toHaveValue('24');
+});
+test('Slides distributes all shapes without changing their dimensions, then saves',async({page})=>{
+ await page.goto('/');await page.locator('[data-create="slides"]').first().click();
+ await page.locator('[data-ot-tab="Shapes"]').click();
+ for(let i=0;i<3;i++)await page.locator('[data-ot-action="shape-rect"]').click();
+ await expect(page.locator('[data-slide-object]')).toHaveCount(3);
+ await page.locator('[data-ot-action="shape-distribute-horizontal"]').click();
+ const left=await page.locator('[data-slide-object]').evaluateAll(nodes=>nodes.map(x=>parseFloat(x.style.left)));
+ expect(left).toEqual([4,36.5,69]);
+ await page.keyboard.press('Control+s');
+ await expect(page.locator('#save-status')).toHaveText('Saved on device');
+ await page.reload();
+ const again=await page.locator('[data-slide-object]').evaluateAll(nodes=>nodes.map(x=>parseFloat(x.style.left)));
+ expect(again).toEqual([4,36.5,69]);
+});
+test('Notes tags the current notebook and persists without altering note bodies',async({page})=>{
+ await page.goto('/');await page.locator('[data-create="notes"]').first().click();
+ await page.locator('#document-title').fill('Notebook task');
+ await page.locator('#rich-content').fill('Draft must survive');
+ await page.locator('[data-ot-tab="Organize"]').click();
+ page.once('dialog',dialog=>dialog.accept('release'));
+ await page.locator('[data-ot-action="note-tag-notebook"]').click();
+ await expect(page.locator('[data-ot-input="tags"]')).toHaveValue(/release/);
+ await page.keyboard.press('Control+s');
+ await expect(page.locator('#save-status')).toHaveText('Saved on device');
+ await page.reload();
+ await page.locator('[data-ot-tab="Organize"]').click();
+ await expect(page.locator('[data-ot-input="tags"]')).toHaveValue(/release/);
+ await expect(page.locator('#rich-content')).toContainText('Draft must survive');
+});
