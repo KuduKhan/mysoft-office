@@ -22,6 +22,8 @@ test('Sheets Fill down translates formulas instead of copying cached values',asy
  await page.locator('[data-ot-action="sheet-fill-down"]').click();
  await page.locator('[data-cell="B3"]').click();
  await expect(page.locator('#formula-input')).toHaveValue('=A3*3');
+ // Focused cells display the raw formula for editing; blur to verify its computed value.
+ await page.locator('[data-cell="C3"]').click();
  await expect(page.locator('[data-cell="B3"]')).toHaveValue('18');
  await page.keyboard.press('Control+s');await expect(page.locator('#save-status')).toHaveText('Saved on device');
  await page.reload();await expect(page.locator('[data-cell="B3"]')).toHaveValue('18');
