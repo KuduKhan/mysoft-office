@@ -4,6 +4,7 @@ export const MIN_REVISION_INTERVAL = 120000;
 export function versionContent(file) {
   if (!file || !['docs','sheets','slides','notes','pdf','media'].includes(file.type)) throw new Error('Invalid file');
   const version = {title:String(file.title||''),type:file.type};
+  if(Array.isArray(file.linkedFileIds))version.linkedFileIds=structuredClone(file.linkedFileIds);
   if (file.type==='docs' || file.type==='notes') version.body=String(file.body||'');
   if(file.type==='docs')version.pageSettings=structuredClone(file.pageSettings||{});
   if (file.type==='docs') version.comments=structuredClone(file.comments||[]);
@@ -22,7 +23,7 @@ export function versionContent(file) {
     }
   }
   if (file.type==='slides') version.slides=structuredClone(file.slides||[]);
-  if(file.type==='pdf'){version.pdfRotations=structuredClone(file.pdfRotations||{});if(file.pdfPageOrder)version.pdfPageOrder=structuredClone(file.pdfPageOrder);version.pdfBookmarks=structuredClone(file.pdfBookmarks||[]);}
+  if(file.type==='pdf'){version.pdfRotations=structuredClone(file.pdfRotations||{});if(file.pdfPageOrder)version.pdfPageOrder=structuredClone(file.pdfPageOrder);version.pdfBookmarks=structuredClone(file.pdfBookmarks||[]);version.pdfFormValues=structuredClone(file.pdfFormValues||{});version.pdfAnnotations=structuredClone(file.pdfAnnotations||[]);}
   if(file.type==='media'){version.mediaEdits=structuredClone(file.mediaEdits);version.mediaLayers=structuredClone(file.mediaLayers);}
   return version;
 }
@@ -43,6 +44,8 @@ export function restoreRevision(file,revision) {
   const copy=structuredClone(file);
   const data=structuredClone(revision.content);
   copy.title=data.title;
+  if(data.linkedFileIds!==undefined)copy.linkedFileIds=data.linkedFileIds;
+  else delete copy.linkedFileIds;
   if(file.type==='docs'||file.type==='notes') copy.body=data.body;
   if(file.type==='docs'){copy.comments=data.comments||[];copy.pageSettings=data.pageSettings||{};}
   if(file.type==='notes'){
@@ -64,7 +67,7 @@ export function restoreRevision(file,revision) {
     }
   }
   if(file.type==='slides') copy.slides=data.slides;
-  if(file.type==='pdf'){copy.pdfRotations=data.pdfRotations||{};if(data.pdfPageOrder)copy.pdfPageOrder=data.pdfPageOrder;else delete copy.pdfPageOrder;copy.pdfBookmarks=data.pdfBookmarks||[];}
+  if(file.type==='pdf'){copy.pdfRotations=data.pdfRotations||{};if(data.pdfPageOrder)copy.pdfPageOrder=data.pdfPageOrder;else delete copy.pdfPageOrder;copy.pdfBookmarks=data.pdfBookmarks||[];copy.pdfFormValues=data.pdfFormValues||{};copy.pdfAnnotations=data.pdfAnnotations||[];}
   if(file.type==='media'){copy.mediaEdits=data.mediaEdits;copy.mediaLayers=data.mediaLayers;}
   copy.updatedAt=Date.now();
   return copy;

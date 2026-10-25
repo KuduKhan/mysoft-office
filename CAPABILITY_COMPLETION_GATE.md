@@ -5,7 +5,7 @@
 ## 1 — Notes and knowledge graph (highest priority)
 **Implemented in this tranche:** stable `linkedFileIds` for Docs, Sheets, Slides, Notes, PDF and Media; outgoing/incoming backlinks and broken-target counts; add/remove/open controls; id-based linking immune to renames; 50-link bounds; full-notebook or selected-section relocation without rewriting note content; IndexedDB/backup compatibility. Earlier note sections, tags, pinning, rename, search remain supported.
 
-**Still needed:** explicit notebook/section tree operations (including empty containers), editable collection metadata, large-library navigation and migration handling, cross-file search results with link previews, change tracking for links to trashed/restored files, two-tab conflict acceptance testing, and complete browser keyboard/mobile accessibility checks.
+**Additional foundations delivered:** a dedicated Knowledge Studio read-only integrity view with active links, missing/recycled targets and unified per-file revision timeline; shared revision snapshots now include file links, PDF forms and annotation metadata. **Still needed:** explicit notebook/section tree operations (including empty containers), editable collection metadata, large-library navigation and migration handling, cross-file search results with link previews, change tracking for links to trashed/restored files, two-tab conflict acceptance testing, and complete browser keyboard/mobile accessibility checks.
 
 **Acceptance:** two files from different apps can be linked, renamed, saved, reloaded, backed up/restored and opened by backlinks without losing identity or file contents. Reject self-links/duplicates and preserve unrelated records. Test interrupted saves and recovery journals.
 
