@@ -19,6 +19,13 @@ export function editMediaLayer(file,index,action){
   const layers=structuredClone(file.mediaLayers),layer=layers[index];let selected=index;
   if(action==='delete'){layers.splice(index,1);selected=Math.min(index,layers.length-1);}
   else if(action==='duplicate'){if(layers.length>=300||layers.reduce((n,l)=>n+l.points.length,0)+layer.points.length>20000)throw Error('Drawing layer limit reached.');layers.splice(index+1,0,structuredClone(layer));selected=index+1;}
+  else if(action==='center'||action==='middle'){const xs=layer.points.map(p=>p[0]),ys=layer.points.map(p=>p[1]),dx=action==='center'?(1-Math.min(...xs)-Math.max(...xs))/2:0,dy=action==='middle'?(1-Math.min(...ys)-Math.max(...ys))/2:0;layer.points=layer.points.map(([x,y])=>[x+dx,y+dy]);}
+  else if(action==='grow'||action==='shrink'){
+    const scale=action==='grow'?1.1:1/1.1,xs=layer.points.map(p=>p[0]),ys=layer.points.map(p=>p[1]),cx=(Math.min(...xs)+Math.max(...xs))/2,cy=(Math.min(...ys)+Math.max(...ys))/2;
+    const points=layer.points.map(([x,y])=>[cx+(x-cx)*scale,cy+(y-cy)*scale]);
+    if(points.some(p=>p.some(n=>n<0||n>1)))throw Error('Move this layer inward before enlarging it.');layer.points=points;
+  }
+  else if(action==='mirror-h'||action==='mirror-v'){const axis=action==='mirror-h'?0:1,values=layer.points.map(p=>p[axis]),sum=Math.min(...values)+Math.max(...values);layer.points=layer.points.map(point=>point.map((v,i)=>i===axis?sum-v:v));}
   else if(action==='front'||action==='back'){layers.splice(index,1);selected=action==='front'?layers.length:0;layers.splice(selected,0,layer);}
   else{let dx=action==='left'?-.02:action==='right'?.02:0,dy=action==='up'?-.02:action==='down'?.02:0;if(!dx&&!dy)throw Error('Unsupported layer operation.');const xs=layer.points.map(p=>p[0]),ys=layer.points.map(p=>p[1]);dx=Math.max(-Math.min(...xs),Math.min(1-Math.max(...xs),dx));dy=Math.max(-Math.min(...ys),Math.min(1-Math.max(...ys),dy));layer.points=layer.points.map(([x,y])=>[x+dx,y+dy]);}
   file.mediaLayers=layers;return selected;

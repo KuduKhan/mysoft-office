@@ -1,3 +1,4 @@
+async function backupFromFile(page){await page.locator('[data-action="file-menu"]').click();await page.locator('[data-command-run="action:backup"]').click();}
 const {test,expect}=require('@playwright/test');
 const fs=require('node:fs/promises');
 const path=require('node:path');
@@ -41,7 +42,7 @@ test('PDF imports, renders offline, navigates, rotates and exports a valid copy'
   const result=await PDFDocument.load(await fs.readFile(await download.path()));
   expect(result.getPageCount()).toBe(2);expect(result.getPage(1).getRotation().angle).toBe(90);
   const backupEvent=page.waitForEvent('download');
-  await page.locator('.side-foot [data-action="backup"]').click();
+  await backupFromFile(page);
   const backup=await backupEvent;
   const snapshot=JSON.parse(await fs.readFile(await backup.path(),'utf8'));
   expect(snapshot.files.find(file=>file.type==='pdf').pdfData).toBe(bytes.toString('base64'));

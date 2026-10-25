@@ -1,8 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-  <g transform="rotate(-8 32 32)">
-    <rect x="7" y="7" width="23" height="23" rx="6" fill="#185abd"/>
-    <rect x="34" y="7" width="23" height="23" rx="6" fill="#107c41"/>
-    <rect x="7" y="34" width="23" height="23" rx="6" fill="#c43e1c"/>
-    <rect x="34" y="34" width="23" height="23" rx="6" fill="#8030a7"/>
-  </g>
+  <title>MySoft Office — folded M</title>
+  <defs>
+    <linearGradient id="m-blue" x1="8" y1="12" x2="22" y2="52" gradientUnits="userSpaceOnUse"><stop stop-color="#4598ff"/><stop offset="1" stop-color="#185abd"/></linearGradient>
+    <linearGradient id="m-orange" x1="12" y1="9" x2="34" y2="42" gradientUnits="userSpaceOnUse"><stop stop-color="#f47d4e"/><stop offset="1" stop-color="#c43e1c"/></linearGradient>
+    <linearGradient id="m-green" x1="51" y1="13" x2="45" y2="52" gradientUnits="userSpaceOnUse"><stop stop-color="#39c67b"/><stop offset="1" stop-color="#107c41"/></linearGradient>
+    <linearGradient id="m-purple" x1="52" y1="9" x2="31" y2="43" gradientUnits="userSpaceOnUse"><stop stop-color="#bd7fea"/><stop offset="1" stop-color="#8030a7"/></linearGradient>
+  </defs>
+  <path d="M8 14 20 20v32L8 46V14Z" fill="url(#m-blue)"/>
+  <path d="m8 14 13-6 12 20-1 16-12-19L8 14Z" fill="url(#m-orange)"/>
+  <path d="m44 20 12-6v32l-12 6V20Z" fill="url(#m-green)"/>
+  <path d="M56 14 43 8 31 28l1 16 12-19 12-11Z" fill="url(#m-purple)"/>
+  <path d="m8 14 12 11 12 19 12-19 12-11M20 25v27m24-27v27" stroke="#fff" stroke-opacity=".2" stroke-width=".8" stroke-linejoin="round"/>
 </svg>

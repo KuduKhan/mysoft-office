@@ -1,3 +1,4 @@
+import {compressionSettings,compressPCM} from './production-tools.js';
 export const MEDIA_MAX_BYTES=16*1024*1024;
 export const MEDIA_MAX_LAYERS=300;
 export const MEDIA_MAX_POINTS=20000;
@@ -9,11 +10,11 @@ export const MEDIA_MIMES={
 const finite=(n,min,max)=>typeof n==='number'&&Number.isFinite(n)&&n>=min&&n<=max;
 const hex=c=>typeof c==='string'&&/^#[0-9a-f]{6}$/i.test(c);
 export function defaultMediaEdits(width=1280,height=720){return {
-  outputWidth:width,outputHeight:height,keepAspect:true,brightness:100,contrast:100,saturation:100,blur:0,
+  ...compressionSettings(),outputWidth:width,outputHeight:height,keepAspect:true,brightness:100,contrast:100,saturation:100,blur:0,
   rotation:0,flipH:false,flipV:false,cropLeft:0,cropRight:0,cropTop:0,cropBottom:0,background:'transparent',
   text:'',textColor:'#ffffff',textSize:40,textPosition:'bottom',
   trimStart:0,trimEnd:0,gain:1,speed:1,fadeIn:0,fadeOut:0,normalize:false,reverse:false,audioMono:false,muted:false,
-  exportFormat:'png',quality:92,sepia:0,hue:0,textFont:'Segoe UI',textAlign:'center',textOpacity:1,audioBalance:0,removeDC:false,audioLoop:false
+  exportFormat:'png',quality:92,sepia:0,hue:0,textFont:'Segoe UI',textAlign:'center',textOpacity:1,textShadow:true,audioBalance:0,removeDC:false,audioLoop:false,vignette:0,frameWidth:0,frameColor:'#ffffff'
 };}
 export function createMediaFields(){return {mediaKind:'empty',mediaData:'',mediaMime:'',mediaSourceName:'',mediaWidth:1280,mediaHeight:720,mediaDuration:0,mediaEdits:defaultMediaEdits(),mediaLayers:[]};}
 export function validateMediaRecord(file){
@@ -34,12 +35,17 @@ export function validateMediaRecord(file){
   if(!finite(e.trimStart,0,600)||!finite(e.trimEnd,0,600)||!finite(e.gain,0,2)||!finite(e.speed,.5,2)||!finite(e.fadeIn,0,10)||!finite(e.fadeOut,0,10))return false;
   if(!['png','jpeg','webp'].includes(e.exportFormat)||!finite(e.quality,40,100))return false;
   for(const [key,min,max] of [['sepia',0,100],['hue',0,360],['textOpacity',.1,1],['audioBalance',-1,1]])if(e[key]!==undefined&&!finite(e[key],min,max))return false;
+  for(const [key,max] of [['vignette',100],['frameWidth',80]])if(e[key]!==undefined&&!finite(e[key],0,max))return false;
+  if(e.frameColor!==undefined&&!hex(e.frameColor))return false;
   if(e.textFont!==undefined&&!['Segoe UI','Georgia','Arial'].includes(e.textFont)||e.textAlign!==undefined&&!['left','center','right'].includes(e.textAlign))return false;
-  for(const key of ['removeDC','audioLoop'])if(e[key]!==undefined&&typeof e[key]!=='boolean')return false;
+  if(e.audioCompression!==undefined&&typeof e.audioCompression!=='boolean')return false;
+  for(const [key,min,max]of [['compressionThreshold',-48,0],['compressionRatio',1,12],['compressionAttack',1,100],['compressionRelease',10,1000]])if(e[key]!==undefined&&!finite(e[key],min,max))return false;
+  for(const key of ['removeDC','audioLoop','textShadow'])if(e[key]!==undefined&&typeof e[key]!=='boolean')return false;
   if(!Array.isArray(file.mediaLayers)||file.mediaLayers.length>MEDIA_MAX_LAYERS)return false;
   let count=0;
   for(const layer of file.mediaLayers){
-    if(!layer||!['pen','erase','rect','ellipse','line'].includes(layer.kind)||!hex(layer.color)||!finite(layer.width,.0001,.2)||typeof layer.fill!=='boolean'||!Array.isArray(layer.points)||!layer.points.length||layer.points.length>2000)return false;
+    if(!layer||!['pen','erase','rect','ellipse','line','arrow','triangle'].includes(layer.kind)||!hex(layer.color)||!finite(layer.width,.0001,.2)||typeof layer.fill!=='boolean'||!Array.isArray(layer.points)||!layer.points.length||layer.points.length>2000)return false;
+    if(layer.hidden!==undefined&&typeof layer.hidden!=='boolean'||layer.opacity!==undefined&&!finite(layer.opacity,.1,1)||layer.dash!==undefined&&!['solid','dashed','dotted'].includes(layer.dash))return false;
     count+=layer.points.length;
     if(layer.points.some(p=>!Array.isArray(p)||p.length!==2||!finite(p[0],0,1)||!finite(p[1],0,1)))return false;
   }
@@ -84,7 +90,7 @@ export function processAudio(channels,sampleRate,edits){
   if(trim.duration>180)throw Error('Audio output limit is 180 seconds. Trim the clip or increase its speed.');
   const first=Math.floor(trim.start*sampleRate),end=Math.min(channels[0].length,Math.floor(trim.end*sampleRate));
   const count=Math.max(1,Math.floor((end-first)/edits.speed));
-  const output=Array.from({length:edits.audioMono?1:channels.length},()=>new Float32Array(count));
+  let output=Array.from({length:edits.audioMono?1:channels.length},()=>new Float32Array(count));
   const offsets=channels.map(channel=>{if(!edits.removeDC)return 0;let sum=0;for(let i=first;i<end;i++)sum+=channel[i];return sum/Math.max(1,end-first);});
   const balance=edits.audioBalance||0,weights=channels.map((_,i)=>channels.length===1?1:i===0?1-Math.max(0,balance):1+Math.min(0,balance));
   let peak=0;
@@ -98,6 +104,7 @@ export function processAudio(channels,sampleRate,edits){
       output[c][i]=value/inputs.length;peak=Math.max(peak,Math.abs(output[c][i]));
     }
   }
+  if(edits.audioCompression){output=compressPCM(output,sampleRate,edits);peak=0;for(const channel of output)for(const sample of channel)peak=Math.max(peak,Math.abs(sample));}
   const normalization=edits.normalize&&peak>0?.95/peak:1;
   const fadeIn=Math.min(edits.fadeIn,trim.duration/2)*sampleRate,fadeOut=Math.min(edits.fadeOut,trim.duration/2)*sampleRate;
   for(const channel of output)for(let i=0;i<count;i++){

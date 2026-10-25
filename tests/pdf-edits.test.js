@@ -1,0 +1,9 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {PDFEditHistory,orderedPDFText} from '../src/pdf-edits.js';
+test('PDF edit history restores page order, rotations and bookmarks without copying source bytes',()=>{
+ const file={pdfData:'SOURCE',title:'Review',pdfRotations:{},pdfBookmarks:[]},history=new PDFEditHistory(file);file.pdfRotations={1:90};assert.equal(history.checkpoint(file),true);assert.equal(history.checkpoint(file),false);file.pdfPageOrder=[3,1];file.pdfBookmarks=[{page:1,label:'Brief'}];history.checkpoint(file);assert.ok(history.undo(file));assert.equal(file.pdfPageOrder,undefined);assert.deepEqual(file.pdfRotations,{1:90});assert.deepEqual(file.pdfBookmarks,[]);assert.ok(history.undo(file));assert.deepEqual(file.pdfRotations,{});assert.equal(history.canUndo,false);assert.ok(history.redo(file));assert.ok(history.redo(file));assert.deepEqual(file.pdfPageOrder,[3,1]);file.pdfPageOrder.push(2);assert.deepEqual(history.last.pdfPageOrder,[3,1]);assert.equal(file.pdfData,'SOURCE');assert.equal(file.title,'Review');file.pdfRotations={1:180};history.checkpoint(file);assert.equal(history.canRedo,false);
+});
+test('PDF text export follows the output order, caches repeated sources and honors cancellation',async()=>{
+ const calls=[],doc={numPages:3,getPage:async n=>{calls.push(n);return {getTextContent:async()=>({items:[{str:'Source '+n,hasEOL:true},{str:'Detail'}]})};}};const value=await orderedPDFText(doc,[3,1,3]);assert.deepEqual(calls,[3,1]);assert.ok(value.indexOf('Source 3')<value.indexOf('Source 1'));assert.match(value,/Page 3 \(source 3\)/);await assert.rejects(()=>orderedPDFText(doc,[4]));await assert.rejects(()=>orderedPDFText(doc,[1],{isCanceled:()=>true}),e=>e.name==='AbortError');await assert.rejects(()=>orderedPDFText(doc,[1],{maxCharacters:4}));
+});

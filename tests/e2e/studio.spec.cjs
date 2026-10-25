@@ -37,7 +37,7 @@ test('native app identities survive workspace accent changes in light and dark m
       await expect(page.locator('.app-card .app-icon.'+type)).toHaveCSS('color',ink);
       await page.locator('[data-create="'+type+'"]').first().click();
       await expect(page.locator('#studio-main')).toHaveCSS('--studio-accent',accent);
-      await expect(page.locator('.top-actions .btn-primary')).toHaveCSS('background-color',light);
+      await expect(page.locator('.editor-head [data-action="export"]')).toHaveCSS('background-color',light);
       await expect(page.locator('.editor-head .file-icon')).toHaveCSS('color',ink);
       if(type!=='notes')await expect(page.locator('[data-action="office-export"]')).toHaveCSS('color',ink);
       if(type==='notes')await expect(page.locator('#note-title')).toHaveCSS('background-color','rgba(0, 0, 0, 0)');

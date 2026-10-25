@@ -75,8 +75,9 @@ function sheetXML(sheet,styles){
       const expression=value.slice(1);
       const calculated=evaluateCell(ref,sheet.cells);
       const number=Number(calculated);
-      xml='<c r="'+ref+'"'+style+'><f>'+xmlEscape(expression)+'</f>'+
-        (calculated!==''&&!String(calculated).startsWith('#')&&Number.isFinite(number)?'<v>'+number+'</v>':'')+'</c>';
+      const textResult=typeof calculated==='string'&&!calculated.startsWith('#');
+      xml='<c r="'+ref+'"'+style+(textResult?' t="str"':'')+'><f>'+xmlEscape(expression)+'</f>'+
+        (textResult?'<v>'+xmlEscape(calculated)+'</v>':calculated!==''&&!String(calculated).startsWith('#')&&Number.isFinite(number)?'<v>'+number+'</v>':'')+'</c>';
     }else if(value!==''&&Number.isFinite(Number(value))&&/^-?(?:\d+\.?\d*|\.\d+)$/.test(value)){
       xml='<c r="'+ref+'"'+style+'><v>'+xmlEscape(value)+'</v></c>';
     }else if(value!==''){

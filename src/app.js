@@ -1,4 +1,9 @@
+import {initializeRibbonWorkbench} from './ribbon-workbench.js';
+import {filePreviewCards} from './mo-file-previews.js';
+import {noteCanvasStyle} from './mo-workbench.js';
 import {icon} from './icons.js';
+import {readableEditorText} from './studio-pro-tools.js';
+import {createTemplateLibrary} from './template-library.js';
 import {initializeDialogFocus} from './dialog-focus.js';
 import {createMediaStudio} from './media-studio.js';
 import {createMediaFields,validateMediaRecord,MEDIA_MIMES} from './media-model.js';
@@ -8,13 +13,13 @@ import {inspectPDF,exportPDF,validatePDFRecord,PDF_MAX_BYTES} from './pdf-model.
 import {studioShortcut} from './studio-shortcuts.js';
 import {recentWorkspaceFiles,editorMetric} from './studio-workspace.js';
 import {searchWorkspaceFiles,workspaceMatchSource} from './workspace-search.js';
-import { BrowserWorkspaceStore, readLegacyWorkspace, readRecoveryJournal, LEGACY_KEYS, RECOVERY_KEY } from './workspace-storage.js';
+import { BrowserWorkspaceStore, readLegacyWorkspace, readRecoveryJournal, validateWorkspace, LEGACY_KEYS, RECOVERY_KEY } from './workspace-storage.js';
 import { COLUMNS, ROW_COUNT, displayCell } from './formulas.js';
 import { addRevision, restoreRevision } from './revisions.js';
 import { parseCSV, makeCSV } from './file-formats.js';
 import { cloudConfigured, cloudCurrentUser, cloudSignIn, cloudSignOut, cloudPush, cloudPull } from './cloud.js';
 import { ensureWorkbook, PAGE_SIZES } from './office-model.js';
-import { powerRibbon, sheetCellAppearance, initializeOfficeTools } from './office-ui.js';
+import { powerRibbon, ribbonToolCommands, sheetCellAppearance, initializeOfficeTools } from './office-ui.js';
 import { sheetGrid, repaintGrid } from './sheet-grid.js';
 import { DocumentHistory, headingsFromHTML } from './document-history.js';
 import { createDOCX, importDOCX } from './ooxml-docx.js';
@@ -32,7 +37,8 @@ import {snapSlideCoordinate} from './slide-layers.js';
 import { parseAddress, moveAddress, pasteGrid, populatedBounds, ROW_HEIGHT, HEADER_HEIGHT } from './sheet-window.js';
 
 const typeNames={docs:'Document',sheets:'Spreadsheet',slides:'Presentation',notes:'Note',pdf:'PDF',media:'Media project'};
-const typeIcons={docs:'file-text',sheets:'table',slides:'presentation',notes:'notebook',pdf:'file-text',media:'image'};
+const typeIcons={docs:'file-text',sheets:'table',slides:'presentation',notes:'notebook',pdf:'file-scan',media:'clapperboard'};
+const fileIcon=file=>file.type==='media'?({audio:'waveform',video:'film',image:'image',drawing:'pen-tool',empty:'clapperboard'}[file.mediaKind]||typeIcons.media):typeIcons[file.type];
 const labels={docs:'MySoft Docs',sheets:'MySoft Sheets',slides:'MySoft Slides',notes:'MySoft Notes',pdf:'MySoft PDF',media:'MySoft Media'};
 const themes={
   violet:{label:'Violet',color:'#7161e8',dark:false},
@@ -45,7 +51,7 @@ function esc(value){
 }
 function plain(html){
   const dom=new DOMParser().parseFromString(String(html||''),'text/html');
-  return dom.body.textContent||'';
+  return readableEditorText(dom.body);
 }
 function sanitize(html){
   const parsed=new DOMParser().parseFromString(String(html||''),'text/html');
@@ -95,7 +101,9 @@ function sanitize(html){
       }
     }
     if(['P','DIV','H1','H2','H3','BLOCKQUOTE','LI','TD','TH'].includes(node.tagName)){
-      for(const prop of ['marginTop','marginBottom','textIndent']){const v=node.style?.[prop]||'';if(/^(?:\d|[1-8]\d|9[0-6])(?:\.\d+)?px$/.test(v))wrapper.style[prop]=v;}
+      for(const prop of ['marginTop','marginBottom','marginLeft','marginRight','textIndent']){const v=node.style?.[prop]||'';if(/^(?:\d|[1-8]\d|9[0-6])(?:\.\d+)?px$/.test(v))wrapper.style[prop]=v;}
+      if(/^-?(?:[0-7](?:\.\d+)?|8)(?:px)$/.test(node.style?.letterSpacing||''))wrapper.style.letterSpacing=node.style.letterSpacing;
+      if(['ltr','rtl'].includes(node.style?.direction))wrapper.style.direction=node.style.direction;
       if(['1','1.2','1.5','1.6','2','2.5','3'].includes(node.style?.lineHeight))wrapper.style.lineHeight=node.style.lineHeight;
     }
     if(['TD','TH'].includes(node.tagName)){
@@ -209,14 +217,23 @@ function download(content,name,type){
   setTimeout(()=>URL.revokeObjectURL(href),1500);
 }
 function slug(name){return String(name).replace(/[^a-z0-9 -]/gi,'').trim().replace(/\s+/g,'-').slice(0,70)||'mysoft-file';}
-const mediaStudio=createMediaStudio({importMedia:kind=>{mediaInput.accept=kind==='all'?mediaAccept:MEDIA_MIMES[kind].join(',');mediaInput.click();},newDrawing:()=>{const active=getActive(),reuse=active?.type==='media'&&active.mediaKind==='empty';const f=reuse?active:makeFile('media','Untitled drawing');f.title='Untitled drawing';f.mediaKind='drawing';f.mediaEdits.background='#ffffff';if(!reuse)files.unshift(f);snapshot(f,true);void persist();openFile(f.id);},changed:f=>{touch(f);void persist();updateEditorMetrics();},toast,download});
+const mediaStudio=createMediaStudio({importMedia:kind=>{mediaInput.accept=kind==='all'?mediaAccept:MEDIA_MIMES[kind].join(',');mediaInput.click();},newDrawing:()=>{const active=getActive(),reuse=active?.type==='media'&&active.mediaKind==='empty';const f=reuse?active:makeFile('media','Untitled drawing');f.title='Untitled drawing';f.mediaKind='drawing';f.mediaEdits.background='#ffffff';f.mediaEdits.textColor='#203040';if(!reuse)files.unshift(f);snapshot(f,true);void persist();openFile(f.id);},changed:f=>{touch(f);void persist();updateEditorMetrics();},toast,download});
+const templateLibrary=createTemplateLibrary({labels,typeIcons,modalRoot,sanitize,getFiles:()=>files,getActive,makeFile,openFile,navigate,closeModal,toast,
+  saveMetadata:file=>{touch(file,false);void persist();},
+  addFiles:async records=>{
+    let nextVersions=revisions;for(const file of records)nextVersions=addRevision(nextVersions,file,Date.now(),true);
+    const next={files:[...records,...files],trash:trashFiles,versions:nextVersions};validateWorkspace(next);
+    if(!await persist(next,{journal:false}))return false;
+    files=next.files;revisions=next.versions;return true;
+  }
+});
 const pdfStudio=createPDFStudio({download,toast,importPDF:()=>pdfInput.click(),changed:file=>{touch(file);void persist();updateEditorMetrics();}});
 function sidebar(){
   const currentNav=view==='editor'?getActive()?.type:view;
   const nav=(id,title,ic,extra='',text=title)=>'<button type="button" class="nav-link '+(currentNav===id?'active':'')+'" data-nav="'+id+'" title="'+esc(title)+'" aria-label="'+esc(title)+'"'+(currentNav===id?' aria-current="page"':'')+'>'+icon(ic,18)+'<span class="nav-label">'+esc(text)+'</span>'+extra+'</button>';
   const action=(id,title,ic,text=title)=>'<button type="button" class="nav-link" data-action="'+id+'" title="'+esc(title)+'" aria-label="'+esc(title)+'">'+icon(ic,17)+'<span class="nav-label">'+esc(text)+'</span></button>';
   return '<aside class="sidebar '+(mobileOpen?'open':'')+'" id="studio-sidebar" aria-label="Workspace navigation">'+
-    '<div class="studio-sidebar-top"><div class="brand"><img class="brand-symbol" src="assets/mysoft-mark.svg" width="42" height="42" alt="" aria-hidden="true"><div class="studio-brand-copy"><strong>MySoft Office</strong></div><button type="button" class="studio-nav-collapse" data-action="nav-collapse" title="'+(navCollapsed?'Expand':'Collapse')+' sidebar" aria-label="'+(navCollapsed?'Expand':'Collapse')+' sidebar" aria-pressed="'+navCollapsed+'">'+icon('menu',16)+'</button><button type="button" class="studio-sidebar-dismiss" data-action="mobile-dismiss" aria-label="Close navigation" title="Close navigation">'+icon('x',17)+'</button></div></div>'+
+    '<div class="studio-sidebar-top"><div class="brand"><img class="brand-symbol" src="assets/mysoft-mark.svg" width="42" height="42" alt="" aria-hidden="true"><div class="studio-brand-copy"><strong>MySoft <span>Office</span></strong></div><button type="button" class="studio-nav-collapse" data-action="nav-collapse" title="'+(navCollapsed?'Expand':'Collapse')+' sidebar" aria-label="'+(navCollapsed?'Expand':'Collapse')+' sidebar" aria-pressed="'+navCollapsed+'">'+icon('menu',16)+'</button><button type="button" class="studio-sidebar-dismiss" data-action="mobile-dismiss" aria-label="Close navigation" title="Close navigation">'+icon('x',17)+'</button></div></div>'+
     '<nav class="sidebar-nav" aria-label="Primary navigation"><div class="nav-caption">Workspace</div>'+nav('home','Overview','home')+nav('files','My files','folder','<span class="count">'+files.length+'</span>')+nav('starred','Starred','star')+nav('templates','Templates','grid')+nav('trash','Recycle bin','trash','<span class="count">'+trashFiles.length+'</span>')+
     '<div class="nav-caption">Applications</div>'+Object.keys(labels).map(t=>nav(t,labels[t],typeIcons[t],'',labels[t].replace('MySoft ',''))).join('')+'</nav>'+
     '<footer class="side-foot"><div class="storage-help">Files stay on this device.</div><div class="sidebar-utilities">'+
@@ -238,23 +255,25 @@ function renderRows(list,{recent=false}={}){
   if(view==='trash'){
     if(!list.length)return '<div class="empty-state">'+icon('trash',36)+'<h3>Recycle bin is empty</h3><p>Deleted files remain here until permanently removed.</p></div>';
     return '<div class="panel"><table class="data-table"><thead><tr><th>Deleted file</th><th>Type</th><th>Deleted</th><th>Recovery</th></tr></thead><tbody>'+
-      list.map(f=>'<tr><td><div class="row"><span class="file-icon '+f.type+'">'+icon(typeIcons[f.type],17)+'</span><div class="file-name">'+esc(f.title)+'</div></div></td><td>'+typeNames[f.type]+'</td><td class="muted">'+dateText(f.trashedAt||Date.now())+'</td><td><div class="row"><button class="btn btn-soft btn-sm" data-restore-trash="'+esc(f.id)+'">Restore</button><button class="icon-btn" data-purge="'+esc(f.id)+'" title="Delete permanently">'+icon('trash',16)+'</button></div></td></tr>').join('')+'</tbody></table></div>';
+      list.map(f=>'<tr><td><div class="row"><span class="file-icon '+f.type+'">'+icon(fileIcon(f),17)+'</span><div class="file-name">'+esc(f.title)+'</div></div></td><td>'+typeNames[f.type]+'</td><td class="muted">'+dateText(f.trashedAt||Date.now())+'</td><td><div class="row"><button class="btn btn-soft btn-sm" data-restore-trash="'+esc(f.id)+'">Restore</button><button class="icon-btn" data-purge="'+esc(f.id)+'" title="Delete permanently">'+icon('trash',16)+'</button></div></td></tr>').join('')+'</tbody></table></div>';
   }
   if(!list.length) return '<div class="empty-state">'+icon('folder',36)+'<h3>No matching files yet</h3><p>Create a new file to get started.</p><button class="btn btn-primary" data-action="new">'+icon('plus',15)+' Create file</button></div>';
   return '<div class="panel"><table class="data-table"><thead><tr><th>Name</th><th>Type</th><th>Modified</th><th>Actions</th></tr></thead><tbody>'+
-    list.map(f=>'<tr data-open="'+esc(f.id)+'" style="cursor:pointer"><td><div class="row"><span class="file-icon '+f.type+'">'+icon(typeIcons[f.type],17)+'</span><div><button type="button" class="file-name file-open" data-open="'+esc(f.id)+'" title="'+esc(f.title)+'">'+esc(f.title)+'</button><div class="file-type">'+labels[f.type]+(recent?'<span class="home-modified-mobile">'+esc(homeDate(f.updatedAt))+'</span>':'')+'</div>'+(query.trim()&&workspaceMatchSource(f,query)!=='name'?'<div class="workspace-search-origin">Found in '+esc(workspaceMatchSource(f,query))+'</div>':'')+'</div></div></td><td><span class="badge">'+typeNames[f.type]+'</span></td><td class="muted">'+(recent?esc(homeDate(f.updatedAt)):dateText(f.updatedAt))+'</td><td><div class="row"><button class="icon-btn '+(f.starred?'starred':'')+'" data-star="'+esc(f.id)+'" title="Toggle favorite" aria-label="Toggle favorite" aria-pressed="'+Boolean(f.starred)+'">'+icon('star',16)+'</button><button class="icon-btn" data-duplicate="'+esc(f.id)+'" title="Duplicate" aria-label="Duplicate">'+icon('copy',16)+'</button><button class="icon-btn" data-delete="'+esc(f.id)+'" title="Delete" aria-label="Delete">'+icon('trash',16)+'</button></div></td></tr>').join('')+'</tbody></table></div>';
+    list.map(f=>'<tr data-open="'+esc(f.id)+'" style="cursor:pointer"><td><div class="row"><span class="file-icon '+f.type+'">'+icon(fileIcon(f),17)+'</span><div><button type="button" class="file-name file-open" data-open="'+esc(f.id)+'" title="'+esc(f.title)+'">'+esc(f.title)+'</button><div class="file-type">'+labels[f.type]+(recent?'<span class="home-modified-mobile">'+esc(homeDate(f.updatedAt))+'</span>':'')+'</div>'+(query.trim()&&workspaceMatchSource(f,query)!=='name'?'<div class="workspace-search-origin">Found in '+esc(workspaceMatchSource(f,query))+'</div>':'')+'</div></div></td><td><span class="badge">'+typeNames[f.type]+'</span></td><td class="muted">'+(recent?esc(homeDate(f.updatedAt)):dateText(f.updatedAt))+'</td><td><div class="row"><button class="icon-btn '+(f.starred?'starred':'')+'" data-star="'+esc(f.id)+'" title="Toggle favorite" aria-label="Toggle favorite" aria-pressed="'+Boolean(f.starred)+'">'+icon('star',16)+'</button><button class="icon-btn" data-duplicate="'+esc(f.id)+'" title="Duplicate" aria-label="Duplicate">'+icon('copy',16)+'</button><button class="icon-btn" data-delete="'+esc(f.id)+'" title="Delete" aria-label="Delete">'+icon('trash',16)+'</button></div></td></tr>').join('')+'</tbody></table></div>';
 }
 function filtered(list){return searchWorkspaceFiles(list,query);}
 function updateEditorMetrics(){
   const node=document.getElementById('studio-editor-metric'),f=getActive();
   if(node&&f)node.textContent=editorMetric(f,['docs','notes'].includes(f.type)?plain(f.body):'');
 }
+let fileDisplay='list';try{fileDisplay=localStorage.getItem('mysoft-office-file-display')==='grid'?'grid':'list';}catch{}
+const previewCards=items=>filePreviewCards(items,{labels,typeIcons,dateText});
 function home(){
   const sorted=filtered(files),recent=sorted.slice(0,7);
   const empty='<div class="home-empty">'+icon('folder',28)+'<h3>A fresh space for your next idea.</h3><p>Choose an app above, or bring an existing file into your workspace.</p><button class="btn btn-light" data-action="import-file">'+icon('upload',15)+' Import a file</button></div>';
   return '<div class="content home-content"><section class="home-intro" aria-labelledby="home-title"><div class="home-intro-copy"><div class="eyebrow">YOUR PERSONAL WORKSPACE</div><h1 id="home-title">Welcome to MySoft Office.</h1><p>Create something new, or pick up where you left off. Your work has a place here.</p><div class="home-intro-footer"><button class="btn btn-primary" data-nav="templates">'+icon('grid',16)+' Explore templates</button><span class="home-local-note">'+icon(storageReady&&saveState!=='failed'?'check':'info',14)+(storageReady&&saveState!=='failed'?'Stored on this device':'Local saving unavailable')+'</span></div></div><div class="home-intro-art" aria-hidden="true"><div class="home-art-halo"></div><div class="home-art-sheet home-art-back"></div><div class="home-art-sheet home-art-middle"></div><div class="home-art-sheet home-art-front"><img src="assets/mysoft-mark.svg" width="74" height="74" alt=""><span></span><span></span><span></span></div></div></section>'+
     '<section class="home-apps" aria-labelledby="home-apps-title"><div class="section-head"><div><h2 id="home-apps-title">Create with MySoft</h2><p>The right tool for your next idea.</p></div><span class="home-section-label">6 apps, one workspace</span></div>'+appTiles()+'</section>'+
-    '<section class="home-recents" aria-label="Recent files">'+sectionHead('Recent files','Your latest work, ready to continue.','files','View all files')+(recent.length?renderRows(recent,{recent:true}):empty)+'</section></div>';
+    '<section class="home-recents" aria-label="Recent files">'+sectionHead('Recent files','Your latest work, ready to continue.','files','View all files')+(recent.length?previewCards(recent):empty)+'</section></div>';
 }
 function filesPage(){
   let list=view==='trash'?trashFiles:files;
@@ -263,21 +282,22 @@ function filesPage(){
   if(fileFilter!=='all') list=list.filter(f=>f.type===fileFilter);
   list=filtered(list);
   const title=view==='trash'?'Recycle bin':view==='starred'?'Starred files':typeNames[view]?labels[view]:'All files';
-  return '<div class="content"><div class="spread page-heading"><div><h1>'+esc(title)+'</h1><p class="subtitle">'+(query.trim()?list.length+' results for “'+esc(query.trim().slice(0,128))+'”':list.length+' files · Saved in this browser')+'</p></div></div>'+
+  return '<div class="content"><div class="spread page-heading"><div><h1>'+esc(title)+'</h1><p class="subtitle">'+(query.trim()?list.length+' results for “'+esc(query.trim().slice(0,128))+'”':list.length+' files · Saved in this browser')+'</p></div>'+(view!=='trash'?'<div class="mo-view-switch" role="group" aria-label="File display"><button type="button" data-action="files-list" aria-label="List view" aria-pressed="'+(fileDisplay==='list')+'">'+icon('list-tree',16)+'</button><button type="button" data-action="files-grid" aria-label="Grid view" aria-pressed="'+(fileDisplay==='grid')+'">'+icon('grid',16)+'</button></div>':'')+'</div>'+
     '<div class="spread file-filters"><label class="row"><span class="muted">File type</span><select id="file-filter" aria-label="Filter by file type"><option value="all">All types</option>'+Object.keys(labels).map(t=>'<option value="'+t+'" '+(fileFilter===t?'selected':'')+'>'+labels[t]+'</option>').join('')+'</select></label><span class="muted">Recently edited first</span></div>'+
-    renderRows(list)+'</div>';
+    (fileDisplay==='grid'&&view!=='trash'&&list.length?previewCards(list):renderRows(list))+'</div>';
 }
-function templatesPage(){
-  const templates=[
-    {type:'docs',title:'Project proposal',description:'Start with a clear project outline.'},
-    {type:'sheets',title:'Simple budget',description:'Organize costs and formulas.'},
-    {type:'slides',title:'Pitch deck',description:'Tell a compelling story.'},
-    {type:'notes',title:'Meeting notes',description:'Capture decisions and next actions.'}
-  ];
-  return '<div class="content"><div class="eyebrow">START WITH A HEAD START</div><h1 style="margin:8px 0">Templates</h1><p class="subtitle">Useful starting points for your next project.</p><div class="templates-grid" style="margin-top:27px">'+templates.map((t,i)=>'<button class="template-card" data-template="'+i+'"><span class="app-icon '+t.type+'">'+icon(typeIcons[t.type],22)+'</span><h3>'+t.title+'</h3><p>'+t.description+'</p></button>').join('')+'</div></div>';
+function templatesPage(){return templateLibrary.gallery();}
+const panelState={};
+let commandTools=[];
+function panelsHidden(type){
+  if(!(type in panelState)){try{panelState[type]=localStorage.getItem('mysoft-panels-'+type)==='hidden';}catch{panelState[type]=false;}}
+  return panelState[type];
+}
+function editorWorkspaceActions(f){
+  return '<button type="button" class="btn btn-light btn-sm mo-appearance" data-ot-action="preferences" title="Workspace appearance" aria-label="Customize workspace">'+icon('settings',15)+'</button>'+(['pdf','media'].includes(f.type)?'<button type="button" class="btn btn-light btn-sm mo-file-action" data-action="file-menu" aria-label="File actions" aria-haspopup="dialog">'+icon('folder',15)+'</button>':'')+'<button type="button" class="btn btn-light btn-sm editor-tool-search" data-action="commands" title="Find editor tools (Ctrl+K)" aria-label="Find editor tools">'+icon('search',15)+'<span>Find tools</span></button>'+(['docs','slides','notes','pdf','media'].includes(f.type)?'<button type="button" class="btn btn-light btn-sm editor-panels-toggle" data-action="editor-panels" aria-pressed="'+!panelsHidden(f.type)+'" aria-label="'+(panelsHidden(f.type)?'Show':'Hide')+' editor panels" title="Show or hide supporting panels">'+icon('panel-left',15)+'<span>Panels</span></button>':'');
 }
 function editorHead(f){
-  return '<div class="editor-head"><button class="icon-btn" data-action="close-editor" title="Back to files">'+icon('back',19)+'</button><span class="file-icon '+f.type+'">'+icon(typeIcons[f.type],18)+'</span><input class="doc-title" id="document-title" aria-label="File title" value="'+esc(f.title)+'" maxlength="120"><div class="save-mark" id="save-status" role="status">'+esc(saveLabel())+'</div>'+(['notes','pdf','media'].includes(f.type)?'':'<button class="btn btn-soft btn-sm" data-action="office-export">'+icon('download',15)+' '+({docs:'DOCX',sheets:'XLSX',slides:'PPTX'}[f.type])+'</button>')+'<button class="btn btn-light btn-sm" data-action="revisions">'+icon('clock',15)+' History</button><button class="btn btn-light btn-sm" data-action="export">'+icon('download',15)+' Export</button><button type="button" class="btn btn-light btn-sm studio-focus-toggle" data-action="focus-mode" aria-pressed="'+focusMode+'" title="'+(focusMode?'Exit':'Enter')+' focus mode">'+icon('focus',14)+'<span class="studio-focus-label">'+(focusMode?'Exit focus':'Focus')+'</span></button></div>';
+  return '<div class="editor-head"><button class="icon-btn" data-action="close-editor" title="Back to files">'+icon('back',19)+'</button><span class="file-icon '+f.type+'">'+icon(fileIcon(f),18)+'</span><input class="doc-title" id="document-title" aria-label="File title" value="'+esc(f.title)+'" maxlength="120"><div class="save-mark" id="save-status" role="status">'+esc(saveLabel())+'</div>'+editorWorkspaceActions(f)+templateLibrary.editorActions()+(['notes','pdf','media'].includes(f.type)?'':'<button class="btn btn-soft btn-sm" data-action="office-export">'+icon('download',15)+' '+({docs:'DOCX',sheets:'XLSX',slides:'PPTX'}[f.type])+'</button>')+'<button class="btn btn-light btn-sm" data-action="revisions">'+icon('clock',15)+' History</button><button class="btn btn-light btn-sm" data-action="export">'+icon('download',15)+' Export</button><button type="button" class="btn btn-light btn-sm studio-focus-toggle" data-action="focus-mode" aria-pressed="'+focusMode+'" title="'+(focusMode?'Exit':'Enter')+' focus mode">'+icon('focus',14)+'<span class="studio-focus-label">'+(focusMode?'Exit focus':'Focus')+'</span></button></div>';
 }
 function docToolbar(){
   return '<div class="toolbar">'+
@@ -321,7 +341,7 @@ function slidesEditor(f){
   const studio=SLIDE_PRESETS[s.studioPreset]||SLIDE_PRESETS.ivory;
   return '<div class="slide-layout"><div class="slide-list"><button class="btn btn-soft btn-sm" data-action="slide-add" style="width:100%;margin-bottom:12px">'+icon('plus',14)+' Add slide</button>'+
     f.slides.map((slide,i)=>'<button class="slide-item '+(i===slideIndex?'active':'')+'" data-slide="'+i+'"><span>'+(i+1)+'</span><div class="slide-thumb"><strong>'+esc(slide.title)+'</strong><small>'+esc(slide.body).slice(0,46)+'</small></div></button>').join('')+'</div>'+
-    '<div class="slide-stage-wrap"><div class="slide-stage '+(theme.dark?'dark':'')+' studio-preset" style="--slide-accent:'+theme.color+';--studio-slide-bg:'+studio.background+';--studio-slide-text:'+studio.foreground+';--studio-slide-highlight:'+studio.accent+'"><div class="slide-tag">MySoft Slides · '+(slideIndex+1)+' / '+f.slides.length+'</div><div class="slide-title" contenteditable="true" id="slide-title" role="textbox" aria-label="Slide title" data-placeholder="Slide title">'+esc(s.title)+'</div><div class="slide-body" contenteditable="true" id="slide-body" role="textbox" aria-label="Slide body">'+esc(s.body)+'</div><div class="studio-object-layer" aria-label="Editable slide objects">'+renderedSlideObjects(s,{editable:true,selectedId:activeObjectId})+'</div></div></div>'+
+    '<div class="slide-stage-wrap"><div class="slide-stage '+(theme.dark?'dark':'')+' studio-preset'+(s.studioRoadmap?' studio-roadmap':'')+'" style="--slide-accent:'+theme.color+';--studio-slide-bg:'+studio.background+';--studio-slide-text:'+studio.foreground+';--studio-slide-highlight:'+studio.accent+'"><div class="slide-tag">MySoft Slides · '+(slideIndex+1)+' / '+f.slides.length+'</div><div class="slide-title" contenteditable="true" id="slide-title" role="textbox" aria-label="Slide title" data-placeholder="Slide title">'+esc(s.title)+'</div><div class="slide-body" contenteditable="true" id="slide-body" role="textbox" aria-label="Slide body">'+esc(s.body)+'</div><div class="studio-object-layer" aria-label="Editable slide objects">'+renderedSlideObjects(s,{editable:true,selectedId:activeObjectId})+'</div></div></div>'+
     '<div class="slide-controls"><h3>Design theme</h3>'+Object.entries(themes).map(([k,v])=>'<button class="theme-choice '+(s.theme===k?'active':'')+'" data-theme="'+k+'"><span class="theme-dot" style="background:'+v.color+'"></span>'+v.label+'</button>').join('')+
     '<h3 style="margin-top:30px">Slide actions</h3><button class="btn btn-light btn-sm" data-action="slide-duplicate" style="width:100%;margin:6px 0">'+icon('copy',14)+' Duplicate</button><button class="btn btn-light btn-sm" data-action="slide-delete" style="width:100%;margin:6px 0">'+icon('trash',14)+' Delete</button></div></div>';
 }
@@ -331,8 +351,8 @@ function notesEditor(f){
     book.sections.map(sec=>'<div class="studio-notebook-section">'+esc(sec.title)+'</div>'+
       sec.notes.map(n=>'<button class="note-list-item '+(n.id===f.id?'active':'')+'" data-note-search-item="'+esc(noteSearchText(n).slice(0,3500))+'" data-open="'+esc(n.id)+'"><strong>'+esc(n.title)+'</strong><span>'+dateText(n.updatedAt)+'</span></button>').join('')
     ).join('')+'</div>').join('');
-  return '<div class="note-layout"><div class="note-list"><div class="spread"><h3>Notebooks</h3><button class="icon-btn" data-create="notes" title="New note">'+icon('plus',16)+'</button></div>'+'<input id="note-search" type="search" class="studio-note-search" aria-label="Search notebooks and notes" placeholder="Search title, tags, content…"><p id="note-no-results" class="studio-note-no-results" hidden>No matching notes.</p>'+tree+'</div>'+
-    '<div class="note-editor"><div class="studio-note-heading"><div class="eyebrow">MY NOTES</div>'+
+  return '<div class="note-layout"><div class="note-list"><div class="spread"><h3>Notebooks</h3><button class="icon-btn" data-create="notes" title="New note">'+icon('plus',16)+'</button></div>'+'<input id="note-search" type="search" class="studio-note-search" aria-label="Search notebooks and notes" placeholder="Search title, tags, content…"><p id="note-no-results" class="studio-note-no-results" hidden>No matching notes.</p><div id="note-tree">'+tree+'</div></div>'+
+    '<div class="note-editor"'+(f.noteCanvas?' data-custom-canvas="true"':'')+' style="'+esc(noteCanvasStyle(f))+'"><div class="studio-note-heading"><div class="eyebrow">MY NOTES</div>'+
     '<button type="button" class="studio-pin-btn '+(f.pinned?'is-pinned':'')+'" data-note-pin="true" aria-pressed="'+Boolean(f.pinned)+'">'+icon('pin',14)+'<span>'+(f.pinned?'Pinned':'Pin note')+'</span></button></div><div class="studio-note-organizer">'+
     '<label>Notebook<input id="note-notebook" aria-label="Notebook" maxlength="40" value="'+esc(location.notebook)+'"></label>'+
     '<label>Section<input id="note-section" aria-label="Section" maxlength="40" value="'+esc(location.section)+'"></label>'+
@@ -348,13 +368,13 @@ function editor(){
   const zoom=Math.round(parseFloat(document.documentElement.style.getPropertyValue('--studio-zoom'))||100);
   const status='<div class="studio-statusbar" role="status"><div class="studio-status-left"><span class="studio-status-dot"></span><span>MySoft '+typeNames[f.type]+'</span><span class="studio-status-divider">·</span><span id="studio-storage-status">'+esc(saveLabel())+'</span></div>'+
     '<div class="studio-status-right"><span id="studio-editor-metric">'+esc(editorMetric(f,['docs','notes'].includes(f.type)?plain(f.body):''))+'</span><span class="studio-shortcut">Ctrl+S · Save</span><button data-ot-action="zoom-out" class="studio-zoom-btn" aria-label="Zoom out">'+icon('minus',13)+'</button><span id="studio-zoom-value">'+zoom+'%</span><button data-ot-action="zoom-in" class="studio-zoom-btn" aria-label="Zoom in">'+icon('plus',13)+'</button></div></div>';
-  const tabs=recentWorkspaceFiles(files,f.id,recentFileIds).map(file=>'<button type="button" class="studio-file-tab '+(file.id===f.id?'active':'')+'" data-app="'+file.type+'" data-workspace-tab="'+esc(file.id)+'" title="'+esc(file.title)+'" aria-label="Open '+esc(file.title)+'"'+(file.id===f.id?' aria-current="page"':'')+'><span class="studio-file-tab-icon '+file.type+'">'+icon(typeIcons[file.type],14)+'</span><span class="studio-file-tab-name">'+esc(file.title)+'</span></button>').join('');
-  return '<div class="editor-shell">'+editorHead(f)+'<nav class="studio-file-tabs" aria-label="Recent files">'+tabs+'</nav>'+(['pdf','media'].includes(f.type)?'':powerRibbon(f,selectedCell,slideIndex))+(f.type==='docs'?docsEditor(f):f.type==='sheets'?sheetsEditor(f):f.type==='slides'?slidesEditor(f):f.type==='pdf'?pdfStudio.markup(f):f.type==='media'?mediaStudio.markup(f):notesEditor(f))+status+'</div>';
+  const tabs=recentWorkspaceFiles(files,f.id,[...(f.demoPackId?files.filter(item=>item.demoPackId===f.demoPackId).map(item=>item.id):[]),...recentFileIds],f.demoPackId?6:5).map(file=>'<button type="button" class="studio-file-tab '+(file.id===f.id?'active':'')+'" data-app="'+file.type+'" data-workspace-tab="'+esc(file.id)+'" title="'+esc(file.title)+'" aria-label="Open '+esc(file.title)+'"'+(file.id===f.id?' aria-current="page"':'')+'><span class="studio-file-tab-icon '+file.type+'">'+icon(fileIcon(file),14)+'</span><span class="studio-file-tab-name">'+esc(file.title)+'</span></button>').join('');
+  return '<div class="editor-shell" data-panels-hidden="'+panelsHidden(f.type)+'">'+editorHead(f)+'<nav class="studio-file-tabs" aria-label="Recent files">'+tabs+'</nav>'+(['pdf','media'].includes(f.type)?'':powerRibbon(f,selectedCell,slideIndex))+(f.type==='docs'?docsEditor(f):f.type==='sheets'?sheetsEditor(f):f.type==='slides'?slidesEditor(f):f.type==='pdf'?pdfStudio.markup(f):f.type==='media'?mediaStudio.markup(f):notesEditor(f))+status+'</div>';
 }
 function render(){
   pdfStudio.unmount();mediaStudio.unmount();
   const nativeApp=view==='editor'?getActive()?.type:typeNames[view]?view:'workspace';
-  app.innerHTML='<div class="shell '+(navCollapsed?'nav-collapsed ':'')+(focusMode&&view==='editor'?'focus-mode':'')+'">'+'<a class="studio-skip-link" href="#studio-main">Skip to main content</a>'+sidebar()+'<button type="button" class="studio-mobile-scrim" data-action="mobile-close" aria-label="Close navigation" hidden></button><main class="main" id="studio-main" data-app="'+(nativeApp||'workspace')+'" tabindex="-1">'+header()+(view==='editor'?editor():view==='home'?home():view==='templates'?templatesPage():filesPage())+'</main></div>';
+  app.innerHTML='<div class="shell '+(navCollapsed?'nav-collapsed ':'')+(view==='editor'?'mo-editing ':'')+(focusMode&&view==='editor'?'focus-mode':'')+'">'+'<a class="studio-skip-link" href="#studio-main">Skip to main content</a>'+sidebar()+'<button type="button" class="studio-mobile-scrim" data-action="mobile-close" aria-label="Close navigation" hidden></button><main class="main" id="studio-main" data-app="'+(nativeApp||'workspace')+'" tabindex="-1">'+(view==='editor'?'':header())+(view==='editor'?editor():view==='home'?home():view==='templates'?templatesPage():filesPage())+'</main></div>';
   syncSidebarAccess();
   updateSaveStatus(saveState);
   if(view==='editor'&&getActive()?.type==='pdf')void pdfStudio.mount(getActive());
@@ -442,22 +462,11 @@ function newFile(type,title){
   files.unshift(f);persist();openFile(f.id);toast('Created '+typeNames[type].toLowerCase());
   return f;
 }
-function createTemplate(index){
-  const types=['docs','sheets','slides','notes'];
-  const names=['Project proposal','Simple budget','Pitch deck','Meeting notes'];
-  const type=types[index];if(!type) return;
-  const f=newFile(type,names[index]);
-  if(type==='docs') f.body='<h1>Project Proposal</h1><h2>Overview</h2><p>Describe the problem and your proposed solution.</p><h2>Objectives</h2><ul><li>Objective 1</li><li>Objective 2</li></ul><h2>Timeline</h2><p>Add your project milestones here.</p>';
-  if(type==='sheets') f.cells={A1:'Category',B1:'Planned',C1:'Actual',A2:'Equipment',B2:'1000',C2:'850',A3:'Software',B3:'400',C3:'450',A5:'Total',B5:'=SUM(B2:B3)',C5:'=SUM(C2:C3)'};
-  if(type==='slides') f.slides=[{title:'The opportunity',body:'Describe the challenge and what could change.',theme:'violet'},{title:'Our solution',body:'Share your unique approach.',theme:'ocean'},{title:'Next steps',body:'Outline the way forward.',theme:'midnight'}];
-  if(type==='notes') f.body='<h2>Meeting agenda</h2><p>Date:</p><h2>Discussion</h2><p></p><h2>Decisions</h2><p></p><h2>Action items</h2><p></p>';
-  persist();render();
-}
 function modal(kind,id){
   const f=files.find(x=>x.id===id);
   if(kind==='new'){
     const preferredType=view==='editor'?getActive()?.type:view;
-    modalRoot.innerHTML='<div class="modal-backdrop"><form class="modal" id="new-form"><h2>Create a new file</h2><p>Choose an app and give your file a name.</p><label for="new-type">Application</label><select id="new-type" name="type">'+Object.keys(labels).map(t=>'<option value="'+t+'"'+(t===preferredType?' selected':'')+'>'+labels[t]+'</option>').join('')+'</select><label for="new-title">File name</label><input id="new-title" name="title" placeholder="Untitled file" maxlength="120" autofocus><div class="modal-actions"><button type="button" class="btn btn-light" data-action="modal-close">Cancel</button><button class="btn btn-primary" type="submit">Create file</button></div></form></div>';
+    modalRoot.innerHTML='<div class="modal-backdrop"><form class="modal" id="new-form"><h2>Create a new file</h2><p>Choose an app and give your file a name.</p><label for="new-type">Application</label><select id="new-type" name="type">'+Object.keys(labels).map(t=>'<option value="'+t+'"'+(t===preferredType?' selected':'')+'>'+labels[t]+'</option>').join('')+'</select><label for="new-title">File name</label><input id="new-title" name="title" placeholder="Untitled file" maxlength="120" autofocus><div class="modal-actions"><button type="button" class="btn btn-light" data-template-browse="all">Explore templates</button><button type="button" class="btn btn-light" data-action="modal-close">Cancel</button><button class="btn btn-primary" type="submit">Create file</button></div></form></div>';
   } else if(kind==='delete'&&f){
     modalRoot.innerHTML='<div class="modal-backdrop"><div class="modal"><h2>Move to recycle bin?</h2><p><strong>'+esc(f.title)+'</strong> can be restored from your recycle bin.</p><div class="modal-actions"><button class="btn btn-light" data-action="modal-close">Cancel</button><button class="btn btn-dark" data-action="confirm-delete" data-id="'+esc(f.id)+'">Move to bin</button></div></div></div>';
   } else if(kind==='revisions'&&f){
@@ -472,23 +481,30 @@ function modal(kind,id){
       slides:'Exports slide titles, bodies, supported MySoft shapes, and plain-text speaker notes. Images, animations, slide masters and complex third-party layouts are not faithfully reproduced.'
     };
     modalRoot.innerHTML='<div class="modal-backdrop"><div class="modal"><h2>Export to '+fmt+'</h2><p>'+notices[f.type]+'</p><p>For full preservation, also export a JSON workspace backup.</p><div class="modal-actions"><button class="btn btn-light" data-action="modal-close">Cancel</button><button class="btn btn-primary" data-action="office-export-confirm">Export '+fmt+'</button></div></div></div>';
+  } else if(kind==='file-menu'){
+    modalRoot.innerHTML='<div class="modal-backdrop"><section class="modal mo-file-dialog"><h2>File</h2><div class="mo-file-actions">'+[['action:save','Save on this device','save'],['action:history','Version history','clock'],['action:export','Export file','download'],['action:backup','Export workspace backup','download'],['nav:home','Overview','home'],['nav:files','All files','folder'],['nav:templates','Templates','grid'],['action:preferences','Workspace appearance','settings']].map(([id,label,glyph])=>'<button type="button" class="btn btn-light" data-command-run="'+id+'">'+icon(glyph,17)+label+'</button>').join('')+'<button type="button" class="btn btn-light" data-action="new">'+icon('plus',17)+'New file</button></div><div class="modal-actions"><button class="btn btn-light" data-action="modal-close">Close</button></div></section></div>';
   } else if(kind==='commands'){
+    commandTools=[];
     const commands=[
       ['create:docs','New document','Docs'],['create:sheets','New spreadsheet','Sheets'],
       ['create:slides','New presentation','Slides'],['create:notes','New note','Notes'],
       ['create:pdf','Open PDF workspace','PDF'],['create:media','Open Media workspace','Media'],
       ['nav:home','Home dashboard','Workspace'],['nav:files','All files','Workspace'],
-      ['nav:starred','Starred files','Workspace'],['action:preferences','Appearance and colors','Settings'],
+      ['nav:templates','Browse app templates','Workspace'],['nav:starred','Starred files','Workspace'],['action:preferences','Appearance and colors','Settings'],
       ['action:save','Save locally','File']
     ];
     if(view==='editor'&&getActive()){
+      const current=getActive();
+      commandTools=['pdf','media'].includes(current.type)?[...document.querySelectorAll('.editor-shell button[data-'+current.type+'-action]')].filter(button=>!button.disabled).map(button=>({attribute:'data-'+current.type+'-action',action:button.getAttribute('data-'+current.type+'-action'),label:button.getAttribute('aria-label')||button.getAttribute('title')||button.textContent.trim()})):ribbonToolCommands(current,selectedCell,slideIndex);
+      commandTools=commandTools.map(tool=>({...tool,fileId:current.id}));
+      commands.unshift(...commandTools.map((tool,i)=>['tool:'+i,tool.label,labels[current.type]+(tool.tab?' · '+tool.tab:'')]));
       commands.push(['action:history','Version history','File']);
       if(getActive().type!=='notes')commands.push(['action:export','Export file','File']);
     }
     for(const file of [...files].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)).slice(0,8))
       commands.push(['file:'+file.id,'Open '+file.title,'Recent']);
     modalRoot.innerHTML='<div class="modal-backdrop"><div class="modal studio-command-modal" role="dialog" aria-modal="true" aria-label="Command search">'+
-      '<h2>What would you like to do?</h2><p>Search actions or files. Press Enter to select.</p>'+
+      '<h2>What would you like to do?</h2><p id="studio-command-hint">Search tools and files. Use ↑ ↓ to choose, then Enter.</p>'+
       '<input id="studio-command-search" type="search" aria-label="Search commands and files" placeholder="Type an action, tool or file…" autocomplete="off">'+
       '<div class="studio-command-results" role="list">'+commands.map(([id,label,group])=>
         '<button type="button" class="studio-command-item" data-command-run="'+esc(id)+'" data-command-text="'+esc((label+' '+group).toLocaleLowerCase())+'"><span>'+esc(label)+'</span><small>'+esc(group)+'</small></button>'
@@ -775,13 +791,22 @@ document.addEventListener('click',event=>{
     if(id.startsWith('create:')){
       const type=id.slice(7);if(Object.hasOwn(typeNames,type))newFile(type,'Untitled '+typeNames[type]);
     }else if(id.startsWith('nav:')){
-      const dest=id.slice(4);if(['home','files','starred'].includes(dest))navigate(dest);
+      const dest=id.slice(4);if(['home','files','starred','templates'].includes(dest))navigate(dest);
     }else if(id.startsWith('file:')){
       const target=id.slice(5);if(files.some(f=>f.id===target))openFile(target);
+    }else if(id.startsWith('tool:')){
+      const tool=commandTools[Number(id.slice(5))];
+      // Let the dialog focus manager release the inert workspace before editing.
+      queueMicrotask(()=>{if(tool&&getActive()?.id===tool.fileId){
+        if(tool.tab&&!document.querySelector('[data-ot-tab="'+CSS.escape(tool.tab)+'"].active'))document.querySelector('[data-ot-tab="'+CSS.escape(tool.tab)+'"]')?.click();
+        const control=document.querySelector('.editor-shell ['+tool.attribute+'="'+CSS.escape(tool.action)+'"]');
+        if(control&&!control.disabled)control.click();else toast('This tool is unavailable for the current selection.');
+      }});
     }else if(id==='action:preferences')document.querySelector('[data-ot-action="preferences"]')?.click();
     else if(id==='action:save'){void saveCommand();}
     else if(id==='action:history'&&getActive())modal('revisions',activeId);
     else if(id==='action:export')exportFile();
+    else if(id==='action:backup')backup();
     return;
   }
   if(el.dataset.notePin!==undefined){
@@ -838,7 +863,7 @@ document.addEventListener('click',event=>{
   if(el.dataset.star){const f=files.find(x=>x.id===el.dataset.star);if(f){f.starred=!f.starred;touch(f);render();}return;}
   if(el.dataset.duplicate){duplicate(el.dataset.duplicate);return;}
   if(el.dataset.delete){modal('delete',el.dataset.delete);return;}
-  if(el.dataset.template!==undefined){createTemplate(Number(el.dataset.template));return;}
+
   if(el.dataset.slide!==undefined){slideIndex=Number(el.dataset.slide);activeObjectId=null;render();return;}
   if(el.dataset.theme){const f=getActive();if(f?.type==='slides'){f.slides[slideIndex].theme=el.dataset.theme;touch(f);render();}return;}
   if(el.dataset.cmd){
@@ -855,6 +880,16 @@ document.addEventListener('click',event=>{
   if(action==='nav-collapse'){setCollapsedSidebar(!navCollapsed);return;}
   if(action==='focus-mode'){focusMode=!focusMode;mobileOpen=false;render();document.querySelector('[data-action="focus-mode"]')?.focus();}
   if(action==='new')modal('new');
+  if(action==='editor-panels'){
+    const file=getActive();if(!file)return;
+    panelState[file.type]=!panelsHidden(file.type);
+    try{localStorage.setItem('mysoft-panels-'+file.type,panelState[file.type]?'hidden':'visible');}catch{}
+    document.querySelector('.editor-shell').dataset.panelsHidden=String(panelState[file.type]);
+    el.setAttribute('aria-pressed',String(!panelState[file.type]));el.setAttribute('aria-label',(panelState[file.type]?'Show':'Hide')+' editor panels');
+    window.dispatchEvent(new Event('resize'));return;
+  }
+  if(action==='files-list'||action==='files-grid'){fileDisplay=action==='files-grid'?'grid':'list';try{localStorage.setItem('mysoft-office-file-display',fileDisplay);}catch{}render();return;}
+  if(action==='file-menu')modal('file-menu');
   if(action==='commands')modal('commands');
   if(action==='modal-close')closeModal();
   if(action==='confirm-delete')remove(el.dataset.id);
@@ -1026,6 +1061,7 @@ document.addEventListener('change',event=>{
 document.addEventListener('keydown',event=>{
   if(event.key==='/'&&!event.ctrlKey&&!event.metaKey&&!event.altKey&&!event.target.closest('input,textarea,select,[contenteditable]')&&!modalRoot.firstChild){
     const search=document.getElementById('global-search');
+    if(!search&&view==='editor'){event.preventDefault();modal('commands');return;}
     if(search){event.preventDefault();search.focus();search.select();return;}
   }
   if(mobileOpen){
@@ -1062,6 +1098,14 @@ document.addEventListener('keydown',event=>{
   }
   if(event.target.id==='studio-command-search'&&event.key==='Enter'){
     event.preventDefault();document.querySelector('[data-command-run]:not([hidden])')?.click();return;
+  }
+  if(event.target.closest('.studio-command-modal')&&['ArrowDown','ArrowUp','Home','End'].includes(event.key)&&
+      (event.target.id==='studio-command-search'||event.target.hasAttribute('data-command-run'))){
+    if(event.target.id==='studio-command-search'&&['Home','End'].includes(event.key))return;
+    const items=[...modalRoot.querySelectorAll('[data-command-run]:not([hidden])')];if(!items.length)return;
+    event.preventDefault();const index=items.indexOf(event.target);
+    const next=event.key==='Home'?items[0]:event.key==='End'?items.at(-1):event.key==='ArrowDown'?items[(index+1)%items.length]:index===0?document.getElementById('studio-command-search'):index<0?items.at(-1):items[index-1];
+    next?.focus({preventScroll:true});next?.scrollIntoView({block:'nearest'});return;
   }
   if(view==='editor'&&getActive()?.type==='slides'){
     const shape=event.target.closest('[data-slide-object]');
@@ -1153,17 +1197,28 @@ const externalInput=document.createElement('input');
 externalInput.type='file';externalInput.accept='.txt,.md,.csv,.html,.htm,.docx,.xlsx,.pptx,.pdf,.png,.jpg,.jpeg,.webp,.gif,.wav,.mp3,.m4a,.aac,.flac,.ogg,.mp4,.webm,.mov';
 externalInput.id='external-file-upload';externalInput.hidden=true;
 document.body.appendChild(externalInput);
+initializeRibbonWorkbench();
 initializeOfficeTools({
   getFile:getActive,getFiles:()=>files,openFile,download,touch,persist,render,sanitize,toast,
+  sealHistory:file=>{if(['docs','notes'].includes(file.type))documentHistory.checkpoint(file.id,file.body||'');},
+  createProductionFiles:async records=>{
+    if(!Array.isArray(records)||!records.length||records.length>20)throw Error('Create up to 20 files at a time.');
+    const prepared=records.map(record=>{if(!['docs','notes'].includes(record.type))throw Error('Unsupported output type.');const file={...makeFile(record.type,record.title),...record};file.body=sanitize(file.body);return file;});
+    let nextVersions=revisions;for(const file of prepared)nextVersions=addRevision(nextVersions,file,Date.now(),true);
+    const next={files:[...prepared,...files],trash:trashFiles,versions:nextVersions};validateWorkspace(next);
+    if(!await persist(next,{journal:false}))throw Error('The new files could not be saved. Your existing files are unchanged; retry or export a backup.');
+    files=next.files;revisions=next.versions;openFile(prepared[0].id);return prepared.length;
+  },
+  createDigestNote:async(notebook,html)=>{const note=makeFile('notes',notebook+' digest');Object.assign(note,{body:sanitize(html),notebook,section:'Digests',workflowDigest:true});files.unshift(note);touch(note);const saved=await persist();openFile(note.id);return saved;},
   getSelectedCell:()=>selectedCell,getSlideIndex:()=>slideIndex,
   getSlideObjectId:()=>activeObjectId,setSlideObjectId:id=>{activeObjectId=id;},
   getReviewQuote:()=>selectedReviewQuote,
   getNoteLocation:noteLocation,renameNotes:options=>renameNoteCollection(files,options),
   setSlideIndex:i=>{slideIndex=i;activeObjectId=null;}
 });
-window.addEventListener('pagehide',()=>{clearTimeout(savedTimer);void persist();});
+window.addEventListener('pagehide',()=>{if(saveState==='saved')return;clearTimeout(savedTimer);void persist();});
 document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState==='hidden'&&storageReady){clearTimeout(savedTimer);void persist();}
+  if(document.visibilityState==='hidden'&&storageReady&&saveState!=='saved'){clearTimeout(savedTimer);void persist();}
 });
 window.addEventListener('popstate',()=>{restoreRoute();render();});
 async function bootWorkspace(){

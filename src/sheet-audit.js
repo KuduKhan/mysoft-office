@@ -3,7 +3,7 @@ const refPattern=/\b([A-Z])([1-9][0-9]{0,2}|1000)\b/g;
 const rangePattern=/\b([A-Z](?:[1-9][0-9]{0,2}|1000)):([A-Z](?:[1-9][0-9]{0,2}|1000))\b/g;
 const valid=/^[A-Z](?:[1-9][0-9]{0,2}|1000)$/;
 export function formulaDependencies(formula){
-  const expression=String(formula||'');
+  const expression=String(formula||'').replace(/"(?:""|[^"])*"/g,'""');
   if(!expression.startsWith('='))return [];
   const refs=new Set();
   const scrubbed=expression.toUpperCase().replace(rangePattern,(_,a,b)=>{

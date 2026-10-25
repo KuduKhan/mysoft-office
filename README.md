@@ -1,5 +1,60 @@
 # MySoft Office
 
+## Advanced Studio
+
+Docs adds previewed case-aware/whole-word text replacement. Sheets adds Goal Seek with a preview and guarded apply. Slides creates editable roadmap cards. Notes combines full source notes into a separate saved note. PDF standardizes pages to A4/Letter with rotation-aware vector fitting. Media distributes visible drawing layers with equal gaps, undo and saved geometry. Open **Tools → Advanced studio**, **Resize PDF pages**, or **Media → Layers**. [Supported behavior and limits](EDITOR_UPGRADE_NOTES.md) remain explicit.
+
+## Upgraded editor ribbons
+
+All six editors now use labeled tool groups with compact/comfortable density, group-jump navigation and overflow arrows. PDF and Media share the same ribbon layout and gain saved collapse controls. **Alt+R** focuses ribbon navigation. Docs and Notes add justify, bounded paragraph indentation and Heading 3; Notes has an Insert tab. Sheets adds safe MIN/MAX/COUNT insertion with a chosen source range and a General format control. Slides adds first/last-slide navigation and presenting from the beginning. PDF adds first/last-page navigation, height fit and stepped zoom. Media adds preview PNG/waveform capture, view reset and stepped canvas zoom.
+
+## Production Studio
+
+Docs combines multiple documents into a new file. Sheets builds two-dimensional pivot-style matrices with weighted totals. Slides turns worksheet rows into editable slides. Notes splits long notes into separate section notes. PDF exports vector handouts with two or four pages per sheet. Media adds stereo-linked audio compression with threshold, ratio, attack and release shared by preview and WAV export. Find these additions under **Tools / Find tools**, **PDF handout**, and **Media → Sound**. [Behavior and limits](EDITOR_UPGRADE_NOTES.md) are documented.
+
+## Workflow Studio
+
+All six apps gain new working tools: Docs fills reusable template fields; Sheets sorts by two columns into a new worksheet; Slides builds editable agenda pages; Notes creates linked notebook digests; PDF exports cropped pages; Media coordinates artwork colors with four palettes, undo/redo and palette downloads. The new **Client project brief** template demonstrates template fields. Use **Tools / Find tools** in the writing apps, **Crop PDF pages** in PDF, or **Layers** in Media. See [supported workflows and limits](EDITOR_UPGRADE_NOTES.md).
+
+## MO-inspired workspace
+
+The supplied MO project informs the neutral slate canvas, light sidebar, full-width editors and labeled ribbon groups. All six existing apps keep their native colors, local files and editing workflows. File previews use your saved content; Files offers persistent grid/list views. Docs adds selected-paragraph spacing, indentation, tracking and text direction. Notes adds saved paper, font, spacing, writing width and ruled guides under Design. File navigation and appearance settings remain available inside editors without a second workspace header.
+
+## More tools across the suite
+
+Docs adds a table designer; Sheets adds filtered extracts into new worksheets; Slides adds repeated object grids; Notes imports/exports a safe Markdown subset; PDF merges selected documents into a separate download; Media adds vignette and frame controls shared by preview and export. Find tools now supports arrow-key navigation. These additions use the existing compact tools and saved-file models. [Supported behavior and limits](EDITOR_UPGRADE_NOTES.md) are documented.
+
+## Professional editor expansion
+
+The new four-color folded-M logo is paired with a refreshed sidebar, editor surfaces, precise tool states and compact dialogs. All six apps gain practical tools: Docs writing review, Sheets grouped summaries, Slides object properties, Notes task capture and filters, PDF watermarks/page numbers, and Media SVG export and layer sizing. Use **Tools**, **Find tools**, or **Ctrl+K** to reach the new workflows. See [editor upgrade notes](EDITOR_UPGRADE_NOTES.md) for supported behavior, limits and official product benchmarks.
+
+## Compact editing workspaces
+
+- All six apps share tighter headers and file tabs. Phone ribbons scroll horizontally, keeping tools available while leaving more room for content. Slides uses a compact theme/action strip; mobile Notes keeps search and recent notes in a small browser strip.
+- **Find tools / Ctrl+K** searches the current app's editing actions across ribbon categories, alongside workspace commands and files. Switching ribbon categories updates the toolbar without rebuilding the editor or losing the text selection.
+- **Panels** shows or hides supporting panels independently for each app and remembers the choice in this browser. It preserves editor content and session history. Sheets keeps its grid and formula bar available.
+- **Slides → Shapes → Edit label** adds editable text to existing shapes, including presentation rendering and supported PPTX export. **PDF → Organize** adds reverse order, duplicate current page and remove current page, with undo/redo and at least one page retained. **Media → Layers** mirrors a selected drawing layer horizontally or vertically inside its own bounds, with undo/redo.
+- Appearance settings group scale, density, theme and zoom in a compact grid and use one accent-color picker.
+
+## Editor refinements and offline visual polish
+
+- The original four-color MySoft mark and favicon now share refined geometry and a subtle tonal finish. The locally bundled SVG system includes distinct PDF, Media, waveform, drawing, visibility, distribution and task icons; toolbar names and keyboard labels remain accessible.
+- **Docs → Insert → Callout:** insert a titled insight, decision, action or important note with editable text and bounded, sanitized content.
+- **Sheets → Tools → Text tools:** build live `TRIM`, `UPPER`, `LOWER`, `LEN` and `CONCAT` formulas in a separate empty cell. `LEFT` and `RIGHT` are also supported in formulas. Occupied result cells and direct circular references are refused.
+- **Slides → Tools:** distribute three or more objects horizontally or vertically with equal gaps. Object sizes and layer order are preserved; overlapping or rotated arrangements that cannot fit are rejected before editing.
+- **Notes → Tools → Export task list:** export checklist tasks across notes as grouped Markdown, retaining completed and open states.
+- **PDF:** undo and redo page rotations, page order and bookmark changes during the current open session. Export extractable text in the current page order, including repeated pages. Source PDF bytes stay intact; OCR is not included.
+- **Media → Layers:** edit an existing layer's color, stroke width, stroke style and shape fill, with undo and redo. Geometry and original media are preserved.
+- Media files use drawing, image, waveform or film icons according to their actual content. Cleanly saved workspaces skip redundant exit saves so reopening does not announce a false unsaved-edits recovery.
+
+## Demo templates and editor checks
+
+- **Templates** now includes 13 offline examples for all six apps: proposals and reports, two-sheet formula workbooks, designed presentations, task notebooks, real searchable PDFs, and editable drawing/image/audio projects. Preview content before naming and creating a separate copy.
+- **Open demo workspace** creates one example per app and shows all six in the file tabs. Reopening the pack reuses existing demo files and only creates missing examples.
+- Every editor has **Templates** and **Guide**. Save a file to **My templates** to reuse its latest content, with independent copies. Removing it from the library leaves the original in My files. Guide checklists are stored with the file and included in JSON backups.
+- **Guide → Check this file** inspects current content and settings: document review comments, worksheet formula errors, slide content and object bounds, note tasks, PDF output/bookmark destinations, and media trim ranges. It does not certify external application fidelity or replace checking an exported copy.
+- Sheets supports text IF branches, case-insensitive text comparisons and `&` concatenation. Quoted strings keep their case, doubled quotes are supported, and cell-like text inside strings is excluded from dependency tracing and relative-reference shifts.
+
 ## v0.8.1 — Office fidelity and PDF navigation reliability (scoped release)
 
 - **DOCX:** Safe HTTP(S) hyperlinks now export as proper Word relationship targets and import back as editable links, including links inside table cells. Unsupported schemes and MySoft-local links remain visible text with explicit conversion warnings. Strike, superscript and subscript runs round-trip for the supported inline subset.

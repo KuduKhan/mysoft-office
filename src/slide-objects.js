@@ -1,4 +1,5 @@
 // MySoft Slides native editable objects, kept in the local slide model.
+import {icon} from './icons.js';
 // Geometry is normalized 0-100% and limited to the 16:9 slide stage.
 const KINDS=new Set(['text','rect','ellipse','roundRect','triangle','diamond','hexagon']);
 const MAX_OBJECTS=40;
@@ -79,9 +80,9 @@ export function renderedSlideObjects(slide,{editable=false,selectedId=''}={}){
     const style='position:absolute;left:'+x+'%;top:'+y+'%;width:'+w+'%;height:'+h+'%;background-color:'+fill+';color:'+color+';--shape-fill:'+fill+';--shape-text:'+color+';--shape-font:'+val(o.fontSize,10,56)+'px;transform:rotate('+rotation+'deg)';
     const safeId=String(o.id||'').replace(/[^a-zA-Z0-9_-]/g,'');
     if(editable)return '<div class="studio-shape studio-shape-'+o.kind+(selectedId===o.id?' selected':'')+'" data-slide-object="'+safeId+'" tabindex="0" role="button" aria-label="Editable '+o.kind+' slide object" style="'+style+'">'+
-      '<span class="studio-shape-grip" title="Drag object to reposition" aria-hidden="true">⠿</span>'+
-      (o.kind==='text'?'<div class="studio-shape-text" contenteditable="true" role="textbox" spellcheck="true" data-slide-object-text="'+safeId+'" aria-label="Edit slide text box">'+text+'</div>':'')+'</div>';
+      '<span class="studio-shape-grip" title="Drag object to reposition" aria-hidden="true">'+icon('grip-vertical',13)+'</span>'+
+      (o.kind==='text'||text?'<div class="studio-shape-text" contenteditable="true" role="textbox" spellcheck="true" data-slide-object-text="'+safeId+'" aria-label="'+(o.kind==='text'?'Edit slide text box':'Edit shape label')+'">'+text+'</div>':'')+'</div>';
     return '<div class="studio-shape studio-shape-'+o.kind+'" style="'+style+'">'+
-      (o.kind==='text'?'<div class="studio-shape-text">'+text+'</div>':'')+'</div>';
+      (o.kind==='text'||text?'<div class="studio-shape-text">'+text+'</div>':'')+'</div>';
   }).join('');
 }

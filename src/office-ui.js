@@ -1,3 +1,5 @@
+import {aggregateFormula} from './ribbon-workbench.js';
+import {groupRibbon,paragraphLayout,applyParagraphLayout,noteCanvas,NOTE_FONTS} from './mo-workbench.js';
 import {capabilityToolbar,initializeCapabilityTools} from './capability-ui.js';
 import {icon,actionIcons} from './icons.js';
 import {
@@ -43,7 +45,7 @@ function safeSet(key,value){try{localStorage.setItem(key,value);}catch{}}
 let ribbonCollapsed=safeGet('mysoft-office-ribbon-collapsed')==='yes';
 const STUDIO_ACTIONS={
   docs:['Home','Insert','Structure','Table','Layout','Review','Tools'],
-  notes:['Write','Organize','Tools'],
+  notes:['Write','Insert','Design','Organize','Tools'],
   sheets:['Home','Format','Range','Data','Rules','Insert','Tools'],
   slides:['Design','Shapes','Arrange','Present','Tools']
 };
@@ -65,17 +67,17 @@ const button=(label,action,title='')=>{
   const accessible=title||iconLabels[action]||label.replace(/<[^>]*>/g,'').replace(/^[^a-zA-Z0-9%]+/,'').trim();
   const text=label.replace(/<[^>]*>/g,'').replace(/^[^a-zA-Z0-9%]+/,'').replace(/[▾▴]$/,'').trim();
   const iconOnly=/^(text-(bold|italic|underline)|cell-(bold|italic)|align-(left|center|right)|shape-(left|right|up|down)|strike|superscript|subscript)$/.test(action);
-  return '<button type="button" class="ot-btn'+(iconOnly?' ot-icon-only':'')+'" data-ot-action="'+action+'" title="'+escapeHTML(accessible)+'" aria-label="'+escapeHTML(accessible)+'">'+(name?icon(name,16):'')+(iconOnly?'':'<span>'+escapeHTML(text)+'</span>')+'</button>';
+  return '<button type="button" class="ot-btn'+(iconOnly?' ot-icon-only':'')+'" data-ot-action="'+action+'" title="'+escapeHTML(accessible)+'" aria-label="'+escapeHTML(accessible)+'"'+(/^(text-(bold|italic|underline)|strike|bullet-list|numbered-list)$/.test(action)?' aria-pressed="false"':'')+'> '+(name?icon(name,16):'')+(iconOnly?'':'<span>'+escapeHTML(text)+'</span>')+'</button>';
 };
-const choice=(name,options,current)=>'<label class="ot-select-label">'+escapeHTML(name)+' <select data-ot-input="'+name.toLowerCase().replace(/\s+/g,'-')+'">'+options.map(([value,text])=>'<option value="'+escapeHTML(value)+'"'+(value===current?' selected':'')+'>'+escapeHTML(text)+'</option>').join('')+'</select></label>';
+const choice=(name,options,current)=>'<label class="ot-select-label">'+escapeHTML(name)+' <select aria-label="'+escapeHTML(name)+'" data-ot-input="'+name.toLowerCase().replace(/\s+/g,'-')+'">'+options.map(([value,text])=>'<option value="'+escapeHTML(value)+'"'+(value===current?' selected':'')+'>'+escapeHTML(text)+'</option>').join('')+'</select></label>';
 const color=(label,name,value)=>'<label class="ot-select-label">'+escapeHTML(label)+' <input type="color" data-ot-input="'+name+'" value="'+(/^#[0-9a-fA-F]{6}$/.test(value)?value:'#6555e8')+'"></label>';
 function tabsFor(type){
   return STUDIO_ACTIONS[type]||[];
 }
-export function powerRibbon(file,selectedCell='A1',slideIndex=0){
+export function powerRibbon(file,selectedCell='A1',slideIndex=0,category=null){
   if(!file)return '';
-  const active=selectedTab[file.type]||tabsFor(file.type)[0];
-  const tabs=tabsFor(file.type).map(tab=>'<button class="ot-tab '+(tab===active?'active':'')+'" data-ot-tab="'+tab+'">'+tab+'</button>').join('');
+  const active=category||selectedTab[file.type]||tabsFor(file.type)[0];
+  const tabs=tabsFor(file.type).map(tab=>'<button role="tab" aria-selected="'+(tab===active)+'" tabindex="'+(tab===active?'0':'-1')+'" aria-controls="mo-active-tools" id="mo-tab-'+tab+'" class="ot-tab '+(tab===active?'active':'')+'" data-ot-tab="'+tab+'">'+tab+'</button>').join('');
   let body='';
   if(active==='Tools')body=capabilityToolbar(file);
   else if(file.type==='docs'||file.type==='notes'){
@@ -84,14 +86,14 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         choice('Font size',[['2','Small'],['3','Normal'],['4','Large'],['5','Heading'],['6','Display']], '3')+
         color('Text','text-color','#212d48')+color('Highlight','highlight','#f8f2ad')+
         button('<b>B</b>','text-bold','Bold selection')+button('<i>I</i>','text-italic','Italic selection')+button('<u>U</u>','text-underline','Underline selection')+
-        button('Align left','align-left')+button('Align center','align-center')+button('Align right','align-right')+
+        button('Align left','align-left')+button('Align center','align-center')+button('Align right','align-right')+button('Justify','align-justify')+button('Indent','paragraph-indent')+button('Outdent','paragraph-outdent')+
         button('Bulleted list','bullet-list')+button('Numbered list','numbered-list')+
         button('<b>S</b>','strike','Strikethrough')+button('x²','superscript')+button('x₂','subscript')+
-        button('Clear','clear-format','Remove text formatting')+button('H1','style-h1','Heading 1')+button('H2','style-h2','Heading 2')+button('Body','style-body','Body paragraph')+button('Quote','style-quote','Quote paragraph');
+        button('Clear','clear-format','Remove text formatting')+button('H1','style-h1','Heading 1')+button('H2','style-h2','Heading 2')+button('H3','style-h3','Heading 3')+button('Body','style-body','Body paragraph')+button('Quote','style-quote','Quote paragraph');
     } else if(active==='Insert'){
       body=button('Table 3×3','insert-table')+button('Table size…','custom-table')+button('Picture','insert-picture')+button('Divider','insert-hr')+
         button('Link','insert-link')+button('Checklist','insert-checklist')+button('Date','insert-date')+
-        button('Quote','insert-quote')+button('Page break','insert-page-break')+button('Insert contents','insert-contents','Insert editable heading list')+button('Refresh contents','refresh-contents');
+        button('Quote','insert-quote')+capabilityToolbar(file,'insert')+(file.type==='docs'?button('Page break','insert-page-break')+button('Insert contents','insert-contents','Insert editable heading list')+button('Refresh contents','refresh-contents'):'');
     } else if(active==='Structure'){
       body=button('↑ Move block','block-up')+button('↓ Move block','block-down')+
         button('H+ Promote','block-promote')+button('H− Demote','block-demote')+
@@ -118,6 +120,9 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
         '<label class="ot-select-label">Replace <input class="ot-text" data-ot-input="replace-text" id="ot-replace" placeholder="New text"></label>'+
         button('Find next','find-next')+button('Previous','find-previous')+
         button('Replace all','replace-all')+button('Print / PDF','print');
+    } else if(active==='Design'&&file.type==='notes'){
+      let n;try{n=noteCanvas(file.noteCanvas);}catch{n=noteCanvas();}
+      body=choice('Note paper',[['plain','Plain white'],['linen','Warm linen'],['mint','Soft mint'],['slate','Deep slate']],n.paper)+choice('Note font',NOTE_FONTS.map(font=>[font,font]),n.font)+choice('Note size',[12,14,15,16,18,20,24].map(size=>[String(size),size+' px']),String(n.size))+choice('Note spacing',[1.4,1.6,1.8,2].map(value=>[String(value),String(value)]),String(n.lineHeight))+choice('Writing width',[['focused','Focused'],['standard','Standard'],['wide','Wide']],n.width)+choice('Writing guides',[['off','Plain'],['on','Ruled']],n.ruled?'on':'off')+'<span class="ot-metric">Canvas choices are saved with this note. Text and Markdown exports retain their own formatting.</span>';
     } else if(active==='Organize'){
       body='<label class="ot-select-label">Tags <input class="ot-text" data-ot-input="tags" maxlength="180" value="'+escapeHTML((file.tags||[]).join(', '))+'" placeholder="ideas, meetings, work"></label>'+
         button('☐ Checklist','insert-checklist')+button('Rename notebook','note-rename-notebook')+button('Rename section','note-rename-section')+button('Meeting template','note-template-meeting')+button('Daily plan','note-template-daily')+button('Print / PDF','print')+
@@ -134,7 +139,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
       body=button('⇤ Align left','cell-align-left')+button('↔ Center','cell-align-center')+
         button('⇥ Align right','cell-align-right')+
         color('Text','cell-color','#212d48')+color('Fill','cell-background','#ffffff')+
-        button('KES','cell-currency')+button('%','cell-percent')+
+        button('General','cell-general')+button('KES','cell-currency')+button('%','cell-percent')+
         button('Reset style','cell-reset');
     } else if(active==='Range'){
       body=button('Bold range','range-bold')+button('Highlight range','range-highlight')+
@@ -153,7 +158,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
       body=button('Find / Replace','sheet-find-replace')+
         button('Fill down 5','sheet-fill-down')+button('Clear cell','sheet-clear-cell')+
         button('Sort A → Z','sort-asc')+button('Sort Z → A','sort-desc')+
-        button('Auto SUM','insert-sum')+button('Auto AVERAGE','insert-avg')+
+        button('Auto SUM','insert-sum')+button('Auto AVERAGE','insert-avg')+button('Auto MIN','insert-min')+button('Auto MAX','insert-max')+button('Auto COUNT','insert-count')+
         button('Audit formulas','sheet-audit')+button('Trace cell','sheet-trace')+
         button('Recalculate','sheet-recalculate')+
         '<span class="ot-metric">Sorting applies to column A and keeps row 1 as header. Formula sheets are protected.</span>';
@@ -172,7 +177,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
     } else if(active==='Shapes'){
       body=button('Text box','shape-text')+button('Rectangle','shape-rect')+button('Ellipse','shape-ellipse')+button('Rounded','shape-roundRect')+button('Triangle','shape-triangle')+button('Diamond','shape-diamond')+button('Hexagon','shape-hexagon')+
         color('Fill','shape-fill','#ea4c24')+color('Text','shape-color','#202d48')+
-        button('Text A+','shape-font-up')+button('Text A−','shape-font-down')+
+        button('Edit label','shape-label')+button('Text A+','shape-font-up')+button('Text A−','shape-font-down')+
         button('Align left','shape-align-left')+button('Center','shape-align-center')+
         button('Align right','shape-align-right')+button('Top','shape-align-top')+
         button('Middle','shape-align-middle')+button('Bottom','shape-align-bottom')+
@@ -188,17 +193,35 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0){
     } else if(active==='Arrange'){
       body=button('↑ Move up','slide-up')+button('↓ Move down','slide-down')+
         button('＋ New slide','slide-new')+button('Clone slide','slide-copy')+
-        button('Delete slide','slide-remove')+button('Replace text…','slide-find-replace','Find and replace in slide titles, bodies and speaker notes');
+        button('Delete slide','slide-remove')+button('First slide','slide-first')+button('Last slide','slide-last')+button('Replace text…','slide-find-replace','Find and replace in slide titles, bodies and speaker notes');
     } else {
-      body=button('Start presentation','present')+
+      body=button('Start presentation','present')+button('Present from beginning','present-first')+
         '<label class="ot-select-label">Speaker notes <textarea class="ot-notes" data-ot-input="speaker-notes" placeholder="Presenter-only notes">'+escapeHTML(slide.notes||'')+'</textarea></label>';
     }
   }
+  if(file.type==='docs'&&active==='Layout'){
+    let p;try{p=paragraphLayout(file.paragraphLayout);}catch{p=paragraphLayout();}
+    const numeric=(key,label,value,min,max)=>'<label class="ot-select-label">'+label+'<input class="ot-text" data-mo-paragraph="'+key+'" aria-label="'+label+'" type="number" min="'+min+'" max="'+max+'" step="any" value="'+value+'"></label>';
+    body+='<section class="mo-ribbon-group mo-field-group mo-wide-fields" aria-label="Paragraph layout"><h3>Paragraph layout</h3><div class="mo-control-grid">'+numeric('after','Space after (px)',p.after,0,80)+numeric('indent','First-line indent (px)',p.indent,0,96)+numeric('tracking','Letter spacing (px)',p.tracking,-1,8)+'<label class="ot-select-label">Text direction<select data-mo-paragraph="direction" aria-label="Text direction"><option value="ltr" '+(p.direction==='ltr'?'selected':'')+'>Left to right</option><option value="rtl" '+(p.direction==='rtl'?'selected':'')+'>Right to left</option></select></label>'+button('Apply paragraph layout','mo-paragraph-apply')+button('Reset paragraph layout','mo-paragraph-reset')+'</div></section>';
+  }
   const sheetTabs=file.type==='sheets'?'<div class="ot-sheet-tabs">'+(file.worksheets||[{name:'Sheet 1'}]).map((sh,i)=>'<button class="ot-sheet-tab '+((file.activeSheetIndex||0)===i?'active':'')+'" data-ot-sheet="'+i+'">'+escapeHTML(sh.name)+'</button>').join('')+'<button class="ot-sheet-tab" data-ot-action="sheet-add" title="Add worksheet" aria-label="Add worksheet">'+icon('plus',15)+'</button></div>':'';
-  return '<section class="ot-ribbon'+(ribbonCollapsed?' collapsed':'')+'" aria-label="Editing tools"><div class="ot-ribbon-top"><div class="ot-ribbon-tabs" role="tablist" aria-label="Editor tool categories">'+tabs+'</div>'+
-    '<div class="ot-ribbon-meta"><span class="ot-ribbon-version">MySoft Studio · 0.8.1</span>'+
+  return '<section class="ot-ribbon'+(ribbonCollapsed?' collapsed':'')+'" aria-label="Editing tools"><div class="ot-ribbon-top"><button type="button" class="mo-file-tab" data-action="file-menu" aria-haspopup="dialog">File</button><div class="ot-ribbon-tabs" role="tablist" aria-label="Editor tool categories">'+tabs+'</div>'+
+    '<div class="ot-ribbon-meta">'+
     button(ribbonCollapsed?'Show tools ▾':'Hide tools ▴','ribbon-toggle')+'</div></div>'+
-    '<div class="ot-ribbon-tools">'+body+'</div>'+sheetTabs+'</section>';
+    '<div class="ot-ribbon-tools" id="mo-active-tools" role="tabpanel" aria-labelledby="mo-tab-'+active+'" tabindex="0">'+groupRibbon(body,file.type,active)+'</div>'+sheetTabs+'</section>';
+}
+// Search the same controls that power the ribbon, so the tool directory stays current.
+export function ribbonToolCommands(file,cell,index){
+  const tools=[],seen=new Set();
+  for(const tab of tabsFor(file.type)){
+    const root=new DOMParser().parseFromString(powerRibbon(file,cell,index,tab),'text/html');
+    for(const button of root.querySelectorAll('.ot-ribbon-tools button[data-ot-action],.ot-ribbon-tools button[data-capability-action]')){
+      const attribute=button.hasAttribute('data-ot-action')?'data-ot-action':'data-capability-action',action=button.getAttribute(attribute),key=attribute+action;
+      if(seen.has(key))continue;seen.add(key);
+      tools.push({tab,attribute,action,label:button.getAttribute('aria-label')||button.getAttribute('title')||button.textContent.trim()});
+    }
+  }
+  return tools;
 }
 export function sheetCellAppearance(file,ref,value){
   const st=(file.cellStyles||{})[ref]||{};
@@ -328,7 +351,7 @@ function replaceAllText(ctx,needle,replacement){
 }
 function presentationHTML(slide){
   const scheme=SLIDE_PRESETS[slide.studioPreset]||SLIDE_PRESETS.ivory;
-  return '<div class="ot-present-page ot-present-'+(slide.layout||'title')+' ot-effect-'+(['fade','slide'].includes(slide.transition)?slide.transition:'none')+'" style="--present-color:'+scheme.accent+';--studio-slide-bg:'+scheme.background+';--studio-slide-text:'+scheme.foreground+'"><h1>'+escapeHTML(slide.title)+'</h1><p>'+escapeHTML(slide.body)+'</p>'+
+  return '<div class="ot-present-page ot-present-'+(slide.layout||'title')+(slide.studioRoadmap?' studio-roadmap':'')+' ot-effect-'+(['fade','slide'].includes(slide.transition)?slide.transition:'none')+'" style="--present-color:'+scheme.accent+';--studio-slide-bg:'+scheme.background+';--studio-slide-text:'+scheme.foreground+'"><h1>'+escapeHTML(slide.title)+'</h1><p>'+escapeHTML(slide.body)+'</p>'+
     '<div class="studio-object-layer studio-object-present">'+renderedSlideObjects(slide)+'</div></div>';
 }
 function showPresentation(ctx,index=0){
@@ -344,17 +367,17 @@ function modal(content){
   document.getElementById('modal-root').innerHTML='<div class="modal-backdrop"><div class="modal ot-settings-modal">'+content+'</div></div>';
 }
 function preferencesModal(){
-  modal('<h2>Workspace appearance</h2><p>Customize your MySoft Office experience. Preferences are saved in this browser.</p>'+
-    '<label for="ot-mode">Appearance</label><select id="ot-mode" data-ot-pref="mode"><option value="light" '+(prefs.mode==='light'?'selected':'')+'>Light</option><option value="dark" '+(prefs.mode==='dark'?'selected':'')+'>Dark</option></select>'+
-    '<label for="ot-accent">Accent color</label><select id="ot-accent" data-ot-pref="accent">'+STUDIO_ACCENTS.map(x=>'<option value="'+x.value+'" '+(prefs.accent===x.value?'selected':'')+'>'+x.name+'</option>').join('')+'</select>'+
+  const field=(id,key,label,options)=>'<div class="workspace-setting"><label for="'+id+'">'+label+'</label><select id="'+id+'" data-ot-pref="'+key+'">'+options.map(([value,name])=>'<option value="'+value+'" '+(String(prefs[key])===String(value)?'selected':'')+'>'+name+'</option>').join('')+'</select></div>';
+  modal('<h2>Workspace appearance</h2><p>Make room for the way you work. Saved in this browser.</p><div class="workspace-settings-grid">'+
+    field('ot-mode','mode','Appearance',[['light','Light'],['dark','Dark']])+
+    field('ot-density','density','Density',[['comfortable','Comfortable'],['compact','Compact']])+
+    field('ot-font-scale','fontScale','UI scale',[85,100,110,120].map(n=>[n,n+'%']))+
+    field('ot-zoom','zoom','Editor zoom',[75,90,100,110,125,150].map(n=>[n,n+'%']))+'</div><strong class="workspace-settings-label">Accent color</strong>'+
     '<div class="studio-swatches" role="group" aria-label="Color accents">'+STUDIO_ACCENTS.map(x=>
       '<button class="studio-swatch '+(prefs.accent===x.value?'active':'')+'" type="button" data-ot-palette="'+x.value+'" style="--swatch:'+x.value+'" title="'+x.name+'" aria-label="'+x.name+'" aria-pressed="'+(prefs.accent===x.value)+'"><span></span><small>'+x.name+'</small></button>'
     ).join('')+'</div>'+
-    '<label for="ot-density">Density</label><select id="ot-density" data-ot-pref="density"><option value="comfortable" '+(prefs.density==='comfortable'?'selected':'')+'>Comfortable</option><option value="compact" '+(prefs.density==='compact'?'selected':'')+'>Compact</option></select>'+
-    '<label for="ot-font-scale">UI scale</label><select id="ot-font-scale" data-ot-pref="fontScale">'+[85,100,110,120].map(n=>'<option value="'+n+'" '+(Number(prefs.fontScale)===n?'selected':'')+'>'+n+'%</option>').join('')+'</select>'+
-    '<label for="ot-zoom">Editor zoom</label><select id="ot-zoom" data-ot-pref="zoom">'+[75,90,100,110,125,150].map(n=>'<option value="'+n+'" '+(Number(prefs.zoom)===n?'selected':'')+'>'+n+'%</option>').join('')+'</select>'+
-    '<div class="studio-customize-nav"><strong>Navigation</strong><p>Use a full sidebar or a compact icon rail on desktop.</p><button type="button" class="btn btn-light" data-action="nav-collapse">Toggle sidebar layout</button></div>'+
-    '<p class="studio-settings-tip">Shortcuts: / to search files, Ctrl+K for commands. Use Focus inside an editor for distraction-free work.</p>'+
+    '<div class="studio-customize-nav"><strong>Navigation</strong><p>Choose a full sidebar or a compact icon rail.</p><button type="button" class="btn btn-light" data-action="nav-collapse">Toggle sidebar layout</button></div>'+
+    '<p class="studio-settings-tip">Ctrl+K finds tools. Panels and Focus give your work more space.</p>'+
     '<div class="modal-actions"><button class="btn btn-light" data-ot-action="settings-close">Done</button></div>');
 }
 function syncSheet(ctx,f){
@@ -384,7 +407,7 @@ export function initializeOfficeTools(ctx){
       applyPreferences();preferencesModal();return;
     }
     const tab=event.target.closest('[data-ot-tab]');
-    if(tab){const f=ctx.getFile();if(f){selectedTab[f.type]=tab.dataset.otTab;ctx.render();}return;}
+    if(tab){const f=ctx.getFile();if(f&&tabsFor(f.type).includes(tab.dataset.otTab)){selectedTab[f.type]=tab.dataset.otTab;const ribbon=tab.closest('.ot-ribbon');if(ribbon)ribbon.outerHTML=powerRibbon(f,ctx.getSelectedCell(),ctx.getSlideIndex());}return;}
     const switcher=event.target.closest('[data-ot-sheet]');
     if(switcher){const f=ctx.getFile();if(f){switchSheet(f,Number(switcher.dataset.otSheet));ctx.touch(f);ctx.render();}return;}
     const target=event.target.closest('[data-ot-action]');
@@ -401,23 +424,33 @@ export function initializeOfficeTools(ctx){
     if(action==='ribbon-toggle'){
       ribbonCollapsed=!ribbonCollapsed;
       safeSet('mysoft-office-ribbon-collapsed',ribbonCollapsed?'yes':'no');
-      ctx.render();return;
+      const ribbon=target.closest('.ot-ribbon');if(ribbon&&f)ribbon.outerHTML=powerRibbon(f,ctx.getSelectedCell(),ctx.getSlideIndex());return;
     }
     if(action==='settings-close'){document.getElementById('modal-root').innerHTML='';return;}
     if(action==='present-close'){document.getElementById('ot-presentation')?.remove();return;}
     if(action==='present-next'||action==='present-back'){showPresentation(ctx,slideshowIndex+(action==='present-next'?1:-1));return;}
     if(!f)return;
     try{
+      if(action==='mo-paragraph-apply'||action==='mo-paragraph-reset'){
+        if(f.type!=='docs')return;const settings=action==='mo-paragraph-reset'?paragraphLayout():paragraphLayout(Object.fromEntries([...document.querySelectorAll('[data-mo-paragraph]')].map(input=>[input.dataset.moParagraph,input.value]))),root=document.getElementById('rich-content');
+        const count=applyParagraphLayout(root,savedRange,settings);f.paragraphLayout=settings;f.body=ctx.sanitize(root.innerHTML);ctx.touch(f);ctx.persist();ctx.render();ctx.toast(count+' paragraphs updated.');return;
+      }
+      if(action==='paragraph-indent'||action==='paragraph-outdent'){
+        if(!['docs','notes'].includes(f.type))return;const root=document.getElementById('rich-content'),range=savedRange&&root.contains(savedRange.commonAncestorContainer)?savedRange:null,anchor=range?.startContainer;
+        const blocks=[...root.querySelectorAll('p,h1,h2,h3,li,blockquote')].filter(node=>!node.querySelector('p,h1,h2,h3,li,blockquote')),selected=range?blocks.filter(node=>range.collapsed?node.contains(anchor):range.intersectsNode(node)):blocks.slice(0,1);if(!selected.length)throw Error('Select a paragraph first.');
+        for(const block of selected)block.style.marginLeft=Math.max(0,Math.min(96,(parseFloat(block.style.marginLeft)||0)+(action==='paragraph-indent'?16:-16)))+'px';
+        f.body=ctx.sanitize(root.innerHTML);ctx.touch(f);return;
+      }
       const textActions={
         'text-bold':'bold','text-italic':'italic','text-underline':'underline',
-        'align-left':'justifyLeft','align-center':'justifyCenter','align-right':'justifyRight',
+        'align-left':'justifyLeft','align-center':'justifyCenter','align-right':'justifyRight','align-justify':'justifyFull',
         'bullet-list':'insertUnorderedList','numbered-list':'insertOrderedList',
         strike:'strikeThrough','clear-format':'removeFormat',superscript:'superscript',subscript:'subscript'
       };
       if(Object.hasOwn(textActions,action)){richCommand(ctx,textActions[action]);return;}
-      if(['style-h1','style-h2','style-body','style-quote'].includes(action)){
+      if(['style-h1','style-h2','style-h3','style-body','style-quote'].includes(action)){
         if(!['docs','notes'].includes(f.type))return;
-        const tag={'style-h1':'h1','style-h2':'h2','style-body':'p','style-quote':'blockquote'}[action];
+        const tag={'style-h1':'h1','style-h2':'h2','style-h3':'h3','style-body':'p','style-quote':'blockquote'}[action];
         richCommand(ctx,'formatBlock',tag);ctx.toast('Paragraph style applied');return;
       }
       if(['note-rename-notebook','note-rename-section'].includes(action)){
@@ -685,12 +718,14 @@ export function initializeOfficeTools(ctx){
         const ref=ctx.getSelectedCell(),field=action==='cell-bold'?'bold':'italic';
         setCellStyle(f,ref,field,!f.cellStyles?.[ref]?.[field]);
       }
+      else if(action==='cell-general')setCellStyle(f,ctx.getSelectedCell(),'format','general');
       else if(action==='cell-currency'||action==='cell-percent')setCellStyle(f,ctx.getSelectedCell(),'format',action==='cell-currency'?'currency':'percent');
       else if(action==='cell-reset'){ensureWorkbook(f);delete f.cellStyles[ctx.getSelectedCell()];}
       else if(action==='sort-asc'||action==='sort-desc')sortSheet(f,'A',action==='sort-asc'?'asc':'desc');
-      else if(action==='insert-sum'||action==='insert-avg'){
-        const ref=ctx.getSelectedCell();
-        f.cells[ref]=action==='insert-sum'?'=SUM(B2:B10)':'=AVERAGE(B2:B10)';
+      else if(['insert-sum','insert-avg','insert-min','insert-max','insert-count'].includes(action)){
+        const ref=ctx.getSelectedCell(),row=Number(ref.slice(1)),fn={'insert-sum':'SUM','insert-avg':'AVERAGE','insert-min':'MIN','insert-max':'MAX','insert-count':'COUNT'}[action];
+        if(String(f.cells[ref]??'')!=='')throw Error('Choose an empty result cell first.');
+        const range=prompt('Source range for '+fn+' (result cell must be outside this range):',row>1?ref[0]+'1:'+ref[0]+(row-1):'B2:B10');if(range===null)return;f.cells[ref]=aggregateFormula(f.cells,ref,fn,range);
       } else if(action==='chart-bar'||action==='chart-line'){
         const data=sheetChartData(f);
         if(!data.length){ctx.toast('Add labels in column A and numeric values in B, rows 2–30.');return;}
@@ -738,11 +773,12 @@ export function initializeOfficeTools(ctx){
         const kind={'shape-text':'text','shape-rect':'rect','shape-ellipse':'ellipse','shape-roundRect':'roundRect','shape-triangle':'triangle','shape-diamond':'diamond','shape-hexagon':'hexagon'}[action];
         const item=addSlideObject(f.slides[ctx.getSlideIndex()],kind);
         ctx.setSlideObjectId(item.id);ctx.touch(f);ctx.persist();ctx.render();return;
-      } else if(['shape-left','shape-right','shape-up','shape-down','shape-duplicate','shape-delete','shape-font-up','shape-font-down'].includes(action)){
+      } else if(['shape-label','shape-left','shape-right','shape-up','shape-down','shape-duplicate','shape-delete','shape-font-up','shape-font-down'].includes(action)){
         if(f.type!=='slides')return;
         const id=ctx.getSlideObjectId(),slide=f.slides[ctx.getSlideIndex()];
         if(!id||!getSlideObject(slide,id))throw Error('Select an object on the slide first.');
-        if(action==='shape-delete'){deleteSlideObject(slide,id);ctx.setSlideObjectId(null);}
+        if(action==='shape-label'){const text=prompt('Label for selected shape (up to 600 characters):',getSlideObject(slide,id).text||'');if(text===null)return;updateSlideObject(slide,id,{text});}
+        else if(action==='shape-delete'){deleteSlideObject(slide,id);ctx.setSlideObjectId(null);}
         else if(action==='shape-duplicate'){ctx.setSlideObjectId(duplicateSlideObject(slide,id).id);}
         else if(action==='shape-font-up'||action==='shape-font-down'){
           const obj=getSlideObject(slide,id);
@@ -761,6 +797,8 @@ export function initializeOfficeTools(ctx){
       } else if(action==='slide-new'){f.slides.push({title:'New slide',body:'Add content here',theme:'violet'});ctx.setSlideIndex(f.slides.length-1);}
       else if(action==='slide-copy'){f.slides.splice(ctx.getSlideIndex()+1,0,structuredClone(f.slides[ctx.getSlideIndex()]));ctx.setSlideIndex(ctx.getSlideIndex()+1);}
       else if(action==='slide-remove'){if(f.slides.length<2)throw Error('Keep at least one slide');if(!confirm('Delete slide?'))return;f.slides.splice(ctx.getSlideIndex(),1);ctx.setSlideIndex(Math.max(0,ctx.getSlideIndex()-1));}
+      else if(action==='slide-first'||action==='slide-last'){ctx.setSlideIndex(action==='slide-first'?0:f.slides.length-1);ctx.render();return;}
+      else if(action==='present-first'){showPresentation(ctx,0);return;}
       else if(action==='present'){showPresentation(ctx,ctx.getSlideIndex());return;}
       else return;
       syncSheet(ctx,f);
@@ -774,6 +812,10 @@ export function initializeOfficeTools(ctx){
     const name=input.dataset.otInput,f=ctx.getFile();
     if(!f)return;
     const value=input.value;
+    const noteKeys={'note-paper':'paper','note-font':'font','note-size':'size','note-spacing':'lineHeight','writing-width':'width','writing-guides':'ruled'};
+    if(f.type==='notes'&&noteKeys[name]){
+      try{const patch={...noteCanvas(f.noteCanvas),[noteKeys[name]]:name==='writing-guides'?value==='on':['note-size','note-spacing'].includes(name)?Number(value):value};f.noteCanvas=noteCanvas(patch);ctx.touch(f);ctx.persist();ctx.render();}catch(error){ctx.toast(error.message);}return;
+    }
     if(['font','font-size','text-color','highlight'].includes(name)){
       const cmd={'font':'fontName','font-size':'fontSize','text-color':'foreColor','highlight':'hiliteColor'}[name];
       richCommand(ctx,cmd,value);return;
@@ -815,6 +857,10 @@ export function initializeOfficeTools(ctx){
     }
   });
   document.addEventListener('keydown',event=>{
+    const tab=event.target.closest('[data-ot-tab]');
+    if(tab&&['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){
+      event.preventDefault();const tabs=[...document.querySelectorAll('[data-ot-tab]')],index=tabs.indexOf(tab),next=event.key==='Home'?tabs[0]:event.key==='End'?tabs.at(-1):tabs[(index+(event.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length];next.click();document.querySelector('[data-ot-tab="'+next.dataset.otTab+'"]')?.focus();return;
+    }
     if(!document.getElementById('ot-presentation'))return;
     if(event.key==='Escape'){document.getElementById('ot-presentation').remove();return;}
     if(event.key==='ArrowRight'||event.key==='PageDown'){event.preventDefault();showPresentation(ctx,slideshowIndex+1);}

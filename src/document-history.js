@@ -30,6 +30,10 @@ export class DocumentHistory {
     if(!s||s.index<=0)return null;
     s.index--;s.lastAt=-Infinity;return s.entries[s.index];
   }
+  checkpoint(id,html){
+    this.record(id,html);
+    this.documents.get(id).lastAt=-Infinity;
+  }
   redo(id){
     const s=this.documents.get(id);
     if(!s||s.index>=s.entries.length-1)return null;

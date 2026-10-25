@@ -1,16 +1,36 @@
+import {advancedTools,initializeAdvancedTools} from './advanced-tools-ui.js';
+import {productionTools,initializeProductionTools} from './production-tools-ui.js';
+import {workflowTools,initializeWorkflowStudio} from './workflow-studio-ui.js';
+import {summarizeTable,preciseObjectPatch,taskCaptureHTML,writingReview} from './studio-pro-tools.js';
+import {expansionTools,initializeExpansionTools} from './studio-expansion-ui.js';
+import {getSlideObject} from './slide-objects.js';
 import {icon} from './icons.js';
+import {documentCallout,distributeSlideObjects,tasksMarkdown,buildTextFormula} from './editor-enhancements.js';
 import {editableBlocks,blockIndexFromSelection} from './doc-blocks.js';
 import {workspaceLinks} from './workspace-links.js';
 import {ensureWorkbook,addSheet} from './office-model.js';
 import {cleanCellWhitespace,transformedTable,slidesFromOutline,slideOutline,NOTE_TEMPLATES,noteLinkIds,paragraphOptions} from './capability-core.js';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const btn=(action,label,ic='plus')=>'<button type="button" class="ot-btn" data-capability-action="'+action+'">'+icon(ic,15)+'<span>'+label+'</span></button>';
-export function capabilityToolbar(file){
+export function capabilityToolbar(file,section='tools'){
+  if(section==='insert')return file.type==='docs'?btn('callout','Callout','message-square-text'):'';
   const sets={docs:[['paragraph','Paragraph settings','align-left'],['uppercase','Uppercase block','type'],['lowercase','Lowercase block','type'],['cleanup','Clean empty paragraphs','file-text'],['workspace-link','Link a MySoft file','link'],['workspace-references','Linked files','list-tree']],sheets:[['trim-cells','Trim whitespace','table'],['unique','Unique rows to new sheet','table'],['split','Split text to new sheet','table']],slides:[['outline','Create from outline','presentation'],['reverse','Reverse slide order','rotate-ccw'],['copy-design','Copy current design to all','presentation'],['outline-export','Export speaker outline','download']],notes:[['note-link','Link another note','link'],['note-backlinks','Linked notes','link'],['note-tasks','Task dashboard','check'],['note-project','Project template','notebook'],['note-research','Research template','notebook'],['workspace-link','Link a MySoft file','link'],['workspace-references','Linked files','list-tree']]};
-  return (sets[file.type]||[]).map(args=>btn(...args)).join('');
+  if(file.type==='docs')sets.docs.push(['writing-review','Writing review','file-check-2'],['image-descriptions','Image descriptions','image']);
+  if(file.type==='sheets')sets.sheets.push(['summary-table','Summarize by group','table']);
+  if(file.type==='slides')sets.slides.push(['object-properties','Object properties','sliders-horizontal']);
+  if(file.type==='notes')sets.notes.push(['capture-tasks','Capture tasks','square-check']);
+  if(file.type==='sheets')sets.sheets.push(['text-formulas','Text tools','case-sensitive']);
+  if(file.type==='slides')sets.slides.push(['distribute-horizontal','Distribute horizontally','align-horizontal-distribute-center'],['distribute-vertical','Distribute vertically','align-vertical-distribute-center']);
+  if(file.type==='notes')sets.notes.push(['note-task-export','Export task list','download']);
+  return (sets[file.type]||[]).map(args=>btn(...args)).join('')+expansionTools(file.type)+workflowTools(file.type)+productionTools(file.type)+advancedTools(file.type);
 }
 export function initializeCapabilityTools(ctx){
-  let selected={id:'',index:0},pending=null;
+  initializeExpansionTools(ctx);
+  initializeWorkflowStudio(ctx);
+  initializeProductionTools(ctx);
+  initializeAdvancedTools(ctx);
+  let selected={id:'',index:0},pending=null,reviewTargets=[];
+  const taskFilter={status:'all',query:'',scope:'all'};
   const root=()=>document.getElementById('rich-content'),modalRoot=()=>document.getElementById('modal-root');
   const close=()=>{modalRoot().innerHTML='';pending=null;};
   const input=(id,label,value='',type='text',extra='')=>'<label class="cap-field" for="'+id+'">'+label+'<input id="'+id+'" type="'+type+'" value="'+esc(value)+'" '+extra+'></label>';
@@ -21,14 +41,80 @@ export function initializeCapabilityTools(ctx){
   function updateBody(file){file.body=ctx.sanitize(root().innerHTML);save(file);}
   function notes(){return ctx.getFiles().filter(f=>f.type==='notes');}
   function taskList(file){const dom=new DOMParser().parseFromString(file.body||'','text/html'),walker=dom.createTreeWalker(dom.body,NodeFilter.SHOW_TEXT),nodes=[],tasks=[];let node;while((node=walker.nextNode())){const i=nodes.push(node)-1;for(const match of node.textContent.matchAll(/[☐☑]/g))tasks.push({node:i,offset:match.index,done:match[0]==='☑',label:node.textContent.slice(match.index+1).trim().slice(0,120)});}return {dom,nodes,tasks};}
-  function showTasks(){const items=notes().flatMap(f=>taskList(f).tasks.map((task,index)=>({file:f,index,task}))).slice(0,300);dialog('Task dashboard','<p>Checkbox tasks across your notes. Select a task to mark it complete or reopen it.</p><div class="cap-results">'+(items.length?items.map(({file,index,task})=>'<button class="cap-result" data-capability-task="'+esc(file.id)+'" data-task-index="'+index+'" aria-label="'+(task.done?'Reopen':'Complete')+' task: '+esc(task.label)+'">'+(task.done?'☑':'☐')+' '+esc(task.label||'Untitled task')+'<small>'+esc(file.title)+'</small></button>').join(''):'<p>No checkbox tasks yet. Insert a checklist or a project template.</p>')+'</div>');}
+  function filterTasks(){
+    let shown=0;
+    for(const row of document.querySelectorAll('[data-capability-task]')){
+      const matches=(taskFilter.status==='all'||row.dataset.taskDone===String(taskFilter.status==='completed'))&&(taskFilter.scope==='all'||row.dataset.capabilityTask===ctx.getFile()?.id)&&row.textContent.toLocaleLowerCase().includes(taskFilter.query.toLocaleLowerCase());
+      row.hidden=!matches;if(matches)shown++;
+    }
+    const empty=document.getElementById('pro-task-empty');if(empty)empty.hidden=shown>0;
+  }
+  function showTasks(){
+    const items=notes().flatMap(f=>taskList(f).tasks.map((task,index)=>({file:f,index,task}))).slice(0,300),done=items.filter(item=>item.task.done).length;
+    dialog('Task dashboard','<p>'+done+' of '+items.length+' tasks complete. Select a task to complete or reopen it.</p><div class="cap-form"><label class="cap-field">Task status<select id="pro-task-status" aria-label="Task status">'+['all','open','completed'].map(value=>'<option value="'+value+'" '+(taskFilter.status===value?'selected':'')+'>'+value+'</option>').join('')+'</select></label><label class="cap-field">Task scope<select id="pro-task-scope" aria-label="Task scope"><option value="all" '+(taskFilter.scope==='all'?'selected':'')+'>All notes</option><option value="current" '+(taskFilter.scope==='current'?'selected':'')+'>This note</option></select></label></div>'+input('pro-task-search','Search tasks',taskFilter.query,'search')+'<div class="cap-results">'+items.map(({file,index,task})=>'<button class="cap-result" data-capability-task="'+esc(file.id)+'" data-task-index="'+index+'" data-task-done="'+task.done+'" aria-label="'+(task.done?'Reopen':'Complete')+' task: '+esc(task.label)+'">'+icon(task.done?'square-check':'square',16)+esc(task.label||'Untitled task')+'<small>'+esc(file.title)+'</small></button>').join('')+'<p id="pro-task-empty" hidden>No matching tasks.</p></div>');filterTasks();
+  }
+  document.addEventListener('input',event=>{if(event.target.id==='pro-task-search'){taskFilter.query=event.target.value;filterTasks();}});
+  document.addEventListener('change',event=>{if(event.target.id==='pro-task-status'||event.target.id==='pro-task-scope'){taskFilter[event.target.id.endsWith('status')?'status':'scope']=event.target.value;filterTasks();}});
   document.addEventListener('click',event=>{
     const internal=event.target.closest('a[href^="#/file/"]');if(internal){const id=internal.getAttribute('href').slice(7);event.preventDefault();if(ctx.getFiles().some(f=>f.id===id)){event.preventDefault();close();ctx.openFile(id);}else ctx.toast('This linked file is unavailable. It may be in the recycle bin.');return;}
     const open=event.target.closest('[data-capability-open]');if(open){const id=open.dataset.capabilityOpen;close();ctx.openFile(id);return;}
     const task=event.target.closest('[data-capability-task]');if(task){const f=notes().find(n=>n.id===task.dataset.capabilityTask);if(!f)return;const parsed=taskList(f),item=parsed.tasks[Number(task.dataset.taskIndex)];if(!item)return;const node=parsed.nodes[item.node];node.textContent=node.textContent.slice(0,item.offset)+(item.done?'☐':'☑')+node.textContent.slice(item.offset+1);f.body=ctx.sanitize(parsed.dom.body.innerHTML);ctx.touch(f);void ctx.persist();ctx.render();showTasks();return;}
+    const issue=event.target.closest('[data-pro-review-target]');if(issue){const node=reviewTargets[Number(issue.dataset.proReviewTarget)];close();queueMicrotask(()=>{if(node?.isConnected){node.scrollIntoView({block:'center',behavior:'smooth'});root()?.focus({preventScroll:true});const range=document.createRange();range.selectNodeContents(node);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);}});return;}
     const target=event.target.closest('[data-capability-action]');if(!target)return;const action=target.dataset.capabilityAction;
     if(action==='close'){close();return;}const f=ctx.getFile();if(!f)return;
     try{
+      if(action==='image-descriptions'){
+        if(f.type!=='docs')return;const images=[...root().querySelectorAll('img')];if(!images.length)throw Error('Insert a picture before adding an image description.');pending={id:f.id,images};dialog('Image descriptions','<p>Describe what each image communicates. Descriptions are saved in this workspace and JSON backups.</p>'+images.slice(0,100).map((image,index)=>input('pro-image-alt-'+index,'Image '+(index+1),image.getAttribute('alt')||'','text','maxlength="100"')).join(''),'image-descriptions-apply');return;
+      }
+      if(action==='image-descriptions-apply'){
+        if(f.type!=='docs'||pending?.id!==f.id)throw Error('Reopen descriptions for this document.');const images=pending.images.slice(0,100),values=images.map((image,index)=>document.getElementById('pro-image-alt-'+index).value.trim());if(values.some(text=>!text||text.length>100))throw Error('Describe each image in 1–100 characters.');images.forEach((image,index)=>image.setAttribute('alt',values[index]));close();updateBody(f);return;
+      }
+      if(action==='writing-review'){
+        if(f.type!=='docs')return;const report=writingReview(root());reviewTargets=report.issues.map(issue=>issue.node);
+        dialog('Writing review','<div class="pro-metrics"><div><strong>'+report.words+'</strong><span>Words</span></div><div><strong>'+report.minutes+' min</strong><span>Reading time</span></div><div><strong>'+report.headings+'</strong><span>Headings</span></div></div><p>Structural and accessibility checks. Select an item to locate it in your document.</p><div class="cap-results">'+(report.issues.length?report.issues.map((issue,index)=>'<button class="cap-result" data-pro-review-target="'+index+'">'+icon('file-check-2',16)+esc(issue.label)+'</button>').join(''):'<p>No structural issues found by these checks.</p>')+'</div><p class="muted">These checks do not assess spelling, grammar, factual accuracy or every accessibility requirement.</p>');return;
+      }
+      if(action==='summary-table'){
+        if(f.type!=='sheets')return;ensureWorkbook(f);pending={id:f.id,sheet:f.activeSheetIndex};dialog('Summarize by group','<p>Create a summary snapshot in a new worksheet. Source cells and formulas stay intact.</p>'+input('pro-summary-range','Source range','A1:B10')+'<div class="cap-form">'+input('pro-summary-group','Group column','A','text','maxlength="1"')+input('pro-summary-value','Value column','B','text','maxlength="1"')+'</div><label class="cap-field">Aggregation<select id="pro-summary-operation" aria-label="Aggregation">'+['sum','average','min','max','count'].map(value=>'<option>'+value+'</option>').join('')+'</select></label><label class="cap-field"><span>First row contains headers</span><input type="checkbox" id="pro-summary-header" checked></label>','summary-table-apply');return;
+      }
+      if(action==='summary-table-apply'){
+        if(f.type!=='sheets'||pending?.id!==f.id||pending.sheet!==f.activeSheetIndex)throw Error('Reopen the summary for this worksheet.');
+        const result=summarizeTable(f.cells,document.getElementById('pro-summary-range').value,{group:document.getElementById('pro-summary-group').value.trim().toUpperCase(),value:document.getElementById('pro-summary-value').value.trim().toUpperCase(),operation:document.getElementById('pro-summary-operation').value,header:document.getElementById('pro-summary-header').checked});addSheet(f);Object.assign(f.cells,result.cells);close();save(f);ctx.toast(result.rows+' rows summarized into '+result.groups+' groups.');return;
+      }
+      if(action==='object-properties'){
+        if(f.type!=='slides')return;const object=getSlideObject(f.slides[ctx.getSlideIndex()],ctx.getSlideObjectId());if(!object)throw Error('Select a slide object first.');pending={id:f.id,objectId:object.id,slide:ctx.getSlideIndex()};
+        dialog('Object properties','<p>Precise position and size as percentages of the slide.</p><div class="cap-form">'+[['x','Left (%)'],['y','Top (%)'],['w','Width (%)'],['h','Height (%)'],['fontSize','Label size']].map(([key,label])=>input('pro-object-'+key,label,object[key]??22,'number','step="any"')).join('')+'<label class="cap-field">Rotation<select id="pro-object-rotation" aria-label="Rotation">'+[0,90,180,270].map(value=>'<option '+(value===(object.rotation||0)?'selected':'')+'>'+value+'</option>').join('')+'</select></label>'+input('pro-object-fill','Object fill',object.fill,'color')+input('pro-object-color','Label color',object.color,'color')+'</div><label class="cap-field">Object label<textarea id="pro-object-text" aria-label="Object label" maxlength="600" rows="3">'+esc(object.text||'')+'</textarea></label>','object-properties-apply');return;
+      }
+      if(action==='object-properties-apply'){
+        if(f.type!=='slides'||pending?.id!==f.id||pending.slide!==ctx.getSlideIndex())throw Error('Reopen properties for this object.');const object=getSlideObject(f.slides[pending.slide],pending.objectId),values=Object.fromEntries(['x','y','w','h','fontSize','rotation','fill','color','text'].map(key=>[key,document.getElementById('pro-object-'+key).value]));Object.assign(object,preciseObjectPatch(object,values));close();save(f);return;
+      }
+      if(action==='capture-tasks'){
+        if(f.type!=='notes')return;pending={id:f.id};dialog('Capture tasks','<p>Add one task per line to this note. Existing content stays intact.</p><label class="cap-field">New tasks<textarea id="pro-task-capture" aria-label="New tasks" rows="6" maxlength="6030" placeholder="Review the draft&#10;Prepare the presentation"></textarea></label>','capture-tasks-apply');return;
+      }
+      if(action==='capture-tasks-apply'){
+        if(f.type!=='notes'||pending?.id!==f.id)throw Error('Reopen task capture for this note.');const html=taskCaptureHTML(document.getElementById('pro-task-capture').value);root().insertAdjacentHTML('beforeend',html);close();updateBody(f);ctx.toast('Tasks added to this note.');return;
+      }
+      if(action==='callout'){
+        if(f.type!=='docs')return;pending={id:f.id,index:selected.id===f.id?selected.index:-1};
+        dialog('Insert a callout','<p>Give a decision, insight or next action a clear place in your document.</p><label class="cap-field">Style<select id="enhance-callout-kind"><option value="insight">Insight</option><option value="decision">Decision</option><option value="action">Action</option><option value="important">Important</option></select></label>'+input('enhance-callout-title','Title (optional)','','text','maxlength="80"')+'<label class="cap-field">Callout text<textarea id="enhance-callout-body" aria-label="Callout text" rows="5" maxlength="3000" placeholder="Add the useful detail…"></textarea></label>','callout-apply');return;
+      }
+      if(action==='callout-apply'){
+        if(f.type!=='docs'||pending?.id!==f.id)throw Error('Open the callout tool for this document again.');const html=documentCallout({kind:document.getElementById('enhance-callout-kind').value,title:document.getElementById('enhance-callout-title').value,body:document.getElementById('enhance-callout-body').value}),editor=root(),block=pending.index>=0?editableBlocks(editor)[pending.index]:null;
+        if(block)block.insertAdjacentHTML('afterend',html);else editor.insertAdjacentHTML('beforeend',html);close();updateBody(f);root()?.focus({preventScroll:true});return;
+      }
+      if(action==='text-formulas'){
+        if(f.type!=='sheets')return;pending={id:f.id};const source=ctx.getSelectedCell()||'A1',row=Number(source.slice(1)),destination=source[0]!=='Z'?String.fromCharCode(source.charCodeAt(0)+1)+row:row<1000?'Z'+(row+1):'Y1000';
+        dialog('Text tools','<p>Create a formula in another cell. The source stays intact and the result updates when its source changes.</p><label class="cap-field">Operation<select id="enhance-text-operation"><option value="trim">Clean extra spaces</option><option value="upper">Uppercase</option><option value="lower">Lowercase</option><option value="length">Count characters</option><option value="combine">Combine two cells with a space</option></select></label>'+input('enhance-text-source','Source cell',source,'text','maxlength="5"')+input('enhance-text-second','Second cell (combine only)','B1','text','maxlength="5"')+input('enhance-text-result','Empty result cell',destination,'text','maxlength="5"'),'text-formulas-apply');return;
+      }
+      if(action==='text-formulas-apply'){
+        if(f.type!=='sheets'||pending?.id!==f.id)throw Error('Open the text tool for this worksheet again.');ensureWorkbook(f);const destination=document.getElementById('enhance-text-result').value.trim().toUpperCase(),source=document.getElementById('enhance-text-source').value.trim().toUpperCase(),second=document.getElementById('enhance-text-second').value.trim().toUpperCase(),operation=document.getElementById('enhance-text-operation').value;
+        if(!/^[A-Z](?:[1-9]\d{0,2}|1000)$/.test(destination))throw Error('Choose a result cell from A1 to Z1000.');if(destination===source||operation==='combine'&&destination===second)throw Error('Choose a different result cell to avoid a circular formula.');if(String(f.cells[destination]??'')!=='')throw Error('Choose an empty result cell to keep existing content intact.');const formula=buildTextFormula(operation,source,second);f.cells[destination]=formula;close();save(f);ctx.toast('Text formula created in '+destination);return;
+      }
+      if(action==='distribute-horizontal'||action==='distribute-vertical'){
+        if(f.type!=='slides')return;const count=distributeSlideObjects(f.slides[ctx.getSlideIndex()],action.endsWith('horizontal')?'horizontal':'vertical');save(f);ctx.toast(count+' objects distributed evenly.');return;
+      }
+      if(action==='note-task-export'){
+        if(f.type!=='notes')return;const markdown=tasksMarkdown(notes().map(n=>({title:n.title,tasks:taskList(n).tasks})));ctx.download(markdown,'mysoft-workspace-tasks.md','text/markdown;charset=utf-8');ctx.toast('Task list exported');return;
+      }
       if(action==='paragraph'){pending={id:f.id,index:selected.id===f.id?selected.index:0};const current=editableBlocks(root())[pending.index],style=current?.style||{};dialog('Paragraph settings','<p>Apply spacing and indentation to the current block or all paragraphs. Values are in pixels.</p><label class="cap-field">Scope<select id="cap-scope"><option value="block">Current block</option><option value="all">All paragraphs</option></select></label><div class="cap-form">'+input('cap-before','Space before',parseFloat(style.marginTop)||0,'number','min="0" max="80"')+input('cap-after','Space after',style.marginBottom?parseFloat(style.marginBottom):12,'number','min="0" max="80"')+input('cap-indent','First-line indent',parseFloat(style.textIndent)||0,'number','min="0" max="96"')+'<label class="cap-field">Line spacing<select id="cap-line">'+[1,1.2,1.5,1.6,2,2.5,3].map(n=>'<option '+(n===Number(style.lineHeight||f.pageSettings?.lineHeight||1.6)?'selected':'')+'>'+n+'</option>').join('')+'</select></label></div>','paragraph-apply');return;}
       if(action==='paragraph-apply'){if(pending?.id!==f.id)throw Error('Reopen paragraph settings for this document.');const options=paragraphOptions(Object.fromEntries(['before','after','indent','line'].map(k=>[k,document.getElementById('cap-'+k).value]))),list=blocks(f),selector='p,div,h1,h2,h3,blockquote,li,td,th',scope=document.getElementById('cap-scope').value==='all'?root():list[pending.index]||list[0],candidates=scope.matches(selector)?[scope,...scope.querySelectorAll(selector)]:[...scope.querySelectorAll(selector)],chosen=candidates.filter(node=>!node.querySelector(selector));for(const p of chosen){p.style.marginTop=options.before+'px';p.style.marginBottom=options.after+'px';p.style.textIndent=options.indent+'px';p.style.lineHeight=String(options.line);}close();updateBody(f);return;}
       if(action==='uppercase'||action==='lowercase'){const list=blocks(f),block=list[selected.id===f.id?selected.index:0]||list[0],walker=document.createTreeWalker(block,NodeFilter.SHOW_TEXT);let node;while((node=walker.nextNode()))node.textContent=action==='uppercase'?node.textContent.toLocaleUpperCase():node.textContent.toLocaleLowerCase();updateBody(f);return;}
