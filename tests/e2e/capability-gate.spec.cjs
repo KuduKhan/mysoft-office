@@ -5,6 +5,7 @@ test('knowledge links connect Docs to Notes and survive browser restart',async({
  await page.locator('#document-title').fill('Reference knowledge note');
  await page.keyboard.press('Control+s');
  await page.locator('[data-action="close-editor"]').click();
+ await page.locator('[data-nav="home"]').first().click();
  await page.locator('[data-create="docs"]').first().click();
  await page.locator('[data-action="knowledge-links"]').click();
  await expect(page.getByRole('dialog',{name:'Knowledge links'})).toBeVisible();
