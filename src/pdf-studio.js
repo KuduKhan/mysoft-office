@@ -219,8 +219,26 @@ export function createPDFStudio(ctx){
     void draw();
     }catch(error){ctx.toast(String(error.message||error).slice(0,160));}
   });
+  // A simple click places a note. Pointer capture is reserved for dragged
+  // highlights, so keyboard/mouse clicks are not accidentally suppressed.
+  document.addEventListener('click',event=>{
+    if(event.target.id!=='pdf-canvas'||markMode!=='note'||!doc||!currentFile||!markViewport)return;
+    const box=event.target.getBoundingClientRect(),vp=markViewport.viewport;
+    const x=Math.max(0,Math.min(vp.width,(event.clientX-box.left)*vp.width/box.width));
+    const y=Math.max(0,Math.min(vp.height,(event.clientY-box.top)*vp.height/box.height));
+    const point=vp.convertToPdfPoint(x,y);
+    const text=prompt('Sticky note (up to 1000 characters):','');
+    if(text===null)return;
+    try{
+      addAnnotation(currentFile,{id:crypto.randomUUID(),kind:'note',page:markViewport.sourcePage,
+        rect:[point[0],point[1],point[0]+18,point[1]+18],text:text.slice(0,1000)});
+      commitChange();updateMarks();markMode='';event.target.style.cursor='';
+      document.querySelector('[data-pdf-action="mark-note"]')?.setAttribute('aria-pressed','false');
+      void draw();
+    }catch(error){ctx.toast(error.message);}
+  });
   document.addEventListener('pointerdown',event=>{
-    if(!markMode||!doc||!currentFile||event.target.id!=='pdf-canvas'||event.button!==0||!markViewport)return;
+    if(markMode!=='highlight'||!doc||!currentFile||event.target.id!=='pdf-canvas'||event.button!==0||!markViewport)return;
     event.preventDefault();
     const rect=event.target.getBoundingClientRect(),{viewport,sourcePage}=markViewport;
     markStart={viewport,sourcePage,token:drawGeneration,
