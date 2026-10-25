@@ -4,7 +4,7 @@ const check = (file) => {
   const result = spawnSync(process.execPath, ['--check', file], { stdio: 'inherit' });
   if (result.status !== 0) process.exit(result.status || 1);
 };
-for(const file of ['src/media-model.js','src/media-render.js','src/media-io.js','src/media-studio.js'])check(file);
+for(const file of ['src/media-analysis.js','src/media-model.js','src/media-render.js','src/media-io.js','src/media-studio.js'])check(file);
 for(const file of ['src/capability-core.js','src/capability-ui.js','src/media-customize.js'])check(file);
 for(const file of ['src/media-workbench.js','src/media-inspector.js'])check(file);
 for(const file of ['src/template-catalog.js','src/template-library.js','src/file-check.js'])check(file);
