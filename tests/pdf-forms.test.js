@@ -4,7 +4,8 @@ import {createRequire} from 'node:module';
 import {setPDFFormValue,validPDFFormValues} from '../src/pdf-forms.js';
 import {encodePDF,exportPDF,validatePDFRecord} from '../src/pdf-model.js';
 globalThis.self=globalThis;
-const lib=createRequire(import.meta.url)('../vendor/pdf-lib.min.js');
+const loaded=createRequire(import.meta.url)('../vendor/pdf-lib.min.js');
+const lib=loaded.PDFDocument?loaded:globalThis.PDFLib;
 test('PDF native form fields remain interactive and source bytes unchanged after export',async()=>{
  const doc=await lib.PDFDocument.create(),page=doc.addPage([400,400]),form=doc.getForm();
  form.createTextField('Name').addToPage(page,{x:30,y:200,width:160,height:20});
