@@ -1,4 +1,5 @@
 import { cloudConfig } from './cloud-config.js';
+import {writeSnapshotIfCurrent} from './cloud-sync.js';
 
 export const cloudConfigured = Boolean(
   /^https:\/\/[a-z0-9.-]+$/i.test(cloudConfig.url) &&
@@ -39,14 +40,13 @@ export async function cloudSignOut(){
   const {error}=await supabase.auth.signOut();
   if(error)throw error;
 }
-export async function cloudPush(snapshot){
+export async function cloudPush(snapshot,expectedUpdatedAt){
+  // Callers must review the current cloud revision before every upload.
+  if(arguments.length<2)throw Error('Review the current cloud snapshot before uploading.');
   const {supabase,user}=await withUser();
   const json=JSON.stringify(snapshot);
-  if(json.length>1500000)throw new Error('Workspace exceeds v0.2 cloud snapshot limit (1.5MB).');
-  const {error}=await supabase.from('mysoft_workspaces').upsert({
-    user_id:user.id,payload:snapshot,updated_at:new Date().toISOString()
-  },{onConflict:'user_id'});
-  if(error)throw error;
+  if(json.length>1500000)throw new Error('Workspace exceeds the 1.5 MB cloud snapshot limit.');
+  return writeSnapshotIfCurrent(supabase,user.id,snapshot,expectedUpdatedAt);
 }
 export async function cloudPull(){
   const {supabase,user}=await withUser();

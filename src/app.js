@@ -19,6 +19,7 @@ import { COLUMNS, ROW_COUNT, displayCell } from './formulas.js';
 import { addRevision, restoreRevision } from './revisions.js';
 import { parseCSV, makeCSV } from './file-formats.js';
 import { cloudConfigured, cloudCurrentUser, cloudSignIn, cloudSignOut, cloudPush, cloudPull } from './cloud.js';
+import {cloudSnapshotSummary,workspaceSignature} from './cloud-sync.js';
 import { ensureWorkbook, PAGE_SIZES } from './office-model.js';
 import { powerRibbon, ribbonToolCommands, sheetCellAppearance, initializeOfficeTools } from './office-ui.js';
 import { sheetGrid, repaintGrid } from './sheet-grid.js';
@@ -147,7 +148,7 @@ function updateSaveStatus(state){
     if(node)node.textContent=saveLabel();
   }
 }
-let cloudUser=null;
+let cloudUser=null,cloudReview=null;
 let pendingOfficeImport=null;
 let activeObjectId=null,selectedReviewQuote='',slideDrag=null;
 const recalcGraphs=new WeakMap();
@@ -511,10 +512,24 @@ function modal(kind,id){
         '<button type="button" class="studio-command-item" data-command-run="'+esc(id)+'" data-command-text="'+esc((label+' '+group).toLocaleLowerCase())+'"><span>'+esc(label)+'</span><small>'+esc(group)+'</small></button>'
       ).join('')+'</div><p id="studio-command-empty" class="muted" hidden>No matching commands.</p>'+
       '<div class="modal-actions"><button class="btn btn-light" type="button" data-action="modal-close">Close · Esc</button></div></div></div>';
+  } else if(kind==='cloud-review'){
+    const summary=cloudReview?.summary;
+    if(!summary){modal('cloud');return;}
+    const count=items=>String(items.length);
+    const changed=summary.localOnly.length+summary.remoteOnly.length+summary.different.length;
+    modalRoot.innerHTML='<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-label="Review cloud snapshot"><h2>Review cloud snapshot</h2>'+
+      '<p>'+ (summary.remoteMissing?'No cloud snapshot exists for this account.':'Cloud snapshot found. Differences are shown before any transfer.')+'</p>'+
+      '<div class="cloud-sync-summary" role="status"><p><strong>'+count(summary.localOnly)+'</strong> local-only files · <strong>'+count(summary.remoteOnly)+'</strong> cloud-only files · <strong>'+count(summary.different)+'</strong> differing files</p>'+
+      '<p>'+summary.same+' matching records'+(summary.versionsDiffer?' · version histories differ':'')+(summary.identical?' · contents identical':'')+'</p></div>'+
+      '<p class="muted">Uploads replace the single remote snapshot, including files, recycle bin and history. Downloads replace the local workspace. Neither direction merges changes. Export a JSON backup first.</p>'+
+      '<div class="row" style="flex-wrap:wrap;gap:8px"><button class="btn btn-primary" data-action="cloud-upload">Upload this local workspace</button>'+
+      (cloudReview.row?'<button class="btn btn-light" data-action="cloud-download">Restore cloud to this device</button><button class="btn btn-light" data-action="cloud-export">Export cloud JSON</button>':'')+
+      '<button class="btn btn-light" data-action="cloud-review">Refresh comparison</button></div>'+
+      '<div class="modal-actions"><button class="btn btn-light" data-action="cloud">Back</button><button class="btn btn-light" data-action="modal-close">Close</button></div></section></div>';
   } else if(kind==='cloud'){
     modalRoot.innerHTML='<div class="modal-backdrop"><div class="modal"><h2>MySoft Cloud snapshots</h2>'+
       (!cloudConfigured?'<p>Cloud is not configured yet. Your data remains on this browser until a dedicated MySoft Supabase project is connected.</p><p>Follow <strong>CLOUD_SETUP.md</strong> in the repository.</p>':
-        cloudUser?'<p>Signed in as <strong>'+esc(cloudUser.email||'MySoft user')+'</strong>. Cloud operations are manual snapshot transfers, not continuous synchronization.</p><div class="row" style="flex-wrap:wrap"><button class="btn btn-primary" data-action="cloud-upload">Upload snapshot</button><button class="btn btn-light" data-action="cloud-download">Download snapshot</button><button class="btn btn-light" data-action="cloud-signout">Sign out</button></div>':
+        cloudUser?'<p>Signed in as <strong>'+esc(cloudUser.email||'MySoft user')+'</strong>. Your work stays on this device. Cloud transfers require reviewing differences and explicit confirmation; there is no background sync.</p><div class="row" style="flex-wrap:wrap"><button class="btn btn-primary" data-action="cloud-review">Review cloud and local files</button><button class="btn btn-light" data-action="cloud-signout">Sign out</button></div>':
         '<p>Sign in to upload and recover workspace snapshots across devices.</p><form id="cloud-form"><label>Email</label><input name="email" type="email" autocomplete="email" required><label>Password</label><input name="password" type="password" autocomplete="current-password" minlength="8" required><div class="row"><button class="btn btn-primary" type="submit" name="mode" value="login">Sign in</button><button class="btn btn-soft" type="submit" name="mode" value="register">Create account</button></div></form>')+
       '<div class="modal-actions"><button class="btn btn-light" data-action="modal-close">Close</button></div></div></div>';
   }
@@ -695,19 +710,51 @@ async function importPDFFile(source){
 }
 async function runCloudAction(action){
   try{
-    if(action==='cloud-signout'){await cloudSignOut();cloudUser=null;modal('cloud');toast('Signed out');return;}
-    if(action==='cloud-upload'){
+    if(action==='cloud-signout'){
+      await cloudSignOut();cloudUser=null;cloudReview=null;modal('cloud');toast('Signed out');return;
+    }
+    if(action==='cloud-review'){
       if(!await persist())return;
-      await cloudPush(workspaceSnapshot());toast('Cloud snapshot uploaded');modal('cloud');return;
+      const row=await cloudPull();
+      if(row&&!validImport(row.payload))throw Error('Cloud snapshot has invalid file structure.');
+      const local=workspaceSnapshot();
+      cloudReview={row,signature:workspaceSignature(local),summary:cloudSnapshotSummary(local,row?.payload??null)};
+      modal('cloud-review');return;
+    }
+    if(!cloudReview||!cloudUser)throw Error('Review cloud and local files before transferring.');
+    const local=workspaceSnapshot();
+    if(workspaceSignature(local)!==cloudReview.signature){
+      cloudReview=null;throw Error('Local files changed; review the comparison again.');
+    }
+    if(action==='cloud-export'){
+      if(!cloudReview.row)throw Error('There is no cloud snapshot to export.');
+      download(JSON.stringify(cloudReview.row.payload,null,2),'mysoft-cloud-snapshot.json','application/json');
+      toast('Cloud copy exported without changing local files');return;
+    }
+    if(action==='cloud-upload'){
+      if(!confirm('Upload this local workspace and replace the current cloud snapshot? This is NOT a merge. Export a JSON backup first.'))return;
+      if(!await persist())return;
+      // A remote revision update between review and upload aborts the write.
+      await cloudPush(local,cloudReview.row?.updated_at??null);
+      cloudReview=null;modal('cloud');toast('Cloud snapshot uploaded after revision check');return;
     }
     if(action==='cloud-download'){
-      const row=await cloudPull();
-      if(!row){toast('No cloud snapshot found');return;}
-      if(!validImport(row.payload)){toast('Cloud snapshot failed validation');return;}
-      if(!confirm('Replace ALL local files with cloud snapshot from '+new Date(row.updated_at).toLocaleString()+'? Download a local backup first.'))return;
-      if(await applyWorkspace(row.payload)){closeModal();toast('Cloud snapshot downloaded');}
+      if(!cloudReview.row)throw Error('No cloud snapshot was found.');
+      const latest=await cloudPull();
+      if(!latest||latest.updated_at!==cloudReview.row.updated_at){
+        cloudReview=null;throw Error('Cloud snapshot changed; review again before restoring.');
+      }
+      if(!confirm('Replace ALL files on this device with the reviewed cloud snapshot? A JSON backup will be downloaded first.'))return;
+      backup();
+      if(await applyWorkspace(cloudReview.row.payload)){
+        cloudReview=null;closeModal();toast('Cloud snapshot restored after backing up local files');
+      }else toast('Cloud restoration failed. Existing files were preserved.');
+      return;
     }
-  }catch(error){toast('Cloud: '+String(error.message||error).slice(0,95));}
+  }catch(error){
+    if(error?.name==='CloudSnapshotConflictError')cloudReview=null;
+    toast('Cloud: '+String(error.message||error).slice(0,135));
+  }
 }
 function updateCell(ref,raw,rerender=false){
   const f=getActive();if(!f||f.type!=='sheets')return;

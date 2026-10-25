@@ -1,5 +1,9 @@
 # MySoft Office
 
+## v0.12.0 — Conflict-aware cloud snapshots
+
+A dedicated **Review cloud and local files** screen now compares the current local workspace to the optional signed-in cloud snapshot before uploads or restores. Uploads use the cloud record's `updated_at` as a conditional compare-and-swap version, so a stale device cannot silently overwrite an intervening write. Initial creation is insert-only, not upsert. Restores recheck cloud freshness, require confirmation, download a local JSON backup, and preserve IndexedDB transaction safety. Remote snapshots can be exported without replacing local documents. This is **explicit, manual snapshot transfer**, not automatic/background sync or collaboration. The cloud feature remains disabled until a separate dedicated MySoft Supabase project is configured. See [v0.12.0 notes](RELEASE_0_12_0.md) and [cloud setup](CLOUD_SETUP.md).
+
 ## v0.11.0 — Advanced editor workflows
 
 Docs gains **Structure → Duplicate block**, preserving formatted inline content while stripping duplicate DOM IDs. Sheets adds transactional **Data → Fill right** for supported relative formulas and cell styles. Slides adds **Shapes → Distribute all** horizontally or vertically without resizing shapes; overfull layouts are refused rather than overlapping objects. Notes gains **Organize → Tag entire notebook**, with all-note capacity checks before mutation. These extend existing file models without an IndexedDB migration. See [v0.11.0 release details](RELEASE_0_11_0.md).
