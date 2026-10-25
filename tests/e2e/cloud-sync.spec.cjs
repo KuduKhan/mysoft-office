@@ -4,10 +4,12 @@ test('MySoft cloud is disabled without a dedicated project and preserves local e
  await page.locator('[data-create="docs"]').first().click();
  await page.locator('#rich-content').fill('Cloud safety milestone local copy');
  await page.keyboard.press('Control+s');await expect(page.locator('#save-status')).toHaveText('Saved on device');
+ await page.locator('[data-action="close-editor"]').click();
  await page.locator('.sidebar [data-action="cloud"]').click();
  await expect(page.locator('.modal')).toContainText('Cloud is not configured yet.');
  await expect(page.locator('[data-action="cloud-upload"]')).toHaveCount(0);
  await page.keyboard.press('Escape');
+ await page.locator('[data-open]').first().click();
  await page.reload();
  await expect(page.locator('#rich-content')).toContainText('Cloud safety milestone local copy');
 });
