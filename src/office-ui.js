@@ -7,7 +7,7 @@ import {
   setCellStyle,sheetChartData,sortSheet,wordStatistics,
   PAGE_SIZES,FONT_FAMILIES,ACCENT_COLORS
 } from './office-model.js';
-import {STUDIO_ACCENTS,SLIDE_PRESETS,setSlidePreset,replaceSheetValues,fillDown,clearCell} from './studio-tools.js';
+import {STUDIO_ACCENTS,SLIDE_PRESETS,setSlidePreset,replaceSheetValues,fillDown,fillRight,clearCell} from './studio-tools.js';
 import {formatRange,clearRange,copyRangeTSV,seriesFill,rangeSummary,parseRange,transposeRange,copyRangeTo} from './sheet-range.js';
 import {documentContents,refreshDocumentContents,replacePresentationText,noteInsertTemplate} from './editor-productivity.js';
 import {addSlideObject,deleteSlideObject,duplicateSlideObject,moveSlideObject,getSlideObject,updateSlideObject,renderedSlideObjects} from './slide-objects.js';
@@ -20,6 +20,8 @@ import {reorderSlideObject} from './slide-layers.js';
 import {applySheetRule,removeSheetRules,matchingRule,sheetRulesSummary} from './sheet-rules.js';
 import {findTextPositions,nextMatchIndex} from './doc-find.js';
 import {rotateSlideObject} from './slide-transform.js';
+import {distributeSlideObjects} from './slide-distribution.js';
+import {tagNotebookNotes} from './note-structure.js';
 
 const escapeHTML = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const COLORS=['#212d48','#6555e8','#176db3','#b04472','#e05d4a','#16957d'];
@@ -95,7 +97,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0,category=null){
         button('Link','insert-link')+button('Checklist','insert-checklist')+button('Date','insert-date')+
         button('Quote','insert-quote')+capabilityToolbar(file,'insert')+(file.type==='docs'?button('Page break','insert-page-break')+button('Insert contents','insert-contents','Insert editable heading list')+button('Refresh contents','refresh-contents'):'');
     } else if(active==='Structure'){
-      body=button('↑ Move block','block-up')+button('↓ Move block','block-down')+
+      body=button('↑ Move block','block-up')+button('↓ Move block','block-down')+button('Duplicate block','block-duplicate')+
         button('H+ Promote','block-promote')+button('H− Demote','block-demote')+
         button('＋ Section','block-section')+button('↡ Page break','block-break')+
         '<span class="ot-metric">Select a paragraph first. Changes are saved in document history.</span>';
@@ -125,7 +127,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0,category=null){
       body=choice('Note paper',[['plain','Plain white'],['linen','Warm linen'],['mint','Soft mint'],['slate','Deep slate']],n.paper)+choice('Note font',NOTE_FONTS.map(font=>[font,font]),n.font)+choice('Note size',[12,14,15,16,18,20,24].map(size=>[String(size),size+' px']),String(n.size))+choice('Note spacing',[1.4,1.6,1.8,2].map(value=>[String(value),String(value)]),String(n.lineHeight))+choice('Writing width',[['focused','Focused'],['standard','Standard'],['wide','Wide']],n.width)+choice('Writing guides',[['off','Plain'],['on','Ruled']],n.ruled?'on':'off')+'<span class="ot-metric">Canvas choices are saved with this note. Text and Markdown exports retain their own formatting.</span>';
     } else if(active==='Organize'){
       body='<label class="ot-select-label">Tags <input class="ot-text" data-ot-input="tags" maxlength="180" value="'+escapeHTML((file.tags||[]).join(', '))+'" placeholder="ideas, meetings, work"></label>'+
-        button('☐ Checklist','insert-checklist')+button('Rename notebook','note-rename-notebook')+button('Rename section','note-rename-section')+button('Meeting template','note-template-meeting')+button('Daily plan','note-template-daily')+button('Print / PDF','print')+
+        button('☐ Checklist','insert-checklist')+button('Tag entire notebook','note-tag-notebook')+button('Rename notebook','note-rename-notebook')+button('Rename section','note-rename-section')+button('Meeting template','note-template-meeting')+button('Daily plan','note-template-daily')+button('Print / PDF','print')+
         '<span class="ot-metric">'+wordStatistics(file.body||'').words+' words</span>';
     }
   } else if(file.type==='sheets'){
@@ -156,7 +158,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0,category=null){
         '<span class="ot-metric">'+count+' conditional rules on this worksheet. Maximum 25.</span>';
     } else if(active==='Data'){
       body=button('Find / Replace','sheet-find-replace')+
-        button('Fill down (values + formulas)','sheet-fill-down')+button('Clear cell','sheet-clear-cell')+
+        button('Fill down (values + formulas)','sheet-fill-down')+button('Fill right','sheet-fill-right')+button('Clear cell','sheet-clear-cell')+
         button('Sort A → Z','sort-asc')+button('Sort Z → A','sort-desc')+
         button('Auto SUM','insert-sum')+button('Auto AVERAGE','insert-avg')+button('Auto MIN','insert-min')+button('Auto MAX','insert-max')+button('Auto COUNT','insert-count')+
         button('Audit formulas','sheet-audit')+button('Trace cell','sheet-trace')+
@@ -181,7 +183,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0,category=null){
         button('Align left','shape-align-left')+button('Center','shape-align-center')+
         button('Align right','shape-align-right')+button('Top','shape-align-top')+
         button('Middle','shape-align-middle')+button('Bottom','shape-align-bottom')+
-        button('Resize…','shape-resize')+
+        button('Resize…','shape-resize')+button('Distribute all ↔','shape-distribute-horizontal')+button('Distribute all ↕','shape-distribute-vertical')+
         button('↶ Rotate','shape-rotate-left')+button('↷ Rotate','shape-rotate-right')+
         button('←','shape-left','Move selected object left')+button('→','shape-right')+
         button('↑','shape-up')+button('↓','shape-down')+
@@ -453,6 +455,17 @@ export function initializeOfficeTools(ctx){
         const tag={'style-h1':'h1','style-h2':'h2','style-h3':'h3','style-body':'p','style-quote':'blockquote'}[action];
         richCommand(ctx,'formatBlock',tag);ctx.toast('Paragraph style applied');return;
       }
+      if(action==='note-tag-notebook'){
+        if(f.type!=='notes')return;
+        const notebook=ctx.getNoteLocation(f).notebook;
+        const tag=prompt('Tag every note in notebook "'+notebook+'" (up to 500 notes):','');
+        if(tag===null)return;
+        const result=tagNotebookNotes(ctx.getFiles(),notebook,tag);
+        for(const note of result.changed)ctx.touch(note);
+        if(result.changed.length){ctx.persist();ctx.render();}
+        ctx.toast(result.changed.length+' of '+result.matched+' notes tagged.');
+        return;
+      }
       if(['note-rename-notebook','note-rename-section'].includes(action)){
         if(f.type!=='notes')return;
         const location=ctx.getNoteLocation(f),notebook=location.notebook;
@@ -532,14 +545,14 @@ export function initializeOfficeTools(ctx){
         try{const parsed=new URL(url);if(!['https:','http:'].includes(parsed.protocol))throw Error();richCommand(ctx,'createLink',url);}
         catch{ctx.toast('Only HTTP/HTTPS links are supported.');}return;
       }
-      if(['block-up','block-down','block-promote','block-demote','block-section','block-break'].includes(action)){
+      if(['block-up','block-down','block-promote','block-demote','block-section','block-break','block-duplicate'].includes(action)){
         if(f.type!=='docs')return;
         const root=document.getElementById('rich-content');
         if(!root)throw Error('Open a document first.');
         const index=lastDocumentBlock.fileId===f.id?Math.min(lastDocumentBlock.index,Math.max(0,editableBlocks(root).length-1)):0;
         const operations={
           'block-up':'move-up','block-down':'move-down','block-promote':'heading-up',
-          'block-demote':'heading-down','block-section':'new-section','block-break':'page-break'
+          'block-demote':'heading-down','block-section':'new-section','block-break':'page-break','block-duplicate':'duplicate'
         };
         const result=applyDocumentBlockAction(root,operations[action],index);
         if(result.changed){
@@ -701,6 +714,13 @@ export function initializeOfficeTools(ctx){
         const count=fillDown(f.cells,ctx.getSelectedCell(),amount,f.cellStyles);
         ctx.toast(count+' cells filled');syncSheet(ctx,f);return;
       }
+      if(action==='sheet-fill-right'){
+        const amount=Number(prompt('Fill the selected cell right across how many columns? (1–25)','5'));
+        if(!Number.isInteger(amount)||amount<1||amount>25)throw Error('Enter a number from 1 to 25.');
+        const count=fillRight(f.cells,ctx.getSelectedCell(),amount,f.cellStyles);
+        ctx.toast(count+' cells filled to the right');if(count)syncSheet(ctx,f);
+        return;
+      }
       if(action==='sheet-clear-cell'){
         if(!confirm('Clear selected cell and formatting?'))return;
         clearCell(f.cells,f.cellStyles,ctx.getSelectedCell());
@@ -756,6 +776,11 @@ export function initializeOfficeTools(ctx){
         if(!id)throw Error('Select a slide object first.');
         reorderSlideObject(slide,id,action.slice('layer-'.length));
         ctx.touch(f);ctx.persist();ctx.render();return;
+      } else if(['shape-distribute-horizontal','shape-distribute-vertical'].includes(action)){
+        if(f.type!=='slides')return;
+        const axis=action.endsWith('horizontal')?'horizontal':'vertical';
+        const count=distributeSlideObjects(f.slides[ctx.getSlideIndex()],axis);
+        ctx.touch(f);ctx.persist();ctx.render();ctx.toast(count+' shapes distributed '+axis+'ly');return;
       } else if(action.startsWith('shape-align-')||action==='shape-resize'){
         const slide=f.slides[ctx.getSlideIndex()],id=ctx.getSlideObjectId();
         if(!id||!getSlideObject(slide,id))throw Error('Select a slide object first.');

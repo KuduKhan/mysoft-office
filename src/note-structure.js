@@ -51,3 +51,26 @@ export function renameNoteCollection(files,{notebook,section=null,newName}={}){
   }
   return matched.length;
 }
+
+// Apply one tag to a notebook's Notes without touching other notebooks.
+// Plan the entire batch before committing so a full-tag note never causes a
+// partially tagged notebook. Source note IDs/bodies remain unchanged.
+export function tagNotebookNotes(files,notebook,tag){
+  if(!Array.isArray(files))throw Error('Notes collection is unavailable.');
+  const label=String(tag??'').trim();
+  if(!label||label.length>24||/[<>,\r\n]/.test(label))
+    throw Error('Use a tag of 1–24 characters without angle brackets or commas.');
+  const name=safeCollectionName(notebook,DEFAULT_NOTEBOOK);
+  const matched=files.filter(file=>file?.type==='notes'&&noteLocation(file).notebook===name);
+  if(!matched.length)throw Error('No notes in this notebook.');
+  if(matched.length>500)throw Error('Batch tagging supports up to 500 notes.');
+  const planned=[];
+  for(const note of matched){
+    const current=Array.isArray(note.tags)?note.tags:[];
+    if(current.some(value=>String(value).toLocaleLowerCase()===label.toLocaleLowerCase()))continue;
+    if(current.length>=12)throw Error('One or more notes already have the maximum 12 tags.');
+    planned.push({note,tags:[...current,label]});
+  }
+  for(const {note,tags} of planned)note.tags=tags;
+  return {matched:matched.length,changed:planned.map(entry=>entry.note)};
+}

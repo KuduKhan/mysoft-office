@@ -68,6 +68,35 @@ export function fillDown(cells,address,count=5,styles=null){
   }
   return writes.length;
 }
+
+// Fill to the right using the same bounded relative-reference semantics as Fill Down.
+// Compute all destination values and deep-copied styles before touching the worksheet.
+export function fillRight(cells,address,count=5,styles=null){
+  const match=/^([A-Z])([1-9]\d{0,2}|1000)$/.exec(address);
+  if(!match)throw Error('Choose a valid cell first.');
+  if(!cells||typeof cells!=='object'||Array.isArray(cells))throw Error('Worksheet unavailable.');
+  if(!Number.isInteger(count)||count<1||count>25)throw Error('Fill count must be between 1 and 25.');
+  const start=match[1].charCodeAt(0)-65,row=match[2];
+  const value=String(cells[address]??'');
+  if(!value)throw Error('Selected cell is empty.');
+  const sourceStyle=styles?.[address],writes=[];
+  for(let i=1;i<=Math.min(count,25-start);i++){
+    const ref=String.fromCharCode(65+start+i)+row;
+    writes.push({
+      ref,
+      raw:value.startsWith('=')?shiftRelativeFormula(value,0,i):value,
+      style:sourceStyle===undefined?undefined:structuredClone(sourceStyle)
+    });
+  }
+  for(const {ref,raw,style} of writes){
+    cells[ref]=raw;
+    if(styles){
+      if(style===undefined)delete styles[ref];
+      else styles[ref]=style;
+    }
+  }
+  return writes.length;
+}
 export function clearCell(cells,styles,address){
   if(!/^[A-Z](?:[1-9]\d{0,2}|1000)$/.test(address))throw Error('Invalid selected cell.');
   delete cells[address];

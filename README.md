@@ -1,5 +1,9 @@
 # MySoft Office
 
+## v0.11.0 — Advanced editor workflows
+
+Docs gains **Structure → Duplicate block**, preserving formatted inline content while stripping duplicate DOM IDs. Sheets adds transactional **Data → Fill right** for supported relative formulas and cell styles. Slides adds **Shapes → Distribute all** horizontally or vertically without resizing shapes; overfull layouts are refused rather than overlapping objects. Notes gains **Organize → Tag entire notebook**, with all-note capacity checks before mutation. These extend existing file models without an IndexedDB migration. See [v0.11.0 release details](RELEASE_0_11_0.md).
+
 ## v0.10.0 — Professional editor foundations
 
 Docs block heading promotion/demotion now preserves supported paragraph formatting and rejects list/table conversions without modifying the document. Sheets **Data → Fill down** now copies relative formulas and cell styles with prevalidation, including safe boundary and reference-limit refusal. Slides shape property edits and resizes now commit atomically after validation, rather than leaving partially modified geometry after an error. These features work with the existing file model and do not claim a complete rich-text engine, new spreadsheet formula grammar, or unrestricted PPTX object fidelity. See [v0.10.0 release notes](RELEASE_0_10_0.md).
