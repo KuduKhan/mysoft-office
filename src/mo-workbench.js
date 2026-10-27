@@ -27,6 +27,7 @@ export function ribbonCategory(node,type,tab){
   if(/^(note-(tasks|task-export)|capture-tasks|insert-checklist)/.test(key))return 'Tasks & capture';
   if(/^(note-(template|project|research))/.test(key))return 'Page starters';
   if(/(link|references|backlinks)/.test(key))return 'Links & navigation';
+  if(/^craft-/.test(key))return 'Craft tools';
   if(/^(paragraph|uppercase|lowercase|cleanup|writing-review|image-descriptions)/.test(key))return 'Writing studio';
   if(/^(suite-markdown)/.test(key))return 'Markdown studio';
   if(/^(insert-table|custom-table|suite-table)/.test(key))return 'Table tools';
@@ -45,7 +46,7 @@ export function groupRibbon(body,type,tab){
     const name=ribbonCategory(node,type,tab);if(!groups.has(name))groups.set(name,[]);groups.get(name).push(node);
   }
   return [...groups].map(([name,nodes])=>{
-    const controls=nodes.reduce((count,node)=>count+node.querySelectorAll('input,select,textarea').length,0),actions=nodes.filter(node=>node.matches('button:not(.ot-icon-only)')).length,classes=controls?'mo-field-group'+(controls>4?' mo-wide-fields':''):'mo-action-group'+(actions>=5?' mo-many-actions':actions<=2?' mo-few-actions':'');
+    const controls=nodes.reduce((count,node)=>count+node.querySelectorAll('input,select,textarea').length,0),actions=nodes.filter(node=>node.matches('button')).length,classes=controls?'mo-field-group'+(controls>4?' mo-wide-fields':''):'mo-action-group'+(actions>=5?' mo-many-actions':actions<=2?' mo-few-actions':'');
     return '<section class="mo-ribbon-group '+classes+'" aria-label="'+escape(name)+'" tabindex="-1"><h3>'+escape(name)+'</h3><div class="mo-control-grid">'+nodes.map(node=>node.outerHTML).join('')+'</div>'+([...groups.keys()].at(-1)===name?guidance.join(''):'')+'</section>';
   }).join('')+standalone.join('');
 }

@@ -16,7 +16,7 @@ export function sheetRows(file,start=1,selectedCell='A1'){
       const ref=col+r;
       const appearance=sheetCellAppearance(file,ref,displayCell(ref,file.cells));
       rows+='<td class="'+(selectedCell===ref?'selected':'')+'"><input class="sheet-cell '+
-        (String(file.cells[ref]||'').startsWith('=')?'formula-result':'')+
+        (String(file.cells[ref]??'').startsWith('=')?'formula-result':'')+
         '" data-cell="'+ref+'" title="'+ref+'" aria-label="Cell '+ref+
         '" style="'+escape(appearance.style)+'" value="'+escape(appearance.value)+'"></td>';
     }

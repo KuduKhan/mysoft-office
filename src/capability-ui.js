@@ -1,3 +1,4 @@
+import {craftTools,initializeCraftTools} from './craft-tools-ui.js';
 import {advancedTools,initializeAdvancedTools} from './advanced-tools-ui.js';
 import {productionTools,initializeProductionTools} from './production-tools-ui.js';
 import {workflowTools,initializeWorkflowStudio} from './workflow-studio-ui.js';
@@ -22,13 +23,14 @@ export function capabilityToolbar(file,section='tools'){
   if(file.type==='sheets')sets.sheets.push(['text-formulas','Text tools','case-sensitive']);
   if(file.type==='slides')sets.slides.push(['distribute-horizontal','Distribute horizontally','align-horizontal-distribute-center'],['distribute-vertical','Distribute vertically','align-vertical-distribute-center']);
   if(file.type==='notes')sets.notes.push(['note-task-export','Export task list','download']);
-  return (sets[file.type]||[]).map(args=>btn(...args)).join('')+expansionTools(file.type)+workflowTools(file.type)+productionTools(file.type)+advancedTools(file.type);
+  return (sets[file.type]||[]).map(args=>btn(...args)).join('')+expansionTools(file.type)+workflowTools(file.type)+productionTools(file.type)+advancedTools(file.type)+craftTools(file.type);
 }
 export function initializeCapabilityTools(ctx){
   initializeExpansionTools(ctx);
   initializeWorkflowStudio(ctx);
   initializeProductionTools(ctx);
   initializeAdvancedTools(ctx);
+  initializeCraftTools(ctx);
   let selected={id:'',index:0},pending=null,reviewTargets=[];
   const taskFilter={status:'all',query:'',scope:'all'};
   const root=()=>document.getElementById('rich-content'),modalRoot=()=>document.getElementById('modal-root');

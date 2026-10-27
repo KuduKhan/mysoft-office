@@ -1,0 +1,108 @@
+/* Compact editor chrome: content-sized groups, two action rows, one scroll stage.
+   Comfortable density remains available. Authored pages and canvases are untouched. */
+html[data-ribbon-density=compact] .shell.mo-editing .ot-ribbon-top{min-height:31px;padding:1px 10px;gap:6px}
+html[data-ribbon-density=compact] .shell.mo-editing .ot-ribbon-tabs{padding-block:0;gap:1px;scrollbar-width:none}
+html[data-ribbon-density=compact] .shell.mo-editing .ot-tab{min-height:28px;padding:5px 10px;font-size:11px;line-height:1.25}
+html[data-ribbon-density=compact] .shell.mo-editing :is(.mo-file-tab,.ot-ribbon-meta .ot-btn){min-height:26px;height:26px;padding:3px 8px;font-size:10px}
+html[data-ribbon-density=compact] .shell.mo-editing :is(.ot-ribbon-tools,.native-ribbon-stage){min-height:0;max-height:min(114px,20dvh);padding:0 3px;align-items:flex-start;gap:0;overflow:auto;scroll-padding:4px}
+html[data-ribbon-density=compact] .shell.mo-editing .mo-ribbon-group{flex:0 0 auto;width:max-content;min-width:0;max-width:none;padding:6px 8px;align-self:flex-start}
+html[data-ribbon-density=compact] .shell.mo-editing .mo-ribbon-group h3{font-size:9px;line-height:1.3;font-weight:600;letter-spacing:.15px;margin:0 0 5px;white-space:nowrap}
+html[data-ribbon-density=compact] .shell.mo-editing .mo-action-group .mo-control-grid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(2,minmax(27px,auto));grid-auto-columns:max-content;gap:3px;align-items:stretch;min-width:0}
+html[data-ribbon-density=compact] .shell.mo-editing .mo-few-actions .mo-control-grid{display:flex;flex-direction:column;gap:3px;align-items:stretch}
+html[data-ribbon-density=compact] .shell.mo-editing .mo-few-actions .mo-control-grid>*{flex:0 0 auto}
+html[data-ribbon-density=compact] .shell.mo-editing .mo-field-group .mo-control-grid{display:grid;grid-template-columns:repeat(2,minmax(0,128px));gap:4px 6px;align-items:end}
+html[data-ribbon-density=compact] .shell.mo-editing .mo-wide-fields .mo-control-grid{grid-template-columns:repeat(3,minmax(0,122px))}
+html[data-ribbon-density=compact] .shell.mo-editing .mo-control-grid :is(.ot-btn,.btn){min-height:27px;height:auto;max-width:155px;width:auto;min-width:0;padding:3px 6px;font-size:10px;line-height:1.25;font-weight:500;gap:4px;white-space:normal;overflow-wrap:normal;border-radius:4px;box-shadow:none;justify-content:flex-start}
+html[data-ribbon-density=compact] .shell.mo-editing .mo-action-group .mo-control-grid>:is(.ot-btn,.btn):not(.ot-icon-only){min-width:88px}
+html[data-ribbon-density=compact] .shell.mo-editing .mo-control-grid .ot-icon-only{min-width:27px;width:27px;min-height:27px;justify-content:center;padding:4px}
+html[data-ribbon-density=compact] .shell.mo-editing .mo-control-grid :is(.ot-btn,.btn) svg{width:14px;height:14px;flex:none}
+html[data-ribbon-density=compact] .shell.mo-editing .mo-control-grid .ot-select-label{gap:2px;font-size:9px;line-height:1.3}
+html[data-ribbon-density=compact] .shell.mo-editing .mo-control-grid .ot-select-label :is(input,select,textarea){height:26px;min-height:26px;font-size:11px;padding:3px 5px;border-radius:4px}
+html[data-ribbon-density=compact] .shell.mo-editing .mo-control-grid .ot-select-label textarea{height:42px;min-height:42px}
+html[data-ribbon-density=compact] .shell.mo-editing .mo-ribbon-group>.ot-metric{font-size:9px;line-height:1.35;margin-top:5px;max-width:250px}
+html[data-ribbon-density=compact] .shell.mo-editing .mo-guidance{width:200px}
+html[data-ribbon-density=compact] .shell.mo-editing .native-tool-group.mo-field-group .mo-control-grid{display:flex;flex-wrap:wrap;align-items:center;gap:4px;max-width:430px;min-width:180px}
+html[data-ribbon-density=compact] .shell.mo-editing .native-tool-group :is(.media-tool-picker,.media-zoom-label,.pdf-zoom-label){gap:2px;font-size:9px;flex:0 1 125px;max-width:155px;min-width:0}
+html[data-ribbon-density=compact] .shell.mo-editing .native-tool-group :is(select,input){height:27px;min-height:27px;font-size:11px;padding:2px 4px}
+html[data-ribbon-density=compact] .shell.mo-editing .native-tool-group .pdf-tool-group{gap:3px;flex-wrap:nowrap}
+html[data-ribbon-density=compact] .shell.mo-editing .native-tool-group .pdf-tool-group .btn{min-width:27px;width:27px;min-height:27px;justify-content:center}
+html[data-ribbon-density=compact] .shell.mo-editing .ribbon-navigation{height:25px;min-height:25px;padding:1px 7px;gap:3px}
+html[data-ribbon-density=compact] .shell.mo-editing .ribbon-navigation button{width:23px;height:22px;min-width:23px;min-height:22px;padding:2px}
+html[data-ribbon-density=compact] .shell.mo-editing .ribbon-navigation select{height:22px;min-height:22px;font-size:9px;padding:1px 4px}
+html[data-ribbon-density=compact] .shell.mo-editing .ribbon-navigation [data-ribbon-group]{width:160px;flex:0 1 160px}
+html[data-ribbon-density=compact] .shell.mo-editing .ribbon-density-label select{width:95px}
+@media(max-width:760px){
+ html[data-ribbon-density=compact] .shell.mo-editing .ot-ribbon-top{padding-inline:6px;gap:3px}
+ html[data-ribbon-density=compact] .shell.mo-editing .ot-tab{min-height:30px;padding:5px 8px;font-size:10px}
+ html[data-ribbon-density=compact] .shell.mo-editing .mo-ribbon-group{padding:5px 7px}
+ html[data-ribbon-density=compact] .shell.mo-editing .mo-wide-fields .mo-control-grid{grid-template-columns:repeat(2,minmax(0,128px))}
+ html[data-ribbon-density=compact] .shell.mo-editing .mo-control-grid :is(.ot-btn,.btn){min-height:30px;font-size:10px}
+ html[data-ribbon-density=compact] .shell.mo-editing .mo-action-group .mo-control-grid{grid-template-rows:repeat(2,minmax(30px,auto))}
+ html[data-ribbon-density=compact] .shell.mo-editing .mo-control-grid .ot-select-label :is(input,select){min-height:29px;height:29px}
+ html[data-ribbon-density=compact] .shell.mo-editing .ribbon-navigation{height:34px;min-height:34px;padding:1px 5px}
+ html[data-ribbon-density=compact] .shell.mo-editing .ribbon-navigation button{width:30px;height:30px;min-width:30px;min-height:30px}
+ html[data-ribbon-density=compact] .shell.mo-editing .ribbon-navigation select{height:30px;min-height:30px;font-size:10px}
+ html[data-ribbon-density=compact] .shell.mo-editing .ribbon-navigation [data-ribbon-group]{width:auto;flex:1 1 120px}
+ html[data-ribbon-density=compact] .shell.mo-editing .ribbon-density-label select{width:85px}
+ html[data-ribbon-density=compact] .shell.mo-editing .native-tool-group :is(select,input){height:30px;min-height:30px}
+}
+@media(pointer:coarse){
+ html[data-ribbon-density=compact] .shell.mo-editing .mo-control-grid :is(.ot-btn,.btn){min-height:34px}
+ html[data-ribbon-density=compact] .shell.mo-editing .mo-action-group .mo-control-grid{grid-template-rows:repeat(2,minmax(34px,auto))}
+ html[data-ribbon-density=compact] .shell.mo-editing .ot-tab{min-height:34px}
+ html[data-ribbon-density=compact] .shell.mo-editing .native-tool-group .pdf-tool-group .btn{min-height:34px;min-width:34px;width:34px}
+}
+@media(max-height:600px){html[data-ribbon-density=compact] .shell.mo-editing :is(.ot-ribbon-tools,.native-ribbon-stage){max-height:100px}}
+
+/* A legible ribbon with one set of navigation controls. */
+.shell.mo-editing .ot-ribbon-meta .ribbon-density-label{display:flex;align-items:center;gap:6px;margin:0;font-size:10px;color:var(--studio-muted)}
+.shell.mo-editing .ot-ribbon-meta .ribbon-density-label>span{display:none}
+.shell.mo-editing .ot-ribbon-meta [data-ribbon-density]{width:100px;height:27px;min-height:27px;padding:3px 7px;font-size:11px;border:1px solid var(--studio-line);border-radius:6px;background:var(--studio-surface);color:var(--studio-text)}
+.shell.mo-editing .ot-ribbon>.ribbon-navigation:not(.has-overflow){display:none}
+html[data-ribbon-density=compact] .shell.mo-editing .mo-ribbon-group{padding:7px 10px}
+html[data-ribbon-density=compact] .shell.mo-editing .mo-ribbon-group h3{font-size:10px;line-height:1.4;letter-spacing:0;margin-bottom:6px;color:var(--studio-muted)}
+html[data-ribbon-density=compact] .shell.mo-editing .mo-control-grid :is(.ot-btn,.btn){font-size:11px;border-radius:5px;min-height:28px;padding:4px 7px}
+html[data-ribbon-density=compact] .shell.mo-editing .mo-control-grid .ot-select-label{font-size:10px;line-height:1.4;gap:3px}
+html[data-ribbon-density=compact] .shell.mo-editing .mo-control-grid .ot-select-label :is(input,select){font-size:12px;height:28px;min-height:28px;padding:3px 6px}
+html[data-ribbon-density=compact] .shell.mo-editing .mo-action-group .mo-control-grid{grid-template-rows:repeat(2,minmax(28px,auto));gap:4px}
+html[data-ribbon-density=compact] .shell.mo-editing .mo-control-grid .ot-icon-only{width:28px;min-width:28px;justify-content:center;padding:4px}
+/* Document switcher: quiet inactive tabs and a full-surface current-file tint. */
+.shell.mo-editing .studio-file-tabs{min-height:44px;padding:5px 12px;gap:5px;background:var(--studio-bg);border-bottom:1px solid var(--studio-line);scroll-padding-inline:12px;overscroll-behavior-inline:contain}
+.shell.mo-editing .studio-file-tab[data-app=docs]{--file-accent:#2563ce}
+.shell.mo-editing .studio-file-tab[data-app=sheets]{--file-accent:#16815d}
+.shell.mo-editing .studio-file-tab[data-app=slides]{--file-accent:#c15c2a}
+.shell.mo-editing .studio-file-tab[data-app=notes]{--file-accent:#8950b6}
+.shell.mo-editing .studio-file-tab[data-app=pdf]{--file-accent:#c94743}
+.shell.mo-editing .studio-file-tab[data-app=media]{--file-accent:#09838e}
+.shell.mo-editing .studio-file-tab{position:relative;isolation:isolate;font-family:"Segoe UI Variable","Segoe UI",system-ui,sans-serif;max-width:220px;min-height:34px;gap:8px;padding:5px 12px 5px 7px;font-size:11px;line-height:1.4;font-weight:500;border:1px solid transparent;border-radius:9px;flex-shrink:0;color:var(--studio-muted);background:transparent;transition:background .15s,border-color .15s,box-shadow .15s,color .15s}
+.shell.mo-editing .studio-file-tab-icon{width:23px;height:23px;border-radius:6px;display:grid;place-items:center;flex:none;color:var(--file-accent,var(--studio-accent));background:color-mix(in srgb,var(--file-accent,var(--studio-accent)) 8%,var(--studio-surface))}
+.shell.mo-editing .studio-file-tab:hover{color:var(--studio-text);background:var(--studio-surface);border-color:var(--studio-line)}
+.shell.mo-editing .studio-file-tab:focus-visible{outline:2px solid var(--studio-accent);outline-offset:-2px}
+.shell.mo-editing .studio-file-tab.active[data-app]{color:var(--studio-text);font-weight:600;border-color:color-mix(in srgb,var(--file-accent,var(--studio-accent)) 24%,var(--studio-line));background:color-mix(in srgb,var(--file-accent,var(--studio-accent)) 10%,var(--studio-surface));box-shadow:none}
+.shell.mo-editing .studio-file-tab.active::before,.shell.mo-editing .studio-file-tab.active::after{content:none;display:none}
+.shell.mo-editing .studio-file-tab.active .studio-file-tab-icon{background:color-mix(in srgb,var(--file-accent,var(--studio-accent)) 14%,var(--studio-surface))}
+html[data-mode=dark] .shell.mo-editing .studio-file-tab-icon{color:color-mix(in srgb,var(--file-accent) 65%,white)}
+html[data-mode=dark] .shell.mo-editing .studio-file-tab.active[data-app]{background:color-mix(in srgb,var(--file-accent,var(--studio-accent)) 22%,var(--studio-surface));border-color:color-mix(in srgb,var(--file-accent,var(--studio-accent)) 38%,var(--studio-line));box-shadow:none}
+@media(prefers-reduced-motion:reduce){.shell.mo-editing .studio-file-tab{transition:none}}
+.shell.mo-editing .studio-status-left,.shell.mo-editing .studio-status-right{gap:10px}
+.shell.mo-editing .studio-status-right #studio-editor-metric{padding-right:10px;border-right:1px solid var(--studio-line)}
+.shell.mo-editing .toolbar{gap:5px;padding:5px 12px;min-height:36px;background:var(--studio-surface)}
+@media(max-width:760px){
+ .shell.mo-editing .ot-ribbon-meta [data-ribbon-density]{width:84px;font-size:10px}
+ html[data-ribbon-density=compact] .shell.mo-editing .mo-ribbon-group{padding:6px 8px}
+ html[data-ribbon-density=compact] .shell.mo-editing .mo-control-grid .ot-select-label :is(input,select){height:30px;min-height:30px}
+ .shell.mo-editing .studio-file-tabs{min-height:40px;padding:3px 7px;scroll-padding-inline:7px}
+ .shell.mo-editing .studio-file-tab{max-width:170px}
+}
+@media(pointer:coarse){html[data-ribbon-density=compact] .shell.mo-editing .mo-control-grid :is(.ot-btn,.btn){min-height:34px}}
+
+/* Short type and colour labels sit beside their controls, avoiding clipped swatches. */
+html[data-ribbon-density=compact] .shell.mo-editing .mo-ribbon-group[aria-label="Typeface & color"] .mo-control-grid{grid-template-columns:repeat(2,minmax(0,174px));gap:5px 9px}
+html[data-ribbon-density=compact] .shell.mo-editing .mo-ribbon-group[aria-label="Typeface & color"] .ot-select-label{display:grid;grid-template-columns:52px minmax(0,1fr);align-items:center;gap:5px;white-space:nowrap}
+html[data-ribbon-density=compact] .shell.mo-editing .mo-ribbon-group[aria-label="Typeface & color"] .ot-select-label :is(input,select){width:100%;min-width:0;margin:0}
+
+.shell.mo-editing .studio-status-left>span:last-child{display:inline;max-width:160px}
+@media(max-width:590px){.shell.mo-editing .studio-status-left{flex:0 1 auto;max-width:30%}.shell.mo-editing .studio-status-left>span:last-child{font-size:9px}.shell.mo-editing .studio-status-right{gap:6px}.shell.mo-editing .studio-status-right #studio-editor-metric{padding-right:6px}}
+
+/* Empty outlines must release their grid column for the document. */
+.shell.mo-editing .doc-edit-layout:not(:has(.doc-outline-link,.studio-review-comment)){grid-template-columns:minmax(0,1fr)}

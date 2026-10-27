@@ -92,3 +92,26 @@ These official references informed the workflow priorities. The implementations 
 ## Further engineering scope
 
 Real-time collaboration, cloud synchronization, full Office-format fidelity, OCR, true PDF text editing/redaction, advanced charting, full slide masters and animations, vector node editing, and multi-track media timelines require further implementation and validation. They are not advertised as available tools.
+
+
+## Craft tools expansion
+
+| App | Added workflow | Bounds and preservation |
+| --- | --- | --- |
+| Docs | Tools → Sort table rows | Sorts a complete rectangular table by a text or numeric column, with ascending/descending choices and a retained header. Rich cell contents stay together; blank values sort last. Merged/nested tables are refused. Up to 500 body rows and 26 columns. Uses document undo/redo. |
+| Sheets | Tools → Review duplicate values | Reviews displayed values with case, whitespace, and header options. Empty cells are ignored and formula errors are reported separately. Highlighting is a static formatting change, with stale-preview protection; it does not rewrite cells or formulas. Re-run after changing values. Up to 2,600 cells. |
+| Slides | Tools → Duplicate slide range | Inserts 1–5 independent copies of a range of up to 50 slides after that range. Notes, designs and objects are copied; object IDs are renewed. The deck is limited to 200 slides. |
+| Notes | Tools → Export notebook book | Downloads full writing as a portable HTML book with linked chapters. Sanitizes note content and escapes titles. Includes tables and inline images; workspace layout is omitted and MySoft links remain references. Up to 100 notes and 8 million body characters. Source notes stay unchanged. |
+| PDF | Export current page PNG | Renders the current ordered source page with its current rotation and native crop box onto a white background. Source PDF stays unchanged. Output is capped at 2× scale, 5,000 pixels per side and 12 million pixels. Separate watermark/crop export options are not applied to this page image. |
+| Media | Layers → Align visible drawing layers | Aligns two or more visible ink layers to the left/right/top/bottom edges or centers of their combined bounds. Hidden layers and erasers are retained in place. Changes actual geometry and supports undo/redo. Drawing projects only. |
+
+The added controls use the existing compact ribbons and tool directory. The Microsoft duplicate-value workflow (https://support.microsoft.com/en-us/excel/find-and-remove-duplicates), Adobe image export guidance (https://helpx.adobe.com/acrobat/using/exporting-pdfs-file-formats.html), and Canva alignment guidance (https://www.canva.com/help/layer-group-align/) informed this round. These additions do not imply complete compatibility or feature parity with those products.
+
+
+## Distortion and reliability repairs
+
+- The keyboard skip link focuses the current workspace without changing the file route or leaving the editor.
+- Raw numeric zero values, including Goal Seek results, remain visible in cells and the formula bar during focus, navigation and reload.
+- Phone/tablet slide thumbnail buttons keep their number, title and preview inside a bounded strip without increasing its reserved height.
+- Paragraph style controls now have enough inner height for their text. Slide title tracking scales with the font rather than using an excessive fixed negative gap at smaller sizes.
+- The visual audit covers all six editors and their ribbon categories at phone, tablet and desktop widths, in compact and comfortable ribbon modes. Regression checks also cover both themes and preserve authored document/canvas data.

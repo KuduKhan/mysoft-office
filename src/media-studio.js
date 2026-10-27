@@ -1,3 +1,4 @@
+import {alignedDrawingLayers} from './craft-tools.js';
 import {distributeDrawingLayers} from './advanced-tools.js';
 import {compressionSettings} from './production-tools.js';
 import {ART_PALETTES,recolorArtwork} from './workflow-studio.js';
@@ -126,6 +127,7 @@ export function createMediaStudio(ctx){
       if(action==='preview-png'){if(file.mediaKind==='audio'){const blob=await canvasBlob($('media-canvas'),'image/png',1);ctx.download(blob,(file.title.replace(/[^a-z0-9_-]+/gi,'-')||'audio')+'-waveform.png','image/png');ctx.toast('Waveform preview saved.');}else await exportCurrent(true);return;}
       if(action==='reset-view'){zoom='fit';$('media-zoom').value=zoom;paint();return;}
       if(action==='canvas-zoom-in'||action==='canvas-zoom-out'){const levels=[25,50,75,100,150,200],current=zoom==='fit'?100:Number(zoom);zoom=String(action==='canvas-zoom-in'?(levels.find(n=>n>current)||200):([...levels].reverse().find(n=>n<current)||25));$('media-zoom').value=zoom;paint();return;}
+      if(action==='align-visible-layers'){const result=alignedDrawingLayers(file,$('craft-layer-align').value);remember();file.mediaLayers=result.layers;changed();sync();ctx.toast(result.count+' visible layers aligned.');return;}
       if(action==='distribute-layers-h'||action==='distribute-layers-v'){const result=distributeDrawingLayers(file,action.endsWith('-h')?'horizontal':'vertical');remember();file.mediaLayers=result.layers;changed();sync();ctx.toast(result.count+' drawing layers distributed.');return;}
       if(action==='palette-apply'){
         const result=recolorArtwork(file,$('workflow-palette').value);remember();file.mediaLayers=result.layers;changed();sync();ctx.toast(result.colors+' artwork colors coordinated.');return;

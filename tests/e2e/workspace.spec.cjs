@@ -42,7 +42,7 @@ test('deleted note can be recovered from recycle bin',async({page})=>{
   await page.locator('[data-nav="trash"]').click();
   await expect(page.getByText('Recover me')).toBeVisible();
   await page.locator('[data-restore-trash]').first().click();
-  await page.locator('[data-nav="files"]').click();
+  await page.getByRole('button',{name:'My files',exact:true}).click();
   await expect(page.getByText('Recover me')).toBeVisible();
 });
 test('importing CSV populates cells',async({page})=>{

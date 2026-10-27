@@ -374,3 +374,16 @@ Architecture documentation:
 - Existing v0.1/v0.2 browser workspaces continue to load.
 - Advanced desktop/Office file formats are not advertised until round-trip tests prove them.
 - All server-side storage and collaboration must be designed with strict access control.
+
+
+### Workspace finish
+
+The workspace now includes a latest-file resume shortcut, quieter navigation, consistent file-card actions, and a responsive editor action rail across Docs, Sheets, Slides, Notes, PDF, and Media. Command search provides a live result count, clear keyboard guidance, and the existing Escape-to-return behavior. Native app colors and authored content styles are retained. The visual checks cover 320, 390, 768, 1024, and 1440 pixel widths in light and dark modes.
+
+The file library also supports saved date, natural-name, and application sorting without rewriting file records. Search updates the files route, focuses the result heading, and provides clear-search and filter-reset actions. Empty Starred, app, and recycle-bin views provide context-specific next steps.
+
+Compact ribbon mode uses content-sized groups and two action rows across the six editors, with smaller tab and navigation bars. Icon-only actions count toward group layout, avoiding accidental vertical stacks. Comfortable density, tool search, group navigation, and ribbon collapse remain available.
+
+Craft tools add rich-table sorting, duplicate-value review and highlighting, independent slide-range duplication, notebook book exports, current PDF-page PNG export, and undoable visible drawing-layer alignment. See EDITOR_UPGRADE_NOTES.md for limits and preservation details.
+
+The distortion repair pass corrects narrow-screen slide thumbnails, paragraph-control text clipping, route-changing skip links and numeric-zero display during spreadsheet focus and navigation.
