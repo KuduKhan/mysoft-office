@@ -1,3 +1,5 @@
+import {slideDeckHTML} from './slide-customize-html.js';
+import {slideSettings,slideTextStyle} from './slide-customize.js';
 import {LIBRARY_SORTS,normalizeLibrarySort,sortLibraryFiles} from './file-library.js';
 import {initializeRibbonWorkbench} from './ribbon-workbench.js';
 import {adjacentFileTabIndex} from './studio-layout.js';
@@ -28,7 +30,7 @@ import { DocumentHistory, headingsFromHTML } from './document-history.js';
 import { createDOCX, importDOCX } from './ooxml-docx.js';
 import { createXLSX, importXLSX } from './ooxml-xlsx.js';
 import { createPPTX, importPPTX } from './ooxml-pptx.js';
-import { SLIDE_PRESETS } from './studio-tools.js';
+import { SLIDE_THEMES as themes,slideAppearance,applySlideTheme } from './studio-tools.js';
 import {renderedSlideObjects,getSlideObject,updateSlideObject,moveSlideObject} from './slide-objects.js';
 import {organizeNotes,noteLocation,moveNote,renameNoteCollection,relocateNoteCollection} from './note-structure.js';
 import {workspaceLinks,setWorkspaceLink} from './workspace-links.js';
@@ -45,12 +47,6 @@ const typeNames={docs:'Document',sheets:'Spreadsheet',slides:'Presentation',note
 const typeIcons={docs:'file-text',sheets:'table',slides:'presentation',notes:'notebook',pdf:'file-scan',media:'clapperboard'};
 const fileIcon=file=>file.type==='media'?({audio:'waveform',video:'film',image:'image',drawing:'pen-tool',empty:'clapperboard'}[file.mediaKind]||typeIcons.media):typeIcons[file.type];
 const labels={docs:'MySoft Docs',sheets:'MySoft Sheets',slides:'MySoft Slides',notes:'MySoft Notes',pdf:'MySoft PDF',media:'MySoft Media'};
-const themes={
-  violet:{label:'Violet',color:'#7161e8',dark:false},
-  ocean:{label:'Ocean',color:'#2895d9',dark:false},
-  forest:{label:'Forest',color:'#22a88e',dark:false},
-  midnight:{label:'Midnight',color:'#a58bff',dark:true}
-};
 function esc(value){
   return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 }
@@ -108,9 +104,11 @@ function sanitize(html){
     if(['P','DIV','H1','H2','H3','BLOCKQUOTE','LI','TD','TH'].includes(node.tagName)){
       for(const prop of ['marginTop','marginBottom','marginLeft','marginRight','textIndent']){const v=node.style?.[prop]||'';if(/^(?:\d|[1-8]\d|9[0-6])(?:\.\d+)?px$/.test(v))wrapper.style[prop]=v;}
       if(/^-?(?:[0-7](?:\.\d+)?|8)(?:px)$/.test(node.style?.letterSpacing||''))wrapper.style.letterSpacing=node.style.letterSpacing;
+      for(const prop of ['breakInside','breakAfter'])if(node.style?.[prop]==='avoid')wrapper.style[prop]='avoid';
       if(['ltr','rtl'].includes(node.style?.direction))wrapper.style.direction=node.style.direction;
       if(['1','1.2','1.5','1.6','2','2.5','3'].includes(node.style?.lineHeight))wrapper.style.lineHeight=node.style.lineHeight;
     }
+    if(node.tagName==='TH'&&['col','row'].includes(node.getAttribute('scope')))wrapper.setAttribute('scope',node.getAttribute('scope'));
     if(['TD','TH'].includes(node.tagName)){
       for(const attr of ['colspan','rowspan']){
         const n=Number(node.getAttribute(attr)||1);
@@ -247,13 +245,8 @@ function sidebar(){
     action('cloud','Cloud snapshots','cloud','Cloud')+action('import-file','Import file','import','Import')+action('backup','Export backup','download','Backup')+action('import','Import backup','upload','Restore')+'</div></footer></aside>';
 }
 function header(){
-<<<<<<< HEAD
   const current=view==='editor'?labels[getActive()?.type]||'Editor':({home:'Overview',files:'My files',starred:'Starred',templates:'Templates',knowledge:'Knowledge Studio',trash:'Recycle bin'})[view]||labels[view]||'Workspace';
-  return '<header class="topbar"><div class="topbar-left"><button class="icon-btn mobile-menu" data-action="mobile" aria-label="Open navigation" aria-expanded="'+mobileOpen+'" aria-controls="studio-sidebar">'+icon('menu')+'</button><div class="studio-breadcrumb"><button data-nav="home">Workspace</button><span aria-hidden="true">/</span><strong>'+esc(current)+'</strong></div><div class="searchbox">'+icon('search',17)+'<input id="global-search" aria-label="Search filenames and content" placeholder="Search files and content  /" value="'+esc(query)+'"></div></div><div class="top-actions"><button class="btn btn-light studio-command-trigger" data-action="commands" title="Search commands (Ctrl+K)" aria-label="Search commands">'+icon('command',16)+'<span>Commands</span></button><button class="btn btn-light studio-customize" data-ot-action="preferences" title="Customize workspace" aria-label="Customize workspace">'+icon('settings',16)+'<span>Customize</span></button><button class="btn btn-primary" data-action="new">'+icon('plus',16)+'<span>New file</span></button><div class="avatar" title="Local workspace">MS</div></div></header>';
-=======
-  const current=view==='editor'?labels[getActive()?.type]||'Editor':({home:'Overview',files:'My files',starred:'Starred',templates:'Templates',trash:'Recycle bin'})[view]||labels[view]||'Workspace';
   return '<header class="topbar"><div class="topbar-left"><button class="icon-btn mobile-menu" data-action="mobile" aria-label="Open navigation" aria-expanded="'+mobileOpen+'" aria-controls="studio-sidebar">'+icon('menu')+'</button><div class="studio-breadcrumb"><button data-nav="home">Workspace</button><span aria-hidden="true">/</span><strong>'+esc(current)+'</strong></div><div class="searchbox">'+icon('search',17)+'<input id="global-search" aria-label="Search filenames and content" placeholder="Search files and content" type="search" maxlength="200" value="'+esc(query)+'"><button type="button" class="search-clear" data-action="search-clear" aria-label="Clear file search"'+(query?'':' hidden')+'>'+icon('x',14)+'</button></div></div><div class="top-actions"><button class="btn btn-light studio-command-trigger" data-action="commands" title="Search commands (Ctrl+K)" aria-label="Search commands">'+icon('command',16)+'<span>Commands</span></button><button class="btn btn-light studio-customize" data-ot-action="preferences" title="Customize workspace" aria-label="Customize workspace">'+icon('settings',16)+'<span>Customize</span></button><button class="btn btn-primary" data-action="new">'+icon('plus',16)+'<span>New file</span></button><div class="avatar" title="Local workspace">MS</div></div></header>';
->>>>>>> 1ef8462 (Polish editor layout and document tabs)
 }
 function appTiles(){
   const descriptions={docs:'Shape your words.',sheets:'Make sense of numbers.',slides:'Bring your story to life.',notes:'Keep every idea close.',pdf:'Read, arrange and extract.',media:'Edit, draw and create.'};
@@ -377,13 +370,12 @@ function sheetsEditor(f){
 }
 function slidesEditor(f){
   const s=f.slides[slideIndex]||f.slides[0];
-  const theme=themes[s.theme]||themes.violet;
-  const studio=SLIDE_PRESETS[s.studioPreset]||SLIDE_PRESETS.ivory;
+  const studio=slideAppearance(s),settings=slideSettings(s),usesTheme=!s.studioPreset&&!['background','foreground','accent'].some(key=>settings[key]);
   return '<div class="slide-layout"><div class="slide-list"><button class="btn btn-soft btn-sm" data-action="slide-add" style="width:100%;margin-bottom:12px">'+icon('plus',14)+' Add slide</button>'+
-    f.slides.map((slide,i)=>'<button class="slide-item '+(i===slideIndex?'active':'')+'" data-slide="'+i+'"><span>'+(i+1)+'</span><div class="slide-thumb"><strong>'+esc(slide.title)+'</strong><small>'+esc(slide.body).slice(0,46)+'</small></div></button>').join('')+'</div>'+
-    '<div class="slide-stage-wrap"><div class="slide-stage '+(theme.dark?'dark':'')+' studio-preset'+(s.studioRoadmap?' studio-roadmap':'')+'" style="--slide-accent:'+theme.color+';--studio-slide-bg:'+studio.background+';--studio-slide-text:'+studio.foreground+';--studio-slide-highlight:'+studio.accent+'"><div class="slide-tag">MySoft Slides · '+(slideIndex+1)+' / '+f.slides.length+'</div><div class="slide-title" contenteditable="true" id="slide-title" role="textbox" aria-label="Slide title" data-placeholder="Slide title">'+esc(s.title)+'</div><div class="slide-body" contenteditable="true" id="slide-body" role="textbox" aria-label="Slide body">'+esc(s.body)+'</div><div class="studio-object-layer" aria-label="Editable slide objects">'+renderedSlideObjects(s,{editable:true,selectedId:activeObjectId})+'</div></div></div>'+
-    '<div class="slide-controls"><h3>Design theme</h3>'+Object.entries(themes).map(([k,v])=>'<button class="theme-choice '+(s.theme===k?'active':'')+'" data-theme="'+k+'"><span class="theme-dot" style="background:'+v.color+'"></span>'+v.label+'</button>').join('')+
-    '<h3 style="margin-top:30px">Slide actions</h3><button class="btn btn-light btn-sm" data-action="slide-duplicate" style="width:100%;margin:6px 0">'+icon('copy',14)+' Duplicate</button><button class="btn btn-light btn-sm" data-action="slide-delete" style="width:100%;margin:6px 0">'+icon('trash',14)+' Delete</button></div></div>';
+    f.slides.map((slide,i)=>{const palette=slideAppearance(slide);return '<button class="slide-item '+(i===slideIndex?'active':'')+'" data-slide="'+i+'"><span>'+(i+1)+'</span><div class="slide-thumb" style="background:'+palette.background+';color:'+palette.foreground+';--thumbnail-accent:'+palette.accent+'"><strong>'+esc(slide.title)+'</strong><small>'+esc(slide.body).slice(0,46)+'</small></div></button>';}).join('')+'</div>'+
+    '<div class="slide-stage-wrap"><div class="slide-stage slide-custom-stage '+(studio.background==='#172036'?'dark':'')+' studio-preset'+(s.studioRoadmap?' studio-roadmap':'')+'" style="--slide-accent:'+studio.accent+';--studio-slide-bg:'+studio.background+';--studio-slide-text:'+studio.foreground+';--studio-slide-highlight:'+studio.accent+';--slide-accent-display:'+(settings.showAccent?'block':'none')+'"><div class="slide-tag" style="'+(!settings.showTag?'display:none':'')+'">'+esc(settings.tagText)+' · '+(slideIndex+1)+' / '+f.slides.length+'</div><div class="slide-title" style="'+slideTextStyle(s,'title')+'" contenteditable="true" id="slide-title" role="textbox" aria-label="Slide title" data-placeholder="Slide title">'+esc(s.title)+'</div><div class="slide-body" style="'+slideTextStyle(s,'body')+'" contenteditable="true" id="slide-body" role="textbox" aria-label="Slide body">'+esc(s.body)+'</div><div class="studio-object-layer" aria-label="Editable slide objects">'+renderedSlideObjects(s,{editable:true,selectedId:activeObjectId})+'</div></div></div>'+
+    '<div class="slide-controls" aria-label="Slide customizer"><span class="slide-customizer-label">Theme</span><div class="slide-theme-options" role="group" aria-label="Slide color theme">'+Object.entries(themes).map(([k,v])=>'<button type="button" class="theme-choice '+(s.theme===k&&usesTheme?'active':'')+'" data-theme="'+k+'" aria-label="'+v.label+' theme" aria-pressed="'+(s.theme===k&&usesTheme)+'" title="Apply '+v.label+' colors to this slide" style="--theme-bg:'+v.background+';--theme-ink:'+v.foreground+';--theme-accent:'+v.accent+'"><span class="theme-preview" aria-hidden="true"><i></i><i></i></span><span>'+v.label+'</span>'+icon('check',12)+'</button>').join('')+'</div>'+
+    '<div class="slide-customizer-actions"><button type="button" class="btn btn-light btn-sm" data-slide-custom="open">'+icon('sliders-horizontal',14)+'<span>Edit slide</span></button><button type="button" class="btn btn-light btn-sm" data-action="slide-duplicate" aria-label="Duplicate current slide">'+icon('copy',14)+'<span>Duplicate</span></button><button type="button" class="btn btn-light btn-sm" data-action="slide-delete" aria-label="Delete current slide">'+icon('trash',14)+'<span>Delete</span></button></div></div></div>';
 }
 function notesEditor(f){
   const groups=organizeNotes(files),location=noteLocation(f);
@@ -532,7 +524,7 @@ function modal(kind,id){
     };
     modalRoot.innerHTML='<div class="modal-backdrop"><div class="modal"><h2>Export to '+fmt+'</h2><p>'+notices[f.type]+'</p><p>For full preservation, also export a JSON workspace backup.</p><div class="modal-actions"><button class="btn btn-light" data-action="modal-close">Cancel</button><button class="btn btn-primary" data-action="office-export-confirm">Export '+fmt+'</button></div></div></div>';
   } else if(kind==='file-menu'){
-    modalRoot.innerHTML='<div class="modal-backdrop"><section class="modal mo-file-dialog"><h2>File</h2><div class="mo-file-actions">'+[['action:save','Save on this device','save'],['action:history','Version history','clock'],['action:export','Export file','download'],['action:backup','Export workspace backup','download'],['nav:home','Overview','home'],['nav:files','All files','folder'],['nav:templates','Templates','grid'],['action:preferences','Workspace appearance','settings']].map(([id,label,glyph])=>'<button type="button" class="btn btn-light" data-command-run="'+id+'">'+icon(glyph,17)+label+'</button>').join('')+'<button type="button" class="btn btn-light" data-action="new">'+icon('plus',17)+'New file</button></div><div class="modal-actions"><button class="btn btn-light" data-action="modal-close">Close</button></div></section></div>';
+    modalRoot.innerHTML='<div class="modal-backdrop"><section class="modal mo-file-dialog"><h2>File</h2><div class="mo-file-actions">'+[['action:save','Save on this device','save'],['action:history','Version history','clock'],['action:export','Export file','download'],['action:backup','Export workspace backup','download'],['nav:home','Overview','home'],['nav:files','All files','folder'],['nav:templates','Templates','grid'],['action:preferences','Workspace appearance','settings']].map(([id,label,glyph])=>'<button type="button" class="btn btn-light" data-command-run="'+id+'">'+icon(glyph,17)+label+'</button>').join('')+(getActive()?.type==='docs'?'<button type="button" class="btn btn-light" data-ot-action="docplus-stats">'+icon('file-check-2',17)+'File details</button><button type="button" class="btn btn-light" data-ot-action="docplus-html">'+icon('download',17)+'Download HTML copy</button>':'')+'<button type="button" class="btn btn-light" data-action="new">'+icon('plus',17)+'New file</button></div><div class="modal-actions"><button class="btn btn-light" data-action="modal-close">Close</button></div></section></div>';
   } else if(kind==='commands'){
     commandTools=[];
     const commands=[
@@ -559,8 +551,7 @@ function modal(kind,id){
       '<p id="studio-command-count" class="command-count" role="status">'+commands.length+' actions available</p><div class="studio-command-results" role="group" aria-label="Matching actions">'+commands.map(([id,label,group])=>
         '<button type="button" class="studio-command-item" data-command-run="'+esc(id)+'" data-command-text="'+esc((label+' '+group).toLocaleLowerCase())+'"><span>'+esc(label)+'</span><small>'+esc(group)+'</small></button>'
       ).join('')+'</div><p id="studio-command-empty" class="muted" hidden>No matching commands.</p>'+
-<<<<<<< HEAD
-      '<div class="modal-actions"><button class="btn btn-light" type="button" data-action="modal-close">Close · Esc</button></div></div></div>';
+      '<div class="modal-actions command-footer"><span><kbd>↑</kbd> <kbd>↓</kbd> Navigate <kbd>Enter</kbd> Open</span><button class="btn btn-light" type="button" data-action="modal-close">Close · Esc</button></div></div></div>';
   } else if(kind==='cloud-review'){
     const summary=cloudReview?.summary;
     if(!summary){modal('cloud');return;}
@@ -575,9 +566,6 @@ function modal(kind,id){
       (cloudReview.row?'<button class="btn btn-light" data-action="cloud-download">Restore cloud to this device</button><button class="btn btn-light" data-action="cloud-export">Export cloud JSON</button>':'')+
       '<button class="btn btn-light" data-action="cloud-review">Refresh comparison</button></div>'+
       '<div class="modal-actions"><button class="btn btn-light" data-action="cloud">Back</button><button class="btn btn-light" data-action="modal-close">Close</button></div></section></div>';
-=======
-      '<div class="modal-actions command-footer"><span><kbd>↑</kbd> <kbd>↓</kbd> Navigate <kbd>Enter</kbd> Open</span><button class="btn btn-light" type="button" data-action="modal-close">Close · Esc</button></div></div></div>';
->>>>>>> 1ef8462 (Polish editor layout and document tabs)
   } else if(kind==='cloud'){
     modalRoot.innerHTML='<div class="modal-backdrop"><div class="modal"><h2>MySoft Cloud snapshots</h2>'+
       (!cloudConfigured?'<p>Cloud is not configured yet. Your data remains on this browser until a dedicated MySoft Supabase project is connected.</p><p>Follow <strong>CLOUD_SETUP.md</strong> in the repository.</p>':
@@ -633,8 +621,7 @@ function exportFile(){
     download(csv,name+'.csv','text/csv;charset=utf-8');
   }
   if(f.type==='slides'){
-    const styles='body{font-family:Arial,sans-serif;background:#eaeefa;margin:0;padding:24px}section{box-sizing:border-box;aspect-ratio:16/9;background:white;border-top:12px solid #7564db;padding:8%;margin:0 auto 30px;max-width:1000px;page-break-after:always;display:flex;flex-direction:column;justify-content:center}h1{font-size:42px;color:#25334d}p{font-size:24px;white-space:pre-wrap;color:#68758c}@media print{body{padding:0;background:white}section{max-width:none;margin:0}}';
-    const html='<!doctype html><html><head><meta charset="utf-8"><title>'+esc(f.title)+'</title><style>'+styles+'</style></head><body>'+f.slides.map(s=>'<section style="border-color:'+(themes[s.theme]||themes.violet).color+'"><h1>'+esc(s.title)+'</h1><p>'+esc(s.body)+'</p></section>').join('')+'</body></html>';
+    const html=slideDeckHTML(f);
     download(html,name+'.html','text/html;charset=utf-8');
   }
   toast('Exported '+typeNames[f.type].toLowerCase());
@@ -968,7 +955,7 @@ document.addEventListener('click',event=>{
   if(el.dataset.delete){modal('delete',el.dataset.delete);return;}
 
   if(el.dataset.slide!==undefined){slideIndex=Number(el.dataset.slide);activeObjectId=null;render();return;}
-  if(el.dataset.theme){const f=getActive();if(f?.type==='slides'){f.slides[slideIndex].theme=el.dataset.theme;touch(f);render();}return;}
+  if(el.dataset.theme){const f=getActive();if(f?.type==='slides'){applySlideTheme(f.slides[slideIndex],el.dataset.theme);touch(f);render();}return;}
   if(el.dataset.cmd){
     if(['undo','redo'].includes(el.dataset.cmd)){undoDocument(el.dataset.cmd);return;}
     const editable=document.getElementById('rich-content');
@@ -978,7 +965,6 @@ document.addEventListener('click',event=>{
     return;
   }
   const action=el.dataset.action;
-<<<<<<< HEAD
   if(action==='knowledge-links'){if(getActive())modal('knowledge-links',getActive().id);return;}
   if(['knowledge-add','knowledge-remove','knowledge-open'].includes(action)){
     const source=getActive();if(!source)return;
@@ -999,9 +985,7 @@ document.addEventListener('click',event=>{
       for(const item of updated)touch(item);void persist();render();toast(updated.length+' notes moved.');
     }catch(error){toast(error.message);}return;
   }
-=======
   if(action==='search-clear'||action==='library-reset'){query='';if(action==='library-reset')fileFilter='all';render();document.getElementById('global-search')?.focus();return;}
->>>>>>> 1ef8462 (Polish editor layout and document tabs)
   if(action==='mobile'){setMobileNavigation(!mobileOpen);return;}
   if(action==='mobile-close'||action==='mobile-dismiss'){setMobileNavigation(false,true);return;}
   if(action==='nav-collapse'){setCollapsedSidebar(!navCollapsed);return;}
@@ -1101,7 +1085,7 @@ document.addEventListener('input',event=>{
     return;
   }
   if(target.id==='slide-title'||target.id==='slide-body'){
-    f.slides[slideIndex][target.id==='slide-title'?'title':'body']=target.textContent||'';touch(f);updateEditorMetrics();
+    f.slides[slideIndex][target.id==='slide-title'?'title':'body']=target.textContent||'';const preview=document.querySelector('.slide-item.active .slide-thumb '+(target.id==='slide-title'?'strong':'small'));if(preview)preview.textContent=(target.textContent||'').slice(0,target.id==='slide-title'?500:46);touch(f);updateEditorMetrics();
   }
   if(target.matches('[data-cell]')){
     updateCell(target.dataset.cell,target.value);updateEditorMetrics();

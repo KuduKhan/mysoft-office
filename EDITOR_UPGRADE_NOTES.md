@@ -115,3 +115,58 @@ The added controls use the existing compact ribbons and tool directory. The Micr
 - Phone/tablet slide thumbnail buttons keep their number, title and preview inside a bounded strip without increasing its reserved height.
 - Paragraph style controls now have enough inner height for their text. Slide title tracking scales with the font rather than using an excessive fixed negative gap at smaller sizes.
 - The visual audit covers all six editors and their ribbon categories at phone, tablet and desktop widths, in compact and comfortable ribbon modes. Regression checks also cover both themes and preserve authored document/canvas data.
+
+
+## Docs ribbon expansion
+
+Twenty document commands are distributed across the existing categories and are discoverable through Find tools:
+
+- Home: sentence case and word capitalization retain inline formatting.
+- Insert: editable signature blocks, local date/time and nonbreaking spaces.
+- Structure: split at the cursor, join adjacent paragraphs, select a paragraph and download a Markdown heading outline.
+- Table: insert rows above and columns before the cursor, duplicate rows and toggle the first header row. Merged, nested and irregular tables are refused before mutation.
+- Layout: toggle paragraph break avoidance and keep-with-next for browser printing. These are print hints; the continuous editor does not simulate pagination.
+- Review: document statistics, local-link checks and repeated-paragraph reports. Link checking does not contact websites.
+- Tools: portable HTML and plain-text copies. HTML retains supported rich content; workspace backups remain the full-fidelity format.
+- File: direct file details and HTML-copy shortcuts.
+
+Source merge conflicts were reconciled to retain Knowledge Studio, reviewed cloud snapshots, PDF forms/annotations and Media layer locks alongside the UI refinements.
+
+
+## Slide theme customizer repair
+
+- Theme selection now replaces a conflicting custom backdrop instead of changing an overridden accent. Violet, Ocean, Forest and Midnight supply complete background, text and accent palettes.
+- Backdrop has an explicit Follow theme choice. Applying a theme/design across the deck clears stale backdrop overrides while retaining slide text, shapes and notes.
+- Palette previews and pressed states reflect the selection; custom backdrops leave the palette buttons unselected.
+- Editor, thumbnails, file previews, presentation mode, HTML export and PowerPoint background/text export use the same appearance resolver.
+- Theme controls and slide actions share a compact responsive row; Design fields fit without clipped dropdowns.
+
+## Editable slide content and custom styling
+
+- Edit slide opens bounded controls for title/body text, font, size, bold/italic, alignment, placement and dimensions; custom colors, label/strip visibility and speaker notes are saved with the slide.
+- Layout and text-size choices now affect the editing canvas. Picking a layout resets text-box placements to that layout, retaining content and typography. Direct typing refreshes the active thumbnail without rebuilding the editor.
+- Object properties are reachable from Shapes and Tools and now include font, emphasis, alignment, opacity and border styling alongside geometry, fill, text color, label and rotation.
+- Editor/presentation share the text-box styles. Portable HTML and PowerPoint export retain supported text geometry/typography, palette, labels/strip and object styling. Local workspace backups retain the complete editable record.
+- Invalid customization is refused before applying any partial changes. Hiding title/body retains their underlying content for subsequent editing.
+
+
+## Six-app productivity expansion
+
+- Docs: save selected rich text as an ordinary reusable document, preview and insert independent copies, or remove its snippet flag without deleting the source document. These records are included in workspace backups.
+- Sheets: preview text/numeric/blank filters, sort matching values and create a separate evaluated worksheet retaining supported cell styles. Source formulas remain untouched; fully empty rows are skipped and formula errors are refused.
+- Slides: preview a complete new slide order. Every source must remain represented; repeated positions create independent complete copies. Stale previews are rejected.
+- Notes: notebook board with Inbox / In progress / Done, direct note opening and CSV export. Progress is saved as note metadata without changing the body.
+- PDF: split the current output order into a ZIP with rotations, MySoft annotations and a source-page inventory. Up to 200 output pages and 50 parts; interactive forms are refused before export.
+- Media: ZIP package with a complete single-project JSON backup, original source bytes (or drawing SVG), and canvas preview. A project archive is capped by the shared 24 MB ZIP writer; large sources can still be exported separately. Its README explains the existing backup-restoration workflow.
+- New tools use existing compact ribbons and bounded dialogs; sources and stale previews are checked before applying changes.
+
+
+## Connected workflows, second expansion
+
+- Docs: normalized block-text comparison against another document, with explicit added/removed/unchanged sections and a portable HTML report. Formatting differences are excluded and source records are not changed.
+- Sheets: header-based left/inner joins into a new evaluated worksheet. Lookup keys must be unique, key matching can respect case, and supported cell styles are retained. Preview fingerprints guard source/options changes before applying.
+- Slides: rehearsal preview with speaker notes, per-slide and total elapsed time, pause/resume, timing CSV and a saved session summary. Closing stops the timer; Finish saves metadata without changing slide content.
+- Notes: create a separate document from a note, retaining supported rich writing and local references. An optional heading avoids forced title repetition.
+- PDF: ZIP export of 1–20 distinct output-page image positions, retaining source mapping and added rotations in filenames/rendering. This is explicitly a source-page raster preview; pending MySoft annotations/form edits remain in edited PDF export.
+- Media: PNG preview packs with 1–5 widths, retained aspect ratio/transparency and bounded dimensions. Audio supplies its waveform and video the displayed frame. This does not render new audio/video streams.
+- Image archives use the shared 24 MB ZIP bound. New workflows are exposed in the existing compact Tools/export groups.

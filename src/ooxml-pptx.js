@@ -1,3 +1,5 @@
+import {slideSettings,objectStyleSettings} from './slide-customize.js';
+import {slideAppearance} from './studio-tools.js';
 import {makeZip,readZip,xmlEscape,parseXML,first,children,descendants,relationships,packageBase,typesXML} from './ooxml-zip.js';
 const A='http://schemas.openxmlformats.org/drawingml/2006/main';
 const P='http://schemas.openxmlformats.org/presentationml/2006/main';
@@ -14,15 +16,12 @@ const prefix='xmlns:a="'+A+'" xmlns:r="'+R+'" xmlns:p="'+P+'"';
 
 const shapeTreeRoot='<p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>'+
   '<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>';
-const baseColors={
-  violet:'7161E8',ocean:'2895D9',forest:'22A88E',midnight:'A58BFF'
-};
-function slideShape(id,name,text,x,y,w,h,isTitle,accent){
+function slideShape(id,name,text,x,y,w,h,isTitle,accent,settings={}){
   const lines=String(text||'').slice(0,isTitle?1200:10000).split(/\r?\n/).slice(0,100);
   const paragraphs=lines.map(line=>
-    '<a:p><a:pPr algn="l"/><a:r><a:rPr lang="en-US" sz="'+(isTitle?'3500':'2200')+'">'+
-    '<a:solidFill><a:srgbClr val="'+(isTitle?accent:'526078')+'"/></a:solidFill>'+
-    '<a:latin typeface="Aptos"/></a:rPr><a:t>'+xmlEscape(line)+'</a:t></a:r></a:p>').join('');
+    '<a:p><a:pPr algn="'+({left:'l',center:'ctr',right:'r'}[settings.align]||'l')+'"/><a:r><a:rPr lang="en-US" b="'+(settings.bold?1:0)+'" i="'+(settings.italic?1:0)+'" sz="'+Math.round((settings.size||(isTitle?35:22))*100)+'">'+
+    '<a:solidFill><a:srgbClr val="'+accent+'"/></a:solidFill>'+
+    '<a:latin typeface="'+xmlEscape(settings.font||'Arial')+'"/></a:rPr><a:t>'+xmlEscape(line)+'</a:t></a:r></a:p>').join('');
   return '<p:sp><p:nvSpPr><p:cNvPr id="'+id+'" name="'+name+'"/><p:cNvSpPr/>'+
     '<p:nvPr><p:ph type="'+(isTitle?'title':'body')+'"'+(isTitle?'':' idx="1"')+'/></p:nvPr></p:nvSpPr>'+
     '<p:spPr><a:xfrm><a:off x="'+x+'" y="'+y+'"/><a:ext cx="'+w+'" cy="'+h+'"/></a:xfrm>'+
@@ -37,23 +36,27 @@ function customObjectShape(object,index){
   const w=Math.max(1,Math.round(Math.min(100-n(object.x),Math.max(5,n(object.w)))*121920));
   const h=Math.max(1,Math.round(Math.min(100-n(object.y),Math.max(5,n(object.h)))*68580));
   const hex=value=>/^#[0-9a-f]{6}$/i.test(value||'')?value.slice(1).toUpperCase():'EA4C24';
-  const fill=hex(object.fill),color=hex(object.color);
+  const fill=hex(object.fill),color=hex(object.color),style=objectStyleSettings(object),alpha='<a:alpha val="'+Math.round(style.opacity*100000)+'"/>';
   const kind=['ellipse','roundRect','triangle','diamond','hexagon'].includes(object.kind)?object.kind:'rect';
   const size=Math.round(Math.max(10,Math.min(56,n(object.fontSize)||22))*100);
   const paras=String(object.text||'').slice(0,600).split(/\r?\n/).map(line=>
-    '<a:p><a:r><a:rPr lang="en-US" sz="'+size+'"><a:solidFill><a:srgbClr val="'+color+'"/></a:solidFill></a:rPr>'+
+    '<a:p><a:pPr algn="'+({left:'l',center:'ctr',right:'r'}[style.align])+'"/><a:r><a:rPr lang="en-US" b="'+(style.bold?1:0)+'" i="'+(style.italic?1:0)+'" sz="'+size+'"><a:solidFill><a:srgbClr val="'+color+'">'+alpha+'</a:srgbClr></a:solidFill><a:latin typeface="'+xmlEscape(style.font)+'"/></a:rPr>'+
     '<a:t>'+xmlEscape(line)+'</a:t></a:r></a:p>').join('');
   return '<p:sp><p:nvSpPr><p:cNvPr id="'+(index+4)+'" name="MySoft object '+index+'"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>'+
     '<p:spPr><a:xfrm rot="'+(Number.isInteger(object.rotation)&&object.rotation%90===0?((object.rotation%360+360)%360)*60000:0)+'"><a:off x="'+x+'" y="'+y+'"/><a:ext cx="'+w+'" cy="'+h+'"/></a:xfrm>'+
-    '<a:prstGeom prst="'+kind+'"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="'+fill+'"/></a:solidFill>'+
-    '<a:ln><a:noFill/></a:ln></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/>'+(paras||'<a:p/>')+'</p:txBody></p:sp>';
+    '<a:prstGeom prst="'+kind+'"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="'+fill+'">'+alpha+'</a:srgbClr></a:solidFill>'+
+    (style.borderWidth?'<a:ln w="'+Math.round(style.borderWidth*12700)+'"><a:solidFill><a:srgbClr val="'+hex(style.borderColor)+'">'+alpha+'</a:srgbClr></a:solidFill></a:ln>':'<a:ln><a:noFill/></a:ln>')+'</p:spPr><p:txBody><a:bodyPr/><a:lstStyle/>'+(paras||'<a:p/>')+'</p:txBody></p:sp>';
 }
 function slideXML(slide){
-  const accent=baseColors[slide.theme]||baseColors.violet;
+  const settings=slideSettings(slide),scale=slide.textScale==='large'?1.2:slide.textScale==='compact'||slide.textScale==='small'?.85:1;
+  const textShape=(part,id)=>{const b=settings[part+'Box'];return slideShape(id,part==='title'?'Title':'Body',slide[part],Math.round(b.x*121920),Math.round(b.y*68580),Math.round(b.w*121920),Math.round(b.h*68580),part==='title',ink,{font:settings.font,size:settings[part+'Size']*scale,bold:settings[part+'Bold'],italic:settings[part+'Italic'],align:settings[part+'Align']});};
+  const palette=slideAppearance(slide),ink=palette.foreground.slice(1).toUpperCase(),background=palette.background.slice(1).toUpperCase();
   return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
-    '<p:sld '+prefix+'><p:cSld><p:spTree>'+shapeTreeRoot+
-    slideShape(2,'Title',slide.title,820000,750000,10500000,1300000,true,accent)+
-    slideShape(3,'Body',slide.body,900000,2300000,10000000,3200000,false,accent)+
+    '<p:sld '+prefix+'><p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="'+background+'"/></a:solidFill><a:effectLst/></p:bgPr></p:bg><p:spTree>'+shapeTreeRoot+
+    (settings.showTitle?textShape('title',2):'')+
+    (settings.showBody?textShape('body',3):'')+
+    (settings.showTag?customObjectShape({kind:'text',x:9,y:8,w:82,h:6,fill:palette.background,color:palette.accent,fontSize:12,text:settings.tagText,font:settings.font,bold:true},996).replace('name="MySoft object 996"','name="MySoft slide label"'):'')+
+    (settings.showAccent?'<p:sp><p:nvSpPr><p:cNvPr id="1001" name="MySoft accent strip"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="12192000" cy="157734"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="'+palette.accent.slice(1).toUpperCase()+'"/></a:solidFill><a:ln><a:noFill/></a:ln></p:spPr></p:sp>':'')+
     (Array.isArray(slide.objects)?slide.objects.slice(0,40):[]).map(customObjectShape).join('')+
     '</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>';
 }
@@ -221,6 +224,7 @@ export async function importPPTX(buffer){
     for(const shape of shapes){
       const name=first(shape,'cNvPr')?.getAttribute('name')||'';
       const text=shapeText(shape);
+      if(['MySoft slide label','MySoft accent strip'].includes(name))continue;
       if(name.startsWith('MySoft object ')){
         const props=first(shape,'spPr'),xf=first(props,'xfrm'),off=first(xf,'off'),ext=first(xf,'ext');
         const type=first(props,'prstGeom')?.getAttribute('prst');

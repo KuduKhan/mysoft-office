@@ -1,7 +1,7 @@
 import {icon} from './icons.js';
 import {displayCell} from './formulas.js';
 import {drawingSVG} from './media-vector.js';
-import {SLIDE_PRESETS} from './studio-tools.js';
+import {slideAppearance} from './studio-tools.js';
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function textPreview(file){
   const doc=new DOMParser().parseFromString(file.body||'','text/html'),heading=doc.querySelector('h1,h2,h3')?.textContent||file.title,paragraphs=[...doc.querySelectorAll('p,li')].map(node=>node.textContent.trim()).filter(Boolean).slice(0,3);
@@ -14,7 +14,7 @@ function preview(file){
     return '<div class="mo-mini-sheet"><table><thead><tr>'+['A','B','C','D'].map(c=>'<th>'+c+'</th>').join('')+'</tr></thead><tbody>'+Array.from({length:5},(_,row)=>'<tr>'+['A','B','C','D'].map(c=>'<td>'+esc(String(displayCell(c+(row+1),cells)).slice(0,35))+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
   }
   if(file.type==='slides'){
-    const slide=file.slides?.[0]||{},theme=SLIDE_PRESETS[slide.studioPreset]||SLIDE_PRESETS.ivory;
+    const slide=file.slides?.[0]||{},theme=slideAppearance(slide);
     return '<div class="mo-mini-slide" style="background:'+esc(theme.background)+';color:'+esc(theme.foreground)+'"><small>MYSOFT SLIDES / '+(file.slides?.length||0)+' SLIDES</small><h3>'+esc((slide.title||file.title).slice(0,90))+'</h3><p>'+esc((slide.body||'').slice(0,100))+'</p></div>';
   }
   if(file.type==='media'&&file.mediaKind==='drawing'){try{return '<img class="mo-mini-art" alt="" loading="lazy" src="'+esc('data:image/svg+xml;charset=utf-8,'+encodeURIComponent(drawingSVG(file)))+'">';}catch{}}

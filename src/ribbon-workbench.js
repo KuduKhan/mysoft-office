@@ -14,7 +14,7 @@ function toolbarCategory(node,type){
   if(action==='import')return 'Source';return 'Publish & export';
  }
  if(['open','original'].includes(action))return 'Source';if(['undo','redo'].includes(action))return 'History';
- if(['frame','storyboard','preview-png'].includes(action))return 'Capture & export';if(action==='compare')return 'Compare';return 'Canvas view';
+ if(['frame','storyboard','preview-png','project-package','preview-sizes'].includes(action))return 'Capture & export';if(action==='compare')return 'Compare';return 'Canvas view';
 }
 export function initializeRibbonWorkbench(){
  let density='compact';try{density=localStorage.getItem('mysoft-office-ribbon-density')==='comfortable'?'comfortable':'compact';}catch{}

@@ -1,0 +1,6 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {pdfChunkOrders,pdfInventoryCSV} from '../src/pdf-package.js';
+import {mediaProjectPackage} from '../src/media-package.js';
+import {createMediaFields} from '../src/media-model.js';
+test('PDF chunking preserves selected order and repetition without mutating source',()=>{const file={pdfPageCount:4,pdfPageOrder:[4,1,1,2],pdfRotations:{4:90},pdfBookmarks:[{page:4,label:'=Review'}]},before=structuredClone(file);assert.deepEqual(pdfChunkOrders(file,2),[[4,1],[1,2]]);assert.deepEqual(file,before);assert.match(pdfInventoryCSV(file),/'=Review/);assert.throws(()=>pdfChunkOrders(file,0));assert.throws(()=>pdfChunkOrders({pdfPageCount:51},1),/50/);});
+test('Media packaging retains a complete independent project and rejects empty source projects',()=>{const file={...createMediaFields(),id:'media',type:'media',title:'Drawing',mediaKind:'drawing',mediaEdits:{...createMediaFields().mediaEdits,background:'#ffffff'}},before=structuredClone(file);const bytes=mediaProjectPackage(file,new Uint8Array([1,2,3]));assert.ok(bytes.byteLength>500);assert.deepEqual(file,before);assert.throws(()=>mediaProjectPackage({...file,mediaKind:'empty'}));});

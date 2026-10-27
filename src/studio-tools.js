@@ -1,3 +1,4 @@
+import {slideSettings} from './slide-customize.js';
 // Bounded editor commands shared by the MySoft studio ribbon.
 import {shiftRelativeFormula} from './sheet-range.js';
 export const STUDIO_ACCENTS=[
@@ -11,6 +12,28 @@ export const STUDIO_ACCENTS=[
   {name:'Rose',value:'#b84083',soft:'#fff0f7'},
   {name:'Graphite',value:'#445269',soft:'#edf2f7'}
 ];
+// One palette source for the editor, thumbnails, presentation and exports.
+export const SLIDE_THEMES={
+ violet:{label:'Violet',background:'#f4f1ff',foreground:'#302451',accent:'#7161e8'},
+ ocean:{label:'Ocean',background:'#eaf5fc',foreground:'#163d59',accent:'#1677ad'},
+ forest:{label:'Forest',background:'#edf8f3',foreground:'#174c3d',accent:'#16846a'},
+ midnight:{label:'Midnight',background:'#172036',foreground:'#f3f6ff',accent:'#b6a1ff'}
+};
+export function slideAppearance(slide={}){
+ const palette=Object.hasOwn(SLIDE_PRESETS,slide.studioPreset)?SLIDE_PRESETS[slide.studioPreset]:(Object.hasOwn(SLIDE_THEMES,slide.theme)?SLIDE_THEMES[slide.theme]:SLIDE_THEMES.violet);
+ const c=slideSettings(slide);return {...palette,...Object.fromEntries(['background','foreground','accent'].filter(key=>c[key]).map(key=>[key,c[key]]))};
+}
+export function applySlideTheme(slide,name){
+ if(!Object.hasOwn(SLIDE_THEMES,name))throw Error('Unknown slide theme.');
+ slide.theme=name;delete slide.studioPreset;if(slide.customization)for(const key of ['background','foreground','accent'])delete slide.customization[key];return slide;
+}
+export function copySlideAppearance(source,target){
+ const theme=Object.hasOwn(SLIDE_THEMES,source.theme)?source.theme:'violet';
+ const preset=Object.hasOwn(SLIDE_PRESETS,source.studioPreset)?source.studioPreset:null;
+ target.customization={...(target.customization||{})};for(const key of ['background','foreground','accent']){if(source.customization?.[key])target.customization[key]=source.customization[key];else delete target.customization[key];}
+ target.theme=theme;if(preset)target.studioPreset=preset;else delete target.studioPreset;
+ return target;
+}
 export const SLIDE_PRESETS={
   ivory:{background:'#ffffff',foreground:'#26344c',accent:'#ea4c24'},
   sunset:{background:'#fff0e6',foreground:'#7b311a',accent:'#ea4c24'},
@@ -24,6 +47,9 @@ export function normalizedSlidePreset(name){
   return name;
 }
 export function setSlidePreset(slide,name){
+  if(name!=='theme')normalizedSlidePreset(name);
+  if(slide.customization)for(const key of ['background','foreground','accent'])delete slide.customization[key];
+  if(name==='theme'){delete slide.studioPreset;return slide;}
   slide.studioPreset=normalizedSlidePreset(name);
   return slide;
 }

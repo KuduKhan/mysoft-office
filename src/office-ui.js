@@ -1,3 +1,6 @@
+import {initializeSlideCustomizer} from './slide-customize-ui.js';
+import {slideSettings,slideTextStyle} from './slide-customize.js';
+import {documentRibbonExtras,handleDocumentRibbonAction} from './doc-ribbon-tools.js';
 import {aggregateFormula} from './ribbon-workbench.js';
 import {groupRibbon,paragraphLayout,applyParagraphLayout,noteCanvas,NOTE_FONTS} from './mo-workbench.js';
 import {capabilityToolbar,initializeCapabilityTools} from './capability-ui.js';
@@ -7,7 +10,7 @@ import {
   setCellStyle,sheetChartData,sortSheet,wordStatistics,
   PAGE_SIZES,FONT_FAMILIES,ACCENT_COLORS
 } from './office-model.js';
-import {STUDIO_ACCENTS,SLIDE_PRESETS,setSlidePreset,replaceSheetValues,fillDown,fillRight,clearCell} from './studio-tools.js';
+import {STUDIO_ACCENTS,SLIDE_PRESETS,setSlidePreset,slideAppearance,copySlideAppearance,replaceSheetValues,fillDown,fillRight,clearCell} from './studio-tools.js';
 import {formatRange,clearRange,copyRangeTSV,seriesFill,rangeSummary,parseRange,transposeRange,copyRangeTo} from './sheet-range.js';
 import {documentContents,refreshDocumentContents,replacePresentationText,noteInsertTemplate} from './editor-productivity.js';
 import {addSlideObject,deleteSlideObject,duplicateSlideObject,moveSlideObject,getSlideObject,updateSlideObject,renderedSlideObjects} from './slide-objects.js';
@@ -171,15 +174,15 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0,category=null){
   } else if(file.type==='slides'){
     const slide=file.slides[slideIndex]||file.slides[0];
     if(active==='Design'){
-      body=choice('Backdrop',Object.keys(SLIDE_PRESETS).map(k=>[k,k.charAt(0).toUpperCase()+k.slice(1)]),slide.studioPreset||'ivory')+
+      body=choice('Backdrop',[['theme','Follow theme'],...Object.keys(SLIDE_PRESETS).map(k=>[k,k.charAt(0).toUpperCase()+k.slice(1)])],slide.studioPreset||'theme')+
         choice('Layout',[['title','Title & content'],['section','Section heading'],['minimal','Minimal']],slide.layout||'title')+
         choice('Transition',[['none','None'],['fade','Fade'],['slide','Slide']],slide.transition||'none')+
         choice('Text size',[['normal','Normal'],['large','Large'],['compact','Compact']],slide.textScale||'normal')+
-        button('Apply theme to all','theme-all');
+        button('Apply theme to all','theme-all')+'<button type="button" class="ot-btn" data-ot-action="text-slide-customize" data-slide-custom="open" aria-label="Edit slide">'+icon('sliders-horizontal',15)+'<span>Edit slide</span></button>';
     } else if(active==='Shapes'){
       body=button('Text box','shape-text')+button('Rectangle','shape-rect')+button('Ellipse','shape-ellipse')+button('Rounded','shape-roundRect')+button('Triangle','shape-triangle')+button('Diamond','shape-diamond')+button('Hexagon','shape-hexagon')+
         color('Fill','shape-fill','#ea4c24')+color('Text','shape-color','#202d48')+
-        button('Edit label','shape-label')+button('Text A+','shape-font-up')+button('Text A−','shape-font-down')+
+        '<button type="button" class="ot-btn" data-capability-action="object-properties">'+icon('sliders-horizontal',15)+'<span>Object properties</span></button>'+button('Edit label','shape-label')+button('Text A+','shape-font-up')+button('Text A−','shape-font-down')+
         button('Align left','shape-align-left')+button('Center','shape-align-center')+
         button('Align right','shape-align-right')+button('Top','shape-align-top')+
         button('Middle','shape-align-middle')+button('Bottom','shape-align-bottom')+
@@ -207,6 +210,7 @@ export function powerRibbon(file,selectedCell='A1',slideIndex=0,category=null){
     body+='<section class="mo-ribbon-group mo-field-group mo-wide-fields" aria-label="Paragraph layout"><h3>Paragraph layout</h3><div class="mo-control-grid">'+numeric('after','Space after (px)',p.after,0,80)+numeric('indent','First-line indent (px)',p.indent,0,96)+numeric('tracking','Letter spacing (px)',p.tracking,-1,8)+'<label class="ot-select-label">Text direction<select data-mo-paragraph="direction" aria-label="Text direction"><option value="ltr" '+(p.direction==='ltr'?'selected':'')+'>Left to right</option><option value="rtl" '+(p.direction==='rtl'?'selected':'')+'>Right to left</option></select></label>'+button('Apply paragraph layout','mo-paragraph-apply')+button('Reset paragraph layout','mo-paragraph-reset')+'</div></section>';
   }
   const sheetTabs=file.type==='sheets'?'<div class="ot-sheet-tabs">'+(file.worksheets||[{name:'Sheet 1'}]).map((sh,i)=>'<button class="ot-sheet-tab '+((file.activeSheetIndex||0)===i?'active':'')+'" data-ot-sheet="'+i+'">'+escapeHTML(sh.name)+'</button>').join('')+'<button class="ot-sheet-tab" data-ot-action="sheet-add" title="Add worksheet" aria-label="Add worksheet">'+icon('plus',15)+'</button></div>':'';
+  body+=documentRibbonExtras(file,active);
   return '<section class="ot-ribbon'+(ribbonCollapsed?' collapsed':'')+'" aria-label="Editing tools"><div class="ot-ribbon-top"><button type="button" class="mo-file-tab" data-action="file-menu" aria-haspopup="dialog">File</button><div class="ot-ribbon-tabs" role="tablist" aria-label="Editor tool categories">'+tabs+'</div>'+
     '<div class="ot-ribbon-meta">'+
     button(ribbonCollapsed?'Show tools ▾':'Hide tools ▴','ribbon-toggle')+'</div></div>'+
@@ -352,8 +356,8 @@ function replaceAllText(ctx,needle,replacement){
   return count;
 }
 function presentationHTML(slide){
-  const scheme=SLIDE_PRESETS[slide.studioPreset]||SLIDE_PRESETS.ivory;
-  return '<div class="ot-present-page ot-present-'+(slide.layout||'title')+(slide.studioRoadmap?' studio-roadmap':'')+' ot-effect-'+(['fade','slide'].includes(slide.transition)?slide.transition:'none')+'" style="--present-color:'+scheme.accent+';--studio-slide-bg:'+scheme.background+';--studio-slide-text:'+scheme.foreground+'"><h1>'+escapeHTML(slide.title)+'</h1><p>'+escapeHTML(slide.body)+'</p>'+
+  const scheme=slideAppearance(slide),settings=slideSettings(slide);
+  return '<div class="ot-present-page slide-custom-stage ot-present-'+(slide.layout||'title')+(slide.studioRoadmap?' studio-roadmap':'')+' ot-effect-'+(['fade','slide'].includes(slide.transition)?slide.transition:'none')+'" style="--present-color:'+scheme.accent+';--studio-slide-bg:'+scheme.background+';--studio-slide-text:'+scheme.foreground+';--studio-slide-highlight:'+scheme.accent+';--slide-accent-display:'+(settings.showAccent?'block':'none')+'"><div class="slide-tag" style="'+(!settings.showTag?'display:none':'')+'">'+escapeHTML(settings.tagText)+'</div><h1 style="'+slideTextStyle(slide,'title')+'">'+escapeHTML(slide.title)+'</h1><p style="'+slideTextStyle(slide,'body')+'">'+escapeHTML(slide.body)+'</p>'+
     '<div class="studio-object-layer studio-object-present">'+renderedSlideObjects(slide)+'</div></div>';
 }
 function showPresentation(ctx,index=0){
@@ -388,6 +392,7 @@ function syncSheet(ctx,f){
 }
 export function initializeOfficeTools(ctx){
   initializeCapabilityTools(ctx);
+  initializeSlideCustomizer(ctx);
   applyPreferences();
   document.addEventListener('selectionchange',editorSelection);
   document.addEventListener('selectionchange',()=>{
@@ -416,6 +421,8 @@ export function initializeOfficeTools(ctx){
     if(!target)return;
     const action=target.dataset.otAction;
     const f=ctx.getFile();
+    if(action.startsWith('docplus-')){handleDocumentRibbonAction(ctx,action,savedRange);return;}
+    if(action==='text-slide-customize')return;
     if(action==='preferences'){preferencesModal();return;}
     if(action==='zoom-in'||action==='zoom-out'){
       prefs.zoom=Math.max(75,Math.min(150,(Number(prefs.zoom)||100)+(action==='zoom-in'?10:-10)));
@@ -812,8 +819,8 @@ export function initializeOfficeTools(ctx){
         else {const delta={ 'shape-left':[-3,0],'shape-right':[3,0],'shape-up':[0,-3],'shape-down':[0,3]}[action];moveSlideObject(slide,id,...delta);}
         ctx.touch(f);ctx.persist();ctx.render();return;
       } else if(action==='theme-all'){
-        const current=f.slides[ctx.getSlideIndex()].theme;
-        f.slides.forEach(slide=>slide.theme=current);
+        const source=f.slides[ctx.getSlideIndex()];
+        f.slides.forEach(slide=>copySlideAppearance(source,slide));
       } else if(action==='slide-up'||action==='slide-down'){
         const idx=ctx.getSlideIndex(),other=idx+(action==='slide-up'?-1:1);
         if(other<0||other>=f.slides.length)return;
@@ -872,7 +879,7 @@ export function initializeOfficeTools(ctx){
     }
     if(['layout','transition','text-size'].includes(name)&&f.type==='slides'){
       const prop={'layout':'layout','transition':'transition','text-size':'textScale'}[name];
-      f.slides[ctx.getSlideIndex()][prop]=value;ctx.touch(f);ctx.render();
+      const slide=f.slides[ctx.getSlideIndex()];slide[prop]=value;if(name==='layout'&&slide.customization){delete slide.customization.titleBox;delete slide.customization.bodyBox;}ctx.touch(f);ctx.render();
     }
   });
   document.addEventListener('input',event=>{

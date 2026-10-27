@@ -2,6 +2,8 @@ const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&
 export function ribbonCategory(node,type,tab){
   const key=node.dataset.otAction||node.dataset.capabilityAction||node.querySelector('[data-ot-input]')?.dataset.otInput||'';
   if(node.classList.contains('ot-metric'))return 'Guidance';
+  if(key.startsWith('work2-'))return 'Connected workflows';
+  if(key.startsWith('enhance-'))return 'Productivity studio';
   if(key.startsWith('advanced-'))return 'Advanced studio';
   if(key.startsWith('production-'))return 'Production studio';
   if(key.startsWith('workflow-'))return {docs:'Template studio',sheets:'Data preparation',slides:'Deck planning',notes:'Notebook publishing'}[type]||'Workflow studio';

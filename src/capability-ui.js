@@ -1,3 +1,7 @@
+import {workflowToolsV2,initializeWorkflowsV2} from './suite-workflows-ui.js';
+import {suiteProductivityTools,initializeSuiteProductivity} from './suite-productivity-ui.js';
+import {objectStyleFields,readObjectStyle} from './slide-customize-ui.js';
+import {copySlideAppearance} from './studio-tools.js';
 import {craftTools,initializeCraftTools} from './craft-tools-ui.js';
 import {advancedTools,initializeAdvancedTools} from './advanced-tools-ui.js';
 import {productionTools,initializeProductionTools} from './production-tools-ui.js';
@@ -23,7 +27,7 @@ export function capabilityToolbar(file,section='tools'){
   if(file.type==='sheets')sets.sheets.push(['text-formulas','Text tools','case-sensitive']);
   if(file.type==='slides')sets.slides.push(['distribute-horizontal','Distribute horizontally','align-horizontal-distribute-center'],['distribute-vertical','Distribute vertically','align-vertical-distribute-center']);
   if(file.type==='notes')sets.notes.push(['note-task-export','Export task list','download']);
-  return (sets[file.type]||[]).map(args=>btn(...args)).join('')+expansionTools(file.type)+workflowTools(file.type)+productionTools(file.type)+advancedTools(file.type)+craftTools(file.type);
+  return (sets[file.type]||[]).map(args=>btn(...args)).join('')+expansionTools(file.type)+workflowTools(file.type)+productionTools(file.type)+advancedTools(file.type)+craftTools(file.type)+suiteProductivityTools(file.type)+workflowToolsV2(file.type);
 }
 export function initializeCapabilityTools(ctx){
   initializeExpansionTools(ctx);
@@ -31,6 +35,8 @@ export function initializeCapabilityTools(ctx){
   initializeProductionTools(ctx);
   initializeAdvancedTools(ctx);
   initializeCraftTools(ctx);
+  initializeSuiteProductivity(ctx);
+  initializeWorkflowsV2(ctx);
   let selected={id:'',index:0},pending=null,reviewTargets=[];
   const taskFilter={status:'all',query:'',scope:'all'};
   const root=()=>document.getElementById('rich-content'),modalRoot=()=>document.getElementById('modal-root');
@@ -84,10 +90,10 @@ export function initializeCapabilityTools(ctx){
       }
       if(action==='object-properties'){
         if(f.type!=='slides')return;const object=getSlideObject(f.slides[ctx.getSlideIndex()],ctx.getSlideObjectId());if(!object)throw Error('Select a slide object first.');pending={id:f.id,objectId:object.id,slide:ctx.getSlideIndex()};
-        dialog('Object properties','<p>Precise position and size as percentages of the slide.</p><div class="cap-form">'+[['x','Left (%)'],['y','Top (%)'],['w','Width (%)'],['h','Height (%)'],['fontSize','Label size']].map(([key,label])=>input('pro-object-'+key,label,object[key]??22,'number','step="any"')).join('')+'<label class="cap-field">Rotation<select id="pro-object-rotation" aria-label="Rotation">'+[0,90,180,270].map(value=>'<option '+(value===(object.rotation||0)?'selected':'')+'>'+value+'</option>').join('')+'</select></label>'+input('pro-object-fill','Object fill',object.fill,'color')+input('pro-object-color','Label color',object.color,'color')+'</div><label class="cap-field">Object label<textarea id="pro-object-text" aria-label="Object label" maxlength="600" rows="3">'+esc(object.text||'')+'</textarea></label>','object-properties-apply');return;
+        dialog('Object properties','<p>Precise position and size as percentages of the slide.</p><div class="cap-form">'+[['x','Left (%)'],['y','Top (%)'],['w','Width (%)'],['h','Height (%)'],['fontSize','Label size']].map(([key,label])=>input('pro-object-'+key,label,object[key]??22,'number','step="any"')).join('')+'<label class="cap-field">Rotation<select id="pro-object-rotation" aria-label="Rotation">'+[0,90,180,270].map(value=>'<option '+(value===(object.rotation||0)?'selected':'')+'>'+value+'</option>').join('')+'</select></label>'+input('pro-object-fill','Object fill',object.fill,'color')+input('pro-object-color','Label color',object.color,'color')+'</div><label class="cap-field">Object label<textarea id="pro-object-text" aria-label="Object label" maxlength="600" rows="3">'+esc(object.text||'')+'</textarea></label>'+objectStyleFields(object),'object-properties-apply');return;
       }
       if(action==='object-properties-apply'){
-        if(f.type!=='slides'||pending?.id!==f.id||pending.slide!==ctx.getSlideIndex())throw Error('Reopen properties for this object.');const object=getSlideObject(f.slides[pending.slide],pending.objectId),values=Object.fromEntries(['x','y','w','h','fontSize','rotation','fill','color','text'].map(key=>[key,document.getElementById('pro-object-'+key).value]));Object.assign(object,preciseObjectPatch(object,values));close();save(f);return;
+        if(f.type!=='slides'||pending?.id!==f.id||pending.slide!==ctx.getSlideIndex())throw Error('Reopen properties for this object.');const object=getSlideObject(f.slides[pending.slide],pending.objectId),values=Object.fromEntries(['x','y','w','h','fontSize','rotation','fill','color','text'].map(key=>[key,document.getElementById('pro-object-'+key).value]));const geometry=preciseObjectPatch(object,values),style=readObjectStyle();Object.assign(object,geometry,style);close();save(f);return;
       }
       if(action==='capture-tasks'){
         if(f.type!=='notes')return;pending={id:f.id};dialog('Capture tasks','<p>Add one task per line to this note. Existing content stays intact.</p><label class="cap-field">New tasks<textarea id="pro-task-capture" aria-label="New tasks" rows="6" maxlength="6030" placeholder="Review the draft&#10;Prepare the presentation"></textarea></label>','capture-tasks-apply');return;
@@ -126,7 +132,7 @@ export function initializeCapabilityTools(ctx){
       if(action==='outline'){dialog('Create slides from outline','<p>One slide per paragraph: first line is the title, remaining lines are the body. New slides are appended using the current design.</p><label class="cap-field">Outline<textarea id="cap-outline" maxlength="100000" rows="10" placeholder="First slide title&#10;First point&#10;&#10;Second slide title&#10;Another point"></textarea></label>','outline-apply');return;}
       if(action==='outline-apply'){const slides=slidesFromOutline(document.getElementById('cap-outline').value,f.slides[ctx.getSlideIndex()]);if(f.slides.length+slides.length>200)throw Error('Maximum 200 slides per deck.');const start=f.slides.length;f.slides.push(...slides);ctx.setSlideIndex(start);close();save(f);return;}
       if(action==='reverse'){const current=f.slides[ctx.getSlideIndex()];f.slides.reverse();ctx.setSlideIndex(f.slides.indexOf(current));save(f);return;}
-      if(action==='copy-design'){const source=f.slides[ctx.getSlideIndex()];for(const slide of f.slides)for(const key of ['theme','studioPreset','layout','textScale','transition'])if(source[key]!==undefined)slide[key]=source[key];save(f);ctx.toast('Current design applied to all slides');return;}
+      if(action==='copy-design'){const source=f.slides[ctx.getSlideIndex()];for(const slide of f.slides){copySlideAppearance(source,slide);if(source.customization)slide.customization=structuredClone(source.customization);else delete slide.customization;for(const key of ['layout','textScale','transition'])if(source[key]!==undefined)slide[key]=source[key];}save(f);ctx.toast('Current design applied to all slides');return;}
       if(action==='outline-export'){ctx.download(slideOutline(f.slides),f.title.replace(/[^a-z0-9_-]+/gi,'-')+'-outline.md','text/markdown;charset=utf-8');return;}
       if(action==='workspace-link'){
         const choices=ctx.getFiles().filter(item=>item.id!==f.id).slice(0,500);

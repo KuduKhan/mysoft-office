@@ -9,6 +9,12 @@ for(const file of ['src/capability-core.js','src/capability-ui.js','src/media-cu
 for(const file of ['src/media-workbench.js','src/media-inspector.js'])check(file);
 for(const file of ['src/template-catalog.js','src/template-library.js','src/file-check.js'])check(file);
 for(const file of ['src/editor-enhancements.js','src/pdf-edits.js','src/studio-pro-tools.js','src/media-vector.js','src/studio-expansion.js','src/studio-expansion-ui.js','src/mo-workbench.js','src/mo-file-previews.js','src/workflow-studio.js','src/workflow-studio-ui.js','src/production-tools.js','src/production-tools-ui.js','src/pdf-handout.js','src/ribbon-workbench.js','src/advanced-tools.js','src/advanced-tools-ui.js'])check(file);
+check('src/doc-ribbon-tools.js');
+for(const file of ['src/suite-workflows.js','src/suite-workflows-ui.js','src/image-packs.js'])check(file);
+for(const file of ['src/suite-productivity.js','src/suite-productivity-ui.js','src/pdf-package.js','src/media-package.js'])check(file);
+check('src/slide-customize.js');
+check('src/slide-customize-ui.js');
+check('src/slide-customize-html.js');
 check('src/dialog-focus.js');
 check('src/file-library.js');
 check('src/craft-tools.js');
