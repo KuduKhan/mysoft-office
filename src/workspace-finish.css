@@ -268,3 +268,9 @@ html[data-mode=dark] #modal-root .modal-backdrop{background:#050a14a8}
 }
 @media(max-width:590px){.shell.mo-editing .doc-page-metadata{font-size:10px;min-height:24px;margin-bottom:6px}.shell.mo-editing .doc-page-metadata>span+span::before{margin-inline:7px}}
 @media print{.doc-page-surface{display:contents!important;zoom:1!important}.doc-page-surface .document-paper{zoom:1!important}}
+
+/* Compact shared folder/tag filters stay usable on narrow devices. */
+.library-controls :is(.library-folder,.library-tag){display:flex;align-items:center;gap:6px;min-width:0}
+.library-controls :is(.library-folder,.library-tag) select{min-width:100px;max-width:170px}
+.library-controls .library-duplicates{display:flex;align-items:center;gap:6px;font-size:12px;white-space:nowrap}
+@media(max-width:650px){.library-controls :is(.library-folder,.library-tag){flex:1 1 125px;flex-wrap:wrap}.library-controls :is(.library-folder,.library-tag) select{max-width:100%;width:100%}.library-controls .library-duplicates{flex:1 1 100%}}

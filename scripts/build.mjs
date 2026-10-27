@@ -16,7 +16,7 @@ check('src/slide-customize.js');
 check('src/slide-customize-ui.js');
 check('src/slide-customize-html.js');
 check('src/dialog-focus.js');
-check('src/file-library.js');
+check('src/file-library.js','src/file-organization.js');
 check('src/craft-tools.js');
 check('src/craft-tools-ui.js');
 check('src/pdf-model.js');

@@ -5,6 +5,7 @@ export function workspaceMatchSource(file,query){
   const q=String(query??'').trim().slice(0,128).toLocaleLowerCase();
   if(!q)return 'name';
   if(contains(file?.title,q))return 'name';
+  if(contains(file?.folderPath,q))return 'folder';
   if(Array.isArray(file?.tags)&&file.tags.some(tag=>contains(tag,q)))return 'tag';
   if(['docs','notes'].includes(file?.type)&&contains(body(file.body),q))return 'document content';
   if(file?.type==='media'&&(contains(file.mediaSourceName,q)||contains(file.mediaEdits?.text,q)))return 'media content';

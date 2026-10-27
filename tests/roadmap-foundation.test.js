@@ -1,0 +1,30 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {safeFolderPath,safeFileTags,organizeFile,validateFileOrganization,filterLibraryOrganization,potentialDuplicates} from '../src/file-organization.js';
+import {nameRevision,addRevision,compareRevision,restoreRevisionPart,MAX_REVISIONS} from '../src/revisions.js';
+test('file folders/tags stay bounded and work for every app',()=>{
+ assert.equal(safeFolderPath(' Projects / Research '),'Projects/Research');
+ assert.throws(()=>safeFolderPath('../etc'));assert.throws(()=>safeFolderPath('bad//name'));
+ assert.deepEqual(safeFileTags('Work, Reference'),['Work','Reference']);assert.throws(()=>safeFileTags('One,one'));
+ const f={id:'A',type:'docs',title:'Draft',body:'old'};organizeFile(f,{folderPath:'Projects/Research',tags:'Work'});
+ assert.ok(validateFileOrganization(f));assert.equal(f.folderPath,'Projects/Research');
+ assert.equal(validateFileOrganization({...f,tags:['Work','work']}),false);
+ const list=[f,{id:'B',type:'docs',title:'Draft',folderPath:'',tags:[]},{id:'C',type:'notes',title:'Other',folderPath:'Projects/Research',tags:[]}];
+ assert.deepEqual(filterLibraryOrganization(list,{folder:'Projects/Research'}).map(x=>x.id),['A','C']);
+ assert.deepEqual(filterLibraryOrganization(list,{tag:'Work'}).map(x=>x.id),['A']);
+ assert.deepEqual(potentialDuplicates(list).map(x=>x.id),['A','B']);
+});
+test('named milestones persist, retain bounded history, compare and selectively restore',()=>{
+ const doc={id:'a',type:'docs',title:'Report',body:'Draft',folderPath:'Projects',tags:['Work'],linkedFileIds:['b'],starred:true};
+ let versions=nameRevision({},doc,'Approved draft',1);
+ for(let i=0;i<20;i++)versions=addRevision(versions,{...doc,body:'New '+i},(i+1)*180000,true);
+ assert.ok(versions.a.some(v=>v.name==='Approved draft'));assert.equal(versions.a.length,MAX_REVISIONS);
+ const current={...doc,body:'New version',folderPath:'Other',tags:['Other'],linkedFileIds:[]};
+ const milestone=versions.a.find(v=>v.name==='Approved draft');
+ assert.ok(compareRevision(current,milestone).includes('body'));
+ const partial=restoreRevisionPart(current,milestone,'organization');
+ assert.equal(partial.body,'New version');assert.equal(partial.folderPath,'Projects');
+ const content=restoreRevisionPart(current,milestone,'content');assert.equal(content.body,'Draft');assert.equal(content.folderPath,'Other');
+ assert.deepEqual(current.tags,['Other']);
+ assert.throws(()=>restoreRevisionPart(current,milestone,'unsafe'));
+});

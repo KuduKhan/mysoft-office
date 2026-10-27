@@ -148,6 +148,7 @@ const extraPaths={
 };
 const glyphs={...paths,...extraPaths};
 const aliases={
+  "filter": "list-filter",
   "home": "house",
   "folder": "folder-open",
   "star": "star",

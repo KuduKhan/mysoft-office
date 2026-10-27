@@ -46,7 +46,7 @@ test('Docs Tools shrinks without losing actions; comfortable density remains ava
 
 test('compact phone ribbons retain touch targets and room to edit across six apps',async({browser})=>{
  const context=await browser.newContext({viewport:{width:390,height:667},hasTouch:true,isMobile:true});const page=await context.newPage();
- await page.goto('http://127.0.0.1:4176/#/templates');await page.locator('[data-template-pack]').click();await expect(page.locator('[data-workspace-tab]')).toHaveCount(6);
+ await page.goto(new URL('/#/templates',test.info().project.use.baseURL).toString());await page.locator('[data-template-pack]').click();await expect(page.locator('[data-workspace-tab]')).toHaveCount(6);
  const entries=await page.locator('[data-workspace-tab]').evaluateAll(nodes=>nodes.map(n=>({id:n.dataset.workspaceTab,type:n.dataset.app})));
  for(const {id,type}of entries){
   await page.locator(`[data-workspace-tab="${id}"]`).click();if(!['pdf','media'].includes(type))await page.locator('[data-ot-tab="Tools"]').click();

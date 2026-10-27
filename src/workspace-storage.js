@@ -1,5 +1,6 @@
 import {validateMediaRecord} from './media-model.js';
 import {workspaceRecordChanges} from './workspace-diff.js';
+import {validateFileOrganization} from './file-organization.js';
 // MySoft v0.5.8: IndexedDB is the authoritative, transactional workspace store.
 // Legacy localStorage values are read only for one-time migration and never erased here.
 export const DATABASE_NAME = 'mysoft-office-workspace-v3';
@@ -35,6 +36,7 @@ export function validateWorkspace(workspace) {
       throw new Error('Invalid or duplicate file record');
     }
     ids.add(entry.id);
+    if(!validateFileOrganization(entry))throw new Error('Invalid file folder or tags');
     if(entry.linkedFileIds!==undefined&&(!Array.isArray(entry.linkedFileIds)||
       entry.linkedFileIds.length>50||new Set(entry.linkedFileIds).size!==entry.linkedFileIds.length||
       entry.linkedFileIds.some(id=>typeof id!=='string'||!(/^[A-Za-z0-9_-]{1,200}$/).test(id)||id===entry.id)))
