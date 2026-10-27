@@ -5,14 +5,14 @@ export function safeFolderPath(value){
  if(!input)return '';
  if(input.length>120)throw Error('Folder path may not exceed 120 characters.');
  const parts=input.split('/').map(p=>p.trim());
- if(parts.length>4||parts.some(p=>!p||p==='.'||p==='..'||p.length>40||p.endsWith('.')||/[\\\\<>:"|?*\\u0000-\\u001f]/.test(p)))
+ if(parts.length>4||parts.some(p=>!p||p==='.'||p==='..'||p.length>40||p.endsWith('.')||/[\\\\<>:"|?*\u0000-\u001f]/.test(p)))
    throw Error('Choose up to four valid folder levels separated by /.');
  return parts.join('/');
 }
 export function safeFileTags(value){
  const values=Array.isArray(value)?value:String(value??'').split(',');
  const tags=values.map(t=>String(t).trim()).filter(Boolean);
- if(tags.length>MAX_FILE_TAGS||tags.some(t=>t.length>40||/[<>\\u0000-\\u001f]/.test(t))||
+ if(tags.length>MAX_FILE_TAGS||tags.some(t=>t.length>40||/[<>\u0000-\u001f]/.test(t))||
    new Set(tags.map(t=>t.toLocaleLowerCase())).size!==tags.length)throw Error('Use up to 12 unique tags, each at most 40 characters.');
  return tags;
 }
