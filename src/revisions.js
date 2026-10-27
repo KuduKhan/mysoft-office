@@ -82,7 +82,7 @@ export function restoreRevision(file,revision) {
 
 export function nameRevision(revisions,file,name,at=Date.now()){
  const label=String(name??'').trim();
- if(!label||label.length>80||/[\\u0000-\\u001f]/.test(label))throw Error('Milestones need a name of 1–80 characters.');
+ if(!label||label.length>80||/[\u0000-\u001f]/.test(label))throw Error('Milestones need a name of 1–80 characters.');
  const content=versionContent(file),items=[...(revisions[file.id]||[])],last=items.at(-1);
  if(last&&JSON.stringify(last.content)===JSON.stringify(content))items[items.length-1]={...last,name:label};
  else items.push({at,content,name:label});
