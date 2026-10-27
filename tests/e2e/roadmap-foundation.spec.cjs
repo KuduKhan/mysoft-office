@@ -1,0 +1,26 @@
+const {test,expect}=require('@playwright/test');
+test('shared folder and tags survive reload; library filters and milestones are accessible',async({page})=>{
+ await page.goto('/');await page.locator('[data-create="docs"]').first().click();
+ await page.locator('[data-action="file-menu"]').click();
+ await page.locator('[data-command-run="action:organize"]').click();
+ await expect(page.locator('#organize-form')).toBeVisible();
+ await page.locator('#organize-folder').fill('Projects/Research');
+ await page.locator('#organize-tags').fill('Review, Source');
+ await page.locator('#organize-form button[type=submit]').click();
+ await page.keyboard.press('Control+s');await page.reload();
+ await page.locator('[data-action="file-menu"]').click();
+ await page.locator('[data-command-run="action:organize"]').click();
+ await expect(page.locator('#organize-folder')).toHaveValue('Projects/Research');
+ await expect(page.locator('#organize-tags')).toHaveValue('Review, Source');
+ await page.locator('[data-action="modal-close"]').click();
+ await page.locator('[data-action="revisions"]').click();
+ await page.locator('[data-action="revision-milestone"]').click();
+ page.once('dialog',dialog=>dialog.accept('First review'));
+ await expect(page.locator('.modal')).toContainText('First review');
+ await page.locator('[data-action="modal-close"]').click();
+ await page.locator('[data-nav="files"]').click();
+ await page.locator('#library-folder').selectOption('Projects/Research');
+ await expect(page.locator('#library-results')).toContainText('1 file');
+ await page.locator('#library-tag').selectOption('Review');
+ await expect(page.locator('#library-results')).toContainText('1 file');
+});

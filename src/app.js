@@ -19,7 +19,8 @@ import {recentWorkspaceFiles,editorMetric} from './studio-workspace.js';
 import {searchWorkspaceFiles,workspaceMatchSource} from './workspace-search.js';
 import { BrowserWorkspaceStore, readLegacyWorkspace, readRecoveryJournal, validateWorkspace, LEGACY_KEYS, RECOVERY_KEY } from './workspace-storage.js';
 import { COLUMNS, ROW_COUNT, displayCell } from './formulas.js';
-import { addRevision, restoreRevision } from './revisions.js';
+import { addRevision, restoreRevision, nameRevision, compareRevision, restoreRevisionPart } from './revisions.js';
+import {organizeFile,libraryFolders,libraryTags,filterLibraryOrganization,potentialDuplicates} from './file-organization.js';
 import { parseCSV, makeCSV } from './file-formats.js';
 import { cloudConfigured, cloudCurrentUser, cloudSignIn, cloudSignOut, cloudPush, cloudPull } from './cloud.js';
 import {cloudSnapshotSummary,workspaceSignature} from './cloud-sync.js';
@@ -160,7 +161,7 @@ function sheetRecalculator(file){
   return graph;
 }
 const documentHistory=new DocumentHistory();
-let view='home',activeId=null,query='',fileFilter='all',selectedCell='A1',slideIndex=0,mobileOpen=false,sheetScrollTop=0;
+let view='home',activeId=null,query='',fileFilter='all',folderFilter='',tagFilter='',onlyDuplicates=false,selectedCell='A1',slideIndex=0,mobileOpen=false,sheetScrollTop=0;
 let librarySort='updated-desc';
 try{librarySort=normalizeLibrarySort(localStorage.getItem('mysoft-office-library-sort'));}catch{}
 const STUDIO_SHELL_KEY='mysoft-office-shell-v1';
@@ -264,7 +265,7 @@ function renderRows(list,{recent=false}={}){
   }
   if(!list.length) return '<div class="empty-state">'+icon('folder',36)+'<h3>No matching files yet</h3><p>Create a new file to get started.</p><button class="btn btn-primary" data-action="new">'+icon('plus',15)+' Create file</button></div>';
   return '<div class="panel"><table class="data-table"><thead><tr><th>Name</th><th>Type</th><th>Modified</th><th>Actions</th></tr></thead><tbody>'+
-    list.map(f=>'<tr data-open="'+esc(f.id)+'" style="cursor:pointer"><td><div class="row"><span class="file-icon '+f.type+'">'+icon(fileIcon(f),17)+'</span><div><button type="button" class="file-name file-open" data-open="'+esc(f.id)+'" title="'+esc(f.title)+'">'+esc(f.title)+'</button><div class="file-type">'+labels[f.type]+(recent?'<span class="home-modified-mobile">'+esc(homeDate(f.updatedAt))+'</span>':'')+'</div>'+(query.trim()&&workspaceMatchSource(f,query)!=='name'?'<div class="workspace-search-origin">Found in '+esc(workspaceMatchSource(f,query))+'</div>':'')+'</div></div></td><td><span class="badge">'+typeNames[f.type]+'</span></td><td class="muted">'+(recent?esc(homeDate(f.updatedAt)):dateText(f.updatedAt))+'</td><td><div class="row"><button class="icon-btn '+(f.starred?'starred':'')+'" data-star="'+esc(f.id)+'" title="Toggle favorite" aria-label="Toggle favorite" aria-pressed="'+Boolean(f.starred)+'">'+icon('star',16)+'</button><button class="icon-btn" data-duplicate="'+esc(f.id)+'" title="Duplicate" aria-label="Duplicate">'+icon('copy',16)+'</button><button class="icon-btn" data-delete="'+esc(f.id)+'" title="Delete" aria-label="Delete">'+icon('trash',16)+'</button></div></td></tr>').join('')+'</tbody></table></div>';
+    list.map(f=>'<tr data-open="'+esc(f.id)+'" style="cursor:pointer"><td><div class="row"><span class="file-icon '+f.type+'">'+icon(fileIcon(f),17)+'</span><div><button type="button" class="file-name file-open" data-open="'+esc(f.id)+'" title="'+esc(f.title)+'">'+esc(f.title)+'</button><div class="file-type">'+labels[f.type]+(recent?'<span class="home-modified-mobile">'+esc(homeDate(f.updatedAt))+'</span>':'')+'</div>'+(query.trim()&&workspaceMatchSource(f,query)!=='name'?'<div class="workspace-search-origin">Found in '+esc(workspaceMatchSource(f,query))+'</div>':'')+'</div></div></td><td><span class="badge">'+typeNames[f.type]+'</span></td><td class="muted">'+(recent?esc(homeDate(f.updatedAt)):dateText(f.updatedAt))+'</td><td><div class="row"><button class="icon-btn '+(f.starred?'starred':'')+'" data-star="'+esc(f.id)+'" title="Toggle favorite" aria-label="Toggle favorite" aria-pressed="'+Boolean(f.starred)+'">'+icon('star',16)+'</button><button class="icon-btn" data-organize="'+esc(f.id)+'" title="Organize folder and tags" aria-label="Organize file">'+icon('folder',16)+'</button><button class="icon-btn" data-duplicate="'+esc(f.id)+'" title="Duplicate" aria-label="Duplicate">'+icon('copy',16)+'</button><button class="icon-btn" data-delete="'+esc(f.id)+'" title="Delete" aria-label="Delete">'+icon('trash',16)+'</button></div></td></tr>').join('')+'</tbody></table></div>';
 }
 function filtered(list){return searchWorkspaceFiles(list,query);}
 function updateEditorMetrics(){
@@ -283,7 +284,7 @@ function home(){
     '<section class="home-recents" aria-label="Recent files">'+sectionHead('Recent files','Your latest work, ready to continue.','files','View all files')+(recent.length?previewCards(recent):empty)+'</section></div>';
 }
 function libraryEmpty(){
- const restricted=Boolean(query.trim()||fileFilter!=='all');
+ const restricted=Boolean(query.trim()||fileFilter!=='all'||folderFilter||tagFilter||onlyDuplicates);
  const type=typeNames[view]?view:null;
  const title=restricted?'No files match your search':view==='trash'?'Your recycle bin is empty':view==='starred'?'Keep your important work close':type?'Your '+labels[type].replace('MySoft ','')+' workspace starts here':'A space for your next idea';
  const text=restricted?'Try a different name, or clear the search and filters.':view==='trash'?'Files you delete appear here so you can restore them.':view==='starred'?'Select the star on any file to find it quickly here.':type?'Create a file or choose a template to get started.':'Create something new or import a file you already have.';
@@ -296,12 +297,13 @@ function filesPage(){
  else if(typeNames[view])list=list.filter(f=>f.type===view);
  const total=list.length;
  if(fileFilter!=='all')list=list.filter(f=>f.type===fileFilter);
+ list=filterLibraryOrganization(list,{folder:folderFilter,tag:tagFilter,duplicates:onlyDuplicates});
  list=sortLibraryFiles(filtered(list),librarySort);
  const title=view==='trash'?'Recycle bin':view==='starred'?'Starred files':typeNames[view]?labels[view]:'All files';
- const filteredState=Boolean(query.trim()||fileFilter!=='all');
+ const filteredState=Boolean(query.trim()||fileFilter!=='all'||folderFilter||tagFilter||onlyDuplicates);
  const count=list.length+' '+(list.length===1?'file':'files')+(filteredState?' of '+total:'')+(query.trim()?' matching “'+query.trim().slice(0,128)+'”':'');
  return '<div class="content library-content"><div class="spread page-heading"><div><span class="library-eyebrow">YOUR WORK, ORGANIZED</span><h1 id="library-title" tabindex="-1" aria-describedby="library-results">'+esc(title)+'</h1><p id="library-results" class="subtitle" role="status">'+esc(count)+'</p></div>'+(view!=='trash'?'<div class="mo-view-switch" role="group" aria-label="File display"><button type="button" data-action="files-list" aria-label="List view" aria-pressed="'+(fileDisplay==='list')+'">'+icon('list-tree',16)+'</button><button type="button" data-action="files-grid" aria-label="Grid view" aria-pressed="'+(fileDisplay==='grid')+'">'+icon('grid',16)+'</button></div>':'')+'</div>'+
- '<div class="file-filters library-controls"><label class="library-filter"><span>File type</span><select id="file-filter" aria-label="Filter by file type"><option value="all">All types</option>'+Object.keys(labels).map(t=>'<option value="'+t+'" '+(fileFilter===t?'selected':'')+'>'+labels[t]+'</option>').join('')+'</select></label><label class="library-sort"><span>Sort by</span><select id="library-sort" aria-label="Sort files">'+Object.entries(LIBRARY_SORTS).map(([value,label])=>'<option value="'+value+'"'+(librarySort===value?' selected':'')+'>'+label+'</option>').join('')+'</select></label>'+(filteredState&&list.length?'<button type="button" class="btn btn-light btn-sm library-reset" data-action="library-reset">'+icon('x',13)+' Clear filters</button>':'<span class="library-storage-note">'+icon('check',13)+' On this device</span>')+'</div>'+
+ '<div class="file-filters library-controls"><label class="library-filter"><span>File type</span><select id="file-filter" aria-label="Filter by file type"><option value="all">All types</option>'+Object.keys(labels).map(t=>'<option value="'+t+'" '+(fileFilter===t?'selected':'')+'>'+labels[t]+'</option>').join('')+'</select></label><label class="library-folder"><span>Folder</span><select id="library-folder" aria-label="Filter by folder"><option value="">All folders</option><option value=":root"'+(folderFilter===':root'?' selected':'')+'>Unfiled</option>'+libraryFolders(files).map(p=>'<option value="'+esc(p)+'"'+(p===folderFilter?' selected':'')+'>'+esc(p)+'</option>').join('')+'</select></label><label class="library-tag"><span>Tag</span><select id="library-tag" aria-label="Filter by tag"><option value="">All tags</option>'+libraryTags(files).map(tag=>'<option value="'+esc(tag)+'"'+(tag===tagFilter?' selected':'')+'>'+esc(tag)+'</option>').join('')+'</select></label><label class="library-duplicates"><input id="library-duplicates" type="checkbox"'+(onlyDuplicates?' checked':'')+'> Possible duplicates ('+potentialDuplicates(files).length+')</label><label class="library-sort"><span>Sort by</span><select id="library-sort" aria-label="Sort files">'+Object.entries(LIBRARY_SORTS).map(([value,label])=>'<option value="'+value+'"'+(librarySort===value?' selected':'')+'>'+label+'</option>').join('')+'</select></label>'+(filteredState&&list.length?'<button type="button" class="btn btn-light btn-sm library-reset" data-action="library-reset">'+icon('x',13)+' Clear filters</button>':'<span class="library-storage-note">'+icon('check',13)+' On this device</span>')+'</div>'+
  (list.length?(fileDisplay==='grid'&&view!=='trash'?previewCards(list):renderRows(list)):libraryEmpty())+'</div>';
 }
 function knowledgePage(){
@@ -465,7 +467,7 @@ window.addEventListener('resize',syncSidebarAccess);
 function navigate(destination){
   if(view==='editor'&&getActive())snapshot(getActive(),true);
   focusMode=false;
-  persist();view=destination;activeId=null;query='';fileFilter='all';mobileOpen=false;
+  persist();view=destination;activeId=null;query='';fileFilter='all';folderFilter='';tagFilter='';onlyDuplicates=false;mobileOpen=false;
   window.history.pushState(null,'','#/'+encodeURIComponent(destination));
   render();window.scrollTo(0,0);
 }
@@ -511,10 +513,12 @@ function modal(kind,id){
       '<h3>Links pointing here</h3>'+(details.incoming.map(x=>entry(x,false)).join('')||'<p class="muted">No incoming links yet.</p>')+
       '<label for="knowledge-target">Link another file</label><select id="knowledge-target" aria-label="Choose file to link">'+available.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.title+' ('+x.type+')')+'</option>').join('')+'</select>'+
       '<div class="modal-actions"><button class="btn btn-primary" data-action="knowledge-add" '+(!available.length?'disabled':'')+'>Add link</button><button class="btn btn-light" data-action="modal-close">Close</button></div></section></div>';
+  } else if(kind==='organize'&&f){
+    modalRoot.innerHTML='<div class="modal-backdrop"><form class="modal" id="organize-form" data-file-id="'+esc(f.id)+'" role="dialog" aria-modal="true" aria-label="Organize file"><h2>Organize file</h2><p>'+esc(f.title)+' · Set folder and tags across all six editors. Folders are separated with / and included in backups.</p><label for="organize-folder">Folder</label><input id="organize-folder" name="folder" maxlength="120" value="'+esc(f.folderPath||'')+'" placeholder="Projects/Research"><label for="organize-tags">Tags, separated by commas</label><input id="organize-tags" name="tags" maxlength="500" value="'+esc((f.tags||[]).join(', '))+'" placeholder="Work, Reference"><div class="modal-actions"><button class="btn btn-light" type="button" data-action="modal-close">Cancel</button><button class="btn btn-primary" type="submit">Save folder and tags</button></div></form></div>';
   } else if(kind==='revisions'&&f){
     snapshot(f,true);persist();
     const entries=[...(revisions[f.id]||[])].reverse();
-    modalRoot.innerHTML='<div class="modal-backdrop"><div class="modal"><h2>Version history</h2><p>Up to 12 local snapshots per file. Restore an earlier version if needed.</p><div style="max-height:280px;overflow:auto">'+entries.map((v,i)=>'<div class="spread" style="padding:11px 0;border-bottom:1px solid #ecedf4"><span class="muted" style="font-size:12px">'+new Date(v.at).toLocaleString()+'</span><button class="btn btn-soft btn-sm" data-revision="'+i+'">Restore</button></div>').join('')+'</div><div class="modal-actions"><button class="btn btn-light" data-action="modal-close">Close</button></div></div></div>';
+    modalRoot.innerHTML='<div class="modal-backdrop"><div class="modal"><h2>Version history</h2><p>Up to 12 snapshots per file, with named milestones, field comparison, and selective restoration. Original asset bytes remain unchanged.</p><button class="btn btn-soft btn-sm" data-action="revision-milestone">Name current milestone</button><div style="max-height:280px;overflow:auto">'+entries.map((v,i)=>'<div class="spread" style="padding:11px 0;border-bottom:1px solid #ecedf4"><span class="muted" style="font-size:12px">'+new Date(v.at).toLocaleString()+' · '+esc(v.name||'Automatic snapshot')+'</span><button class="btn btn-light btn-sm" data-revision-compare="'+i+'">Compare</button><button class="btn btn-soft btn-sm" data-revision="'+i+'">Restore</button></div>').join('')+'</div><div class="modal-actions"><button class="btn btn-light" data-action="modal-close">Close</button></div></div></div>';
   } else if(kind==='office-export'&&f){
     const fmt={docs:'DOCX',sheets:'XLSX',slides:'PPTX'}[f.type];
     const notices={
@@ -524,7 +528,7 @@ function modal(kind,id){
     };
     modalRoot.innerHTML='<div class="modal-backdrop"><div class="modal"><h2>Export to '+fmt+'</h2><p>'+notices[f.type]+'</p><p>For full preservation, also export a JSON workspace backup.</p><div class="modal-actions"><button class="btn btn-light" data-action="modal-close">Cancel</button><button class="btn btn-primary" data-action="office-export-confirm">Export '+fmt+'</button></div></div></div>';
   } else if(kind==='file-menu'){
-    modalRoot.innerHTML='<div class="modal-backdrop"><section class="modal mo-file-dialog"><h2>File</h2><div class="mo-file-actions">'+[['action:save','Save on this device','save'],['action:history','Version history','clock'],['action:export','Export file','download'],['action:backup','Export workspace backup','download'],['nav:home','Overview','home'],['nav:files','All files','folder'],['nav:templates','Templates','grid'],['action:preferences','Workspace appearance','settings']].map(([id,label,glyph])=>'<button type="button" class="btn btn-light" data-command-run="'+id+'">'+icon(glyph,17)+label+'</button>').join('')+(getActive()?.type==='docs'?'<button type="button" class="btn btn-light" data-ot-action="docplus-stats">'+icon('file-check-2',17)+'File details</button><button type="button" class="btn btn-light" data-ot-action="docplus-html">'+icon('download',17)+'Download HTML copy</button>':'')+'<button type="button" class="btn btn-light" data-action="new">'+icon('plus',17)+'New file</button></div><div class="modal-actions"><button class="btn btn-light" data-action="modal-close">Close</button></div></section></div>';
+    modalRoot.innerHTML='<div class="modal-backdrop"><section class="modal mo-file-dialog"><h2>File</h2><div class="mo-file-actions">'+[['action:save','Save on this device','save'],['action:organize','Organize folder and tags','folder'],['action:history','Version history','clock'],['action:export','Export file','download'],['action:backup','Export workspace backup','download'],['nav:home','Overview','home'],['nav:files','All files','folder'],['nav:templates','Templates','grid'],['action:preferences','Workspace appearance','settings']].map(([id,label,glyph])=>'<button type="button" class="btn btn-light" data-command-run="'+id+'">'+icon(glyph,17)+label+'</button>').join('')+(getActive()?.type==='docs'?'<button type="button" class="btn btn-light" data-ot-action="docplus-stats">'+icon('file-check-2',17)+'File details</button><button type="button" class="btn btn-light" data-ot-action="docplus-html">'+icon('download',17)+'Download HTML copy</button>':'')+'<button type="button" class="btn btn-light" data-action="new">'+icon('plus',17)+'New file</button></div><div class="modal-actions"><button class="btn btn-light" data-action="modal-close">Close</button></div></section></div>';
   } else if(kind==='commands'){
     commandTools=[];
     const commands=[
@@ -533,7 +537,7 @@ function modal(kind,id){
       ['create:pdf','Open PDF workspace','PDF'],['create:media','Open Media workspace','Media'],
       ['nav:home','Home dashboard','Workspace'],['nav:files','All files','Workspace'],
       ['nav:templates','Browse app templates','Workspace'],['nav:knowledge','Knowledge Studio and project history','Workspace'],['nav:starred','Starred files','Workspace'],['action:preferences','Appearance and colors','Settings'],
-      ['action:save','Save locally','File']
+      ['action:save','Save locally','File'],['action:organize','Organize folder and tags','File']
     ];
     if(view==='editor'&&getActive()){
       const current=getActive();
@@ -869,7 +873,7 @@ document.addEventListener('click',event=>{
     document.querySelectorAll('[data-slide-object]').forEach(el=>el.classList.toggle('selected',el.dataset.slideObject===activeObjectId));
     return;
   }
-  const el=event.target.closest('[data-action],[data-nav],[data-create],[data-open],[data-star],[data-delete],[data-duplicate],[data-slide],[data-theme],[data-template],[data-cmd],[data-restore-trash],[data-purge],[data-revision],[data-outline-index],[data-review-toggle],[data-review-delete],[data-note-move],[data-note-pin],[data-command-run],[data-workspace-tab]');
+  const el=event.target.closest('[data-action],[data-nav],[data-create],[data-open],[data-star],[data-delete],[data-duplicate],[data-organize],[data-revision-compare],[data-slide],[data-theme],[data-template],[data-cmd],[data-restore-trash],[data-purge],[data-revision],[data-outline-index],[data-review-toggle],[data-review-delete],[data-note-move],[data-note-pin],[data-command-run],[data-workspace-tab]');
   if(!el){
     if(event.target.classList.contains('modal-backdrop'))closeModal();
     return;
@@ -894,6 +898,7 @@ document.addEventListener('click',event=>{
       }});
     }else if(id==='action:preferences')document.querySelector('[data-ot-action="preferences"]')?.click();
     else if(id==='action:save'){void saveCommand();}
+    else if(id==='action:organize'&&getActive())modal('organize',activeId);
     else if(id==='action:history'&&getActive())modal('revisions',activeId);
     else if(id==='action:export')exportFile();
     else if(id==='action:backup')backup();
@@ -934,6 +939,12 @@ document.addEventListener('click',event=>{
   }
   if(el.dataset.restoreTrash){restoreTrash(el.dataset.restoreTrash);return;}
   if(el.dataset.purge){purgeTrash(el.dataset.purge);return;}
+  if(el.dataset.organize!==undefined){modal('organize',el.dataset.organize);return;}
+  if(el.dataset.revisionCompare!==undefined){
+    const file=getActive(),revision=[...(revisions[file?.id]||[])].reverse()[Number(el.dataset.revisionCompare)];
+    if(file&&revision){const changes=compareRevision(file,revision);toast(changes.length?'Changed: '+changes.join(', ').slice(0,170):'This version matches the current file.');}
+    return;
+  }
   if(el.dataset.revision!==undefined){
     const file=getActive(),index=Number(el.dataset.revision);
     if(file){
@@ -941,7 +952,9 @@ document.addEventListener('click',event=>{
       const revision=history[index];
       if(revision&&confirm('Restore this version? The latest version remains in history.')){
         snapshot(file,true);
-        Object.assign(file,restoreRevision(file,revision));
+        const mode=prompt('Restore all, content, or organization?','all');if(mode===null)return;
+        try{Object.assign(file,restoreRevisionPart(file,revision,mode.trim().toLowerCase()));}
+        catch(error){toast(error.message);return;}
         persist();closeModal();render();toast('Version restored');
       }
     }
@@ -985,7 +998,7 @@ document.addEventListener('click',event=>{
       for(const item of updated)touch(item);void persist();render();toast(updated.length+' notes moved.');
     }catch(error){toast(error.message);}return;
   }
-  if(action==='search-clear'||action==='library-reset'){query='';if(action==='library-reset')fileFilter='all';render();document.getElementById('global-search')?.focus();return;}
+  if(action==='search-clear'||action==='library-reset'){query='';if(action==='library-reset'){fileFilter='all';folderFilter='';tagFilter='';onlyDuplicates=false;}render();document.getElementById('global-search')?.focus();return;}
   if(action==='mobile'){setMobileNavigation(!mobileOpen);return;}
   if(action==='mobile-close'||action==='mobile-dismiss'){setMobileNavigation(false,true);return;}
   if(action==='nav-collapse'){setCollapsedSidebar(!navCollapsed);return;}
@@ -1013,6 +1026,12 @@ document.addEventListener('click',event=>{
   if(action==='import')document.getElementById('backup-upload').click();
   if(action==='import-file')document.getElementById('external-file-upload').click();
   if(action==='revisions')modal('revisions',activeId);
+  if(action==='organize'&&getActive())modal('organize',activeId);
+  if(action==='revision-milestone'&&getActive()){
+    const name=prompt('Name this milestone (up to 80 characters):','Release checkpoint');if(name===null)return;
+    try{revisions=nameRevision(revisions,getActive(),name);void persist();modal('revisions',activeId);toast('Named milestone saved');}
+    catch(error){toast(error.message);}return;
+  }
   if(action==='cloud')cloudCurrentUser().then(user=>{cloudUser=user;modal('cloud');}).catch(()=>toast('Could not open cloud sign-in'));
   if(action?.startsWith('cloud-'))runCloudAction(action);
   const f=getActive();
@@ -1033,6 +1052,11 @@ document.addEventListener('submit',event=>{
       toast(cloudUser?'Signed in successfully':'Account created. Check your email for verification.');
     }).catch(error=>toast('Cloud login: '+String(error.message||error).slice(0,90)));
     return;
+  }
+  if(event.target.id==='organize-form'){
+    event.preventDefault();const f=files.find(x=>x.id===event.target.dataset.fileId);if(!f)return;
+    try{organizeFile(f,{folderPath:event.target.elements.folder.value,tags:event.target.elements.tags.value});touch(f);void persist();closeModal();render();toast('Folder and tags saved');}
+    catch(error){toast(error.message);}return;
   }
   if(event.target.id!=='new-form')return;
   event.preventDefault();
@@ -1157,6 +1181,9 @@ document.addEventListener('focusout',event=>{
 });
 document.addEventListener('change',event=>{
   if(event.target.id==='file-filter'){fileFilter=event.target.value;render();document.getElementById('file-filter')?.focus();return;}
+  if(event.target.id==='library-folder'){folderFilter=event.target.value;render();document.getElementById('library-folder')?.focus();return;}
+  if(event.target.id==='library-tag'){tagFilter=event.target.value;render();document.getElementById('library-tag')?.focus();return;}
+  if(event.target.id==='library-duplicates'){onlyDuplicates=event.target.checked;render();document.getElementById('library-duplicates')?.focus();return;}
   if(event.target.id==='library-sort'){librarySort=normalizeLibrarySort(event.target.value);try{localStorage.setItem('mysoft-office-library-sort',librarySort);}catch{}render();document.getElementById('library-sort')?.focus();return;}
   if(event.target.id==='doc-block'){
     document.getElementById('rich-content')?.focus();

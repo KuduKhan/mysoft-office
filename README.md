@@ -1,5 +1,7 @@
 # MySoft Office
 
+**Full-suite roadmap in progress:** shared folder/tag controls, potential-duplicate discovery, named milestone history and selective restoration. Browser CI is pinned to a supported runner; the complete requested feature list remains open. See [roadmap gates](ROADMAP_ACCEPTANCE.md).
+
 ## Capability completion gate (in progress; no new release number)
 
 Cross-application knowledge links now persist as stable file-ID edges and show backlinks across all six editors; Notes supports whole-notebook or section moves without rewriting note bodies. Media drawing layers support persistent locks that prevent inadvertent edits, reorder, transforms or destructive clearing; WebM export now checks for a valid container header before delivering output. PDF now stages native text and checkbox AcroForm values and exports interactive fields only when the original page order is kept; unsafe form merge or reorder is rejected. Basic native PDF annotations and Media color histograms are now in this integration tranche. Full forms, OCR, independently verified redaction, embedded outlines, signatures, raster layers, timelines and MP4 encoding remain unimplemented. See [capability completion gate](CAPABILITY_COMPLETION_GATE.md). **These are scoped foundations, not a claim that the entire requested PDF and Media production suites are complete.**
