@@ -14,8 +14,8 @@ test('shared folder and tags survive reload; library filters and milestones are 
  await expect(page.locator('#organize-tags')).toHaveValue('Review, Source');
  await page.locator('[data-action="modal-close"]').click();
  await page.locator('[data-action="revisions"]').click();
- await page.locator('[data-action="revision-milestone"]').click();
  page.once('dialog',dialog=>dialog.accept('First review'));
+ await page.locator('[data-action="revision-milestone"]').click();
  await expect(page.locator('.modal')).toContainText('First review');
  await page.locator('[data-action="modal-close"]').click();
  await page.locator('[data-nav="files"]').click();
