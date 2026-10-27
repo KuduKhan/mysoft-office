@@ -19,7 +19,7 @@ test('shared folder and tags survive reload; library filters and milestones are 
  await page.locator('[data-action="revision-milestone"]').click();
  await expect(page.locator('.modal')).toContainText('First review');
  await page.locator('[data-action="modal-close"]').click();
- await page.locator('[data-nav="files"]').click();
+ await page.goto('/#/files');
  await page.locator('#library-folder').selectOption('Projects/Research');
  await expect(page.locator('#library-results')).toContainText('1 file');
  await page.locator('#library-tag').selectOption('Review');
