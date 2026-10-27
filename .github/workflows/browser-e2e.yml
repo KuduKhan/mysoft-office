@@ -5,6 +5,10 @@ on:
   pull_request:
 permissions:
   contents: read
+# Avoid simultaneous Chromium processes from superseded pushes to the same PR.
+concurrency:
+  group: browser-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   browser:
     # Playwright 1.56.1 Chromium is unsupported on ubuntu26.04.
