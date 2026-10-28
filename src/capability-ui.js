@@ -1,3 +1,4 @@
+import {debugFormula} from './sheet-audit.js';
 import {workflowToolsV2,initializeWorkflowsV2} from './suite-workflows-ui.js';
 import {suiteProductivityTools,initializeSuiteProductivity} from './suite-productivity-ui.js';
 import {objectStyleFields,readObjectStyle} from './slide-customize-ui.js';
@@ -20,8 +21,8 @@ const btn=(action,label,ic='plus')=>'<button type="button" class="ot-btn" data-c
 export function capabilityToolbar(file,section='tools'){
   if(section==='insert')return file.type==='docs'?btn('callout','Callout','message-square-text'):'';
   const sets={docs:[['paragraph','Paragraph settings','align-left'],['uppercase','Uppercase block','type'],['lowercase','Lowercase block','type'],['cleanup','Clean empty paragraphs','file-text'],['workspace-link','Link a MySoft file','link'],['workspace-references','Linked files','list-tree']],sheets:[['trim-cells','Trim whitespace','table'],['unique','Unique rows to new sheet','table'],['split','Split text to new sheet','table']],slides:[['outline','Create from outline','presentation'],['reverse','Reverse slide order','rotate-ccw'],['copy-design','Copy current design to all','presentation'],['outline-export','Export speaker outline','download']],notes:[['note-link','Link another note','link'],['note-backlinks','Linked notes','link'],['note-tasks','Task dashboard','check'],['note-project','Project template','notebook'],['note-research','Research template','notebook'],['workspace-link','Link a MySoft file','link'],['workspace-references','Linked files','list-tree']]};
-  if(file.type==='docs')sets.docs.push(['writing-review','Writing review','file-check-2'],['image-descriptions','Image descriptions','image']);
-  if(file.type==='sheets')sets.sheets.push(['summary-table','Summarize by group','table']);
+  if(file.type==='docs')sets.docs.push(['writing-review','Document inspector','file-check-2'],['image-descriptions','Image descriptions','image']);
+  if(file.type==='sheets')sets.sheets.push(['summary-table','Summarize by group','table'],['formula-debugger','Formula debugger','list-tree']);
   if(file.type==='slides')sets.slides.push(['object-properties','Object properties','sliders-horizontal']);
   if(file.type==='notes')sets.notes.push(['capture-tasks','Capture tasks','square-check']);
   if(file.type==='sheets')sets.sheets.push(['text-formulas','Text tools','case-sensitive']);
@@ -77,9 +78,30 @@ export function initializeCapabilityTools(ctx){
       if(action==='image-descriptions-apply'){
         if(f.type!=='docs'||pending?.id!==f.id)throw Error('Reopen descriptions for this document.');const images=pending.images.slice(0,100),values=images.map((image,index)=>document.getElementById('pro-image-alt-'+index).value.trim());if(values.some(text=>!text||text.length>100))throw Error('Describe each image in 1–100 characters.');images.forEach((image,index)=>image.setAttribute('alt',values[index]));close();updateBody(f);return;
       }
+      if(action==='formula-debugger'){
+        if(f.type!=='sheets')return;
+        ensureWorkbook(f);
+        const selected=ctx.getSelectedCell(),report=debugFormula(f.cells,selected,{maxDepth:6,maxNodes:36});
+        const render=(entry,depth=0)=>{
+          const value=entry.truncated?'Depth or node limit reached':entry.cycle?'Circular reference':String(entry.value??'(empty)');
+          const name=esc(entry.cell),raw=entry.raw!==undefined?esc(String(entry.raw).slice(0,160)):'';
+          return '<li style="margin-left:'+Math.min(depth,8)*10+'px"><strong>'+name+'</strong>: '+esc(value)+
+            (entry.formula?'<span class="muted"> · '+raw+'</span>':entry.raw!==undefined?'<span class="muted"> · input '+raw+'</span>':'')+
+            (entry.cycle?' <strong>Cycle</strong>':'')+'</li>'+
+            (entry.dependencies||[]).map(child=>render(child,depth+1)).join('');
+        };
+        const count=report.dependents.length;
+        dialog('Formula debugger','<p>Read-only calculation trace for <strong>'+esc(selected)+
+          '</strong>. Input cells and intermediate results are shown below. The source worksheet is unchanged.</p>'+
+          '<ul class="cap-results" aria-label="Formula dependency trace">'+render(report.root)+'</ul>'+
+          '<p><strong>Direct dependents:</strong> '+(count?esc(report.dependents.slice(0,30).join(', ')):'None')+'</p>'+
+          (report.truncated?'<p class="muted">Trace truncated to protect performance. Select an intermediate cell and inspect it separately.</p>':'')+
+          '<p class="muted">Displayed results reflect the built-in formula evaluator. Unsupported formula types may report an error.</p>');
+        return;
+      }
       if(action==='writing-review'){
         if(f.type!=='docs')return;const report=writingReview(root());reviewTargets=report.issues.map(issue=>issue.node);
-        dialog('Writing review','<div class="pro-metrics"><div><strong>'+report.words+'</strong><span>Words</span></div><div><strong>'+report.minutes+' min</strong><span>Reading time</span></div><div><strong>'+report.headings+'</strong><span>Headings</span></div></div><p>Structural and accessibility checks. Select an item to locate it in your document.</p><div class="cap-results">'+(report.issues.length?report.issues.map((issue,index)=>'<button class="cap-result" data-pro-review-target="'+index+'">'+icon('file-check-2',16)+esc(issue.label)+'</button>').join(''):'<p>No structural issues found by these checks.</p>')+'</div><p class="muted">These checks do not assess spelling, grammar, factual accuracy or every accessibility requirement.</p>');return;
+        dialog('Document inspector','<div class="pro-metrics"><div><strong>'+report.words+'</strong><span>Words</span></div><div><strong>'+report.minutes+' min</strong><span>Reading time</span></div><div><strong>'+report.headings+'</strong><span>Headings</span></div></div><p>Check headings, references, merge fields, images, tables and links before export. Select an issue to locate it in the document.</p><div class="cap-results">'+(report.issues.length?report.issues.map((issue,index)=>'<button class="cap-result" data-pro-review-target="'+index+'">'+icon('file-check-2',16)+esc(issue.label)+'</button>').join(''):'<p>No structural issues found by these checks.</p>')+'</div><p class="muted">Preflight does not prove print pagination, layout overflow, spelling, grammar or complete accessibility. Verify exported pages independently.</p>');return;
       }
       if(action==='summary-table'){
         if(f.type!=='sheets')return;ensureWorkbook(f);pending={id:f.id,sheet:f.activeSheetIndex};dialog('Summarize by group','<p>Create a summary snapshot in a new worksheet. Source cells and formulas stay intact.</p>'+input('pro-summary-range','Source range','A1:B10')+'<div class="cap-form">'+input('pro-summary-group','Group column','A','text','maxlength="1"')+input('pro-summary-value','Value column','B','text','maxlength="1"')+'</div><label class="cap-field">Aggregation<select id="pro-summary-operation" aria-label="Aggregation">'+['sum','average','min','max','count'].map(value=>'<option>'+value+'</option>').join('')+'</select></label><label class="cap-field"><span>First row contains headers</span><input type="checkbox" id="pro-summary-header" checked></label>','summary-table-apply');return;
