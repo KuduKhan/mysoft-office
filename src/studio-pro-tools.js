@@ -54,7 +54,7 @@ export function taskCaptureHTML(text){
 
 export function writingReview(root){
   const text=readableEditorText(root);
-  const words=(text.match(/[\\p{L}\\p{N}]+(?:['’_-][\\p{L}\\p{N}]+)*/gu)||[]).length;
+  const words=(text.match(/[\p{L}\p{N}]+(?:['’_-][\p{L}\p{N}]+)*/gu)||[]).length;
   const issues=[],add=(node,label)=>{if(issues.length<100)issues.push({node,label});};
   const headings=[...root.querySelectorAll('h1,h2,h3,h4,h5,h6')];
   if(text.trim()&&!headings.length)add(root,'No headings found: use headings to organize a longer document');
@@ -98,7 +98,7 @@ export function writingReview(root){
     // Direct text nodes include placeholders next to inline formatting.
     for(const child of node.childNodes){
       if(child.nodeType!==3)continue;
-      const match=(child.textContent||'').match(/\\{\\{[A-Za-z][A-Za-z0-9_.-]{0,39}\\}\\}/);
+      const match=(child.textContent||'').match(/\{\{[A-Za-z][A-Za-z0-9_.-]{0,39}\}\}/);
       if(match)add(node,'Unfilled mail-merge or template field: '+match[0]);
     }
   }
