@@ -53,11 +53,52 @@ export function taskCaptureHTML(text){
 }
 
 export function writingReview(root){
-  const text=readableEditorText(root),words=(text.match(/[\p{L}\p{N}]+(?:['’_-][\p{L}\p{N}]+)*/gu)||[]).length,issues=[];
+  const text=readableEditorText(root);
+  const words=(text.match(/[\\p{L}\\p{N}]+(?:['’_-][\\p{L}\\p{N}]+)*/gu)||[]).length;
+  const issues=[],add=(node,label)=>{if(issues.length<100)issues.push({node,label});};
+  const headings=[...root.querySelectorAll('h1,h2,h3,h4,h5,h6')];
+  if(text.trim()&&!headings.length)add(root,'No headings found: use headings to organize a longer document');
   let previous=0;
-  for(const node of root.querySelectorAll('h1,h2,h3,h4,h5,h6')){const level=Number(node.tagName[1]);if(level>previous+1)issues.push({node,label:'Heading level jumps to '+node.tagName.toUpperCase()+': '+node.textContent.trim().slice(0,70)});if(!node.textContent.trim())issues.push({node,label:'Empty heading'});previous=level;}
-  for(const node of root.querySelectorAll('img'))if(!node.getAttribute('alt')?.trim()||/^(inserted picture|image|picture)$/i.test(node.getAttribute('alt').trim()))issues.push({node,label:'Image needs a descriptive alternative text'});
-  for(const node of root.querySelectorAll('a'))if(!node.textContent.trim()||/^(click here|here|read more|link)$/i.test(node.textContent.trim()))issues.push({node,label:'Give this link a descriptive label'});
-  for(const node of root.querySelectorAll('table'))if(!node.querySelector('th'))issues.push({node,label:'Table has no header cells'});
-  return {words,characters:text.length,minutes:Math.max(1,Math.ceil(words/200)),headings:root.querySelectorAll('h1,h2,h3,h4,h5,h6').length,issues:issues.slice(0,100)};
+  for(const node of headings){
+    const level=Number(node.tagName[1]);
+    if(level>previous+1)add(node,'Heading level jumps to '+node.tagName.toUpperCase()+': '+node.textContent.trim().slice(0,70));
+    if(!node.textContent.trim())add(node,'Empty heading');
+    previous=level;
+  }
+  for(const node of root.querySelectorAll('img')){
+    const alt=node.getAttribute('alt');
+    // Empty alt is legitimate for purely decorative images; missing alt is not.
+    if(alt===null||/^(inserted picture|image|picture)$/i.test((alt||'').trim()))
+      add(node,'Image needs descriptive alt text, or an intentionally empty alt for decoration');
+  }
+  const anchorIds=new Set();
+  for(const node of root.querySelectorAll('[id]')){
+    const id=node.getAttribute('id');
+    if(!id)continue;
+    if(anchorIds.has(id))add(node,'Duplicate bookmark / element ID: '+id.slice(0,80));
+    anchorIds.add(id);
+  }
+  for(const node of root.querySelectorAll('a')){
+    const label=node.textContent.trim();
+    if(!label||/^(click here|here|read more|link)$/i.test(label))
+      add(node,'Give this link a descriptive label');
+    const href=node.getAttribute('href')||'';
+    if(href.startsWith('#')&&href.length>1){
+      let target=href.slice(1);
+      try{target=decodeURIComponent(target);}catch{}
+      if(!anchorIds.has(target))add(node,'Broken internal bookmark / reference: '+target.slice(0,80));
+    }
+  }
+  for(const node of root.querySelectorAll('table')){
+    if(!node.querySelector('th'))add(node,'Table has no header cells');
+  }
+  // Production placeholders are exact {{field.name}} tokens. Warn only on
+  // supported field syntax; never mutate original document content here.
+  for(const node of root.querySelectorAll('p,li,h1,h2,h3,h4,h5,h6,td,th')){
+    if(node.children?.length)continue; // avoid listing the same nested field twice
+    const match=(node.textContent||'').match(/\\{\\{[A-Za-z][A-Za-z0-9_.-]{0,39}\\}\\}/);
+    if(match)add(node,'Unfilled mail-merge or template field: '+match[0]);
+  }
+  return {words,characters:text.length,minutes:Math.max(1,Math.ceil(words/200)),headings:headings.length,
+    issues:issues.slice(0,100),truncated:issues.length>=100};
 }
