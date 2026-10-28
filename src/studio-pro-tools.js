@@ -69,7 +69,7 @@ export function writingReview(root){
     const alt=node.getAttribute('alt');
     // Empty alt is legitimate for purely decorative images; missing alt is not.
     if(alt===null||/^(inserted picture|image|picture)$/i.test((alt||'').trim()))
-      add(node,'Image needs descriptive alt text, or an intentionally empty alt for decoration');
+      add(node,'Image needs a descriptive alternative text');
   }
   const anchorIds=new Set();
   for(const node of root.querySelectorAll('[id]')){
