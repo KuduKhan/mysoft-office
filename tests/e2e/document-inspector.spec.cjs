@@ -30,3 +30,37 @@ test('Docs preflight respects decorative alt and existing reference targets',asy
   });
   expect(issues).toEqual([]);
 });
+
+test('Docs inspector opens in compact Tools ribbon and locates an issue',async({page})=>{
+  await page.goto('/');
+  await page.locator('[data-create="docs"]').first().click();
+  await page.locator('#rich-content').evaluate(root=>{
+    root.innerHTML='<h1>Project brief</h1><p>Dear {{recipient.name}}</p>';
+    root.dispatchEvent(new Event('input',{bubbles:true}));
+  });
+  await page.locator('[data-ot-tab="Tools"]').click();
+  await page.locator('[data-capability-action="writing-review"]').click();
+  await expect(page.locator('#modal-root')).toContainText('Document inspector');
+  await expect(page.locator('#modal-root')).toContainText('Unfilled mail-merge');
+  await page.locator('[data-pro-review-target]').first().click();
+  await expect(page.locator('#modal-root')).toBeEmpty();
+});
+
+test('Sheets formula debugger displays evaluated precedents without changing data',async({page})=>{
+  await page.goto('/');
+  await page.locator('[data-create="sheets"]').first().click();
+  for(const [ref,value] of Object.entries({A1:'3',A2:'4',B1:'=A1+A2',C1:'=B1*2'})){
+    await page.locator('[data-cell="'+ref+'"]').fill(value);
+    await page.locator('[data-cell="'+ref+'"]').press('Enter');
+  }
+  await page.locator('[data-cell="C1"]').click();
+  await page.locator('[data-ot-tab="Tools"]').click();
+  await page.locator('[data-capability-action="formula-debugger"]').click();
+  const modal=page.locator('#modal-root');
+  await expect(modal).toContainText('Formula debugger');
+  await expect(modal).toContainText('B1');
+  await expect(modal).toContainText('A1');
+  await expect(modal).toContainText('14');
+  await modal.locator('[data-capability-action="close"]').click();
+  await expect(page.locator('[data-cell="C1"]')).toHaveValue('14');
+});
