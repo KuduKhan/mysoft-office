@@ -95,9 +95,12 @@ export function writingReview(root){
   // Production placeholders are exact {{field.name}} tokens. Warn only on
   // supported field syntax; never mutate original document content here.
   for(const node of root.querySelectorAll('p,li,h1,h2,h3,h4,h5,h6,td,th')){
-    if(node.children?.length)continue; // avoid listing the same nested field twice
-    const match=(node.textContent||'').match(/\\{\\{[A-Za-z][A-Za-z0-9_.-]{0,39}\\}\\}/);
-    if(match)add(node,'Unfilled mail-merge or template field: '+match[0]);
+    // Direct text nodes include placeholders next to inline formatting.
+    for(const child of node.childNodes){
+      if(child.nodeType!==3)continue;
+      const match=(child.textContent||'').match(/\\{\\{[A-Za-z][A-Za-z0-9_.-]{0,39}\\}\\}/);
+      if(match)add(node,'Unfilled mail-merge or template field: '+match[0]);
+    }
   }
   return {words,characters:text.length,minutes:Math.max(1,Math.ceil(words/200)),headings:headings.length,
     issues:issues.slice(0,100),truncated:issues.length>=100};
